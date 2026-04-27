@@ -20,5 +20,5 @@ app.listen(8080, () => {
 });
 
 
-await db.sync({force: true});
-await seed();
+// await db.sync({force: true});
+// await seed();
