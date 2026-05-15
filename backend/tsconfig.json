@@ -1,47 +1,44 @@
 {
-  // Visit https://aka.ms/tsconfig to read more about this file
+  // https://aka.ms/tsconfig
   "compilerOptions": {
-    // File Layout
+
+    // ── Estrutura de arquivos ──────────────────────────────────────────────
     "rootDir": "./src",
     "outDir": "./dist",
 
-    // Environment Settings
-    // See also https://aka.ms/tsconfig/module
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "target": "ES2022",
-    "types": ["node"],
-    // For nodejs:
-    // "lib": ["esnext"],
-    // "types": ["node"],
-    // and npm install -D @types/node
+    // ── Ambiente (Node.js + ESM moderno) ──────────────────────────────────
+    "module": "nodenext",           // Suporte a ESM e CJS com base na extensão
+    "moduleResolution": "nodenext", // Resolve imports como o Node 22+ faz
+    "target": "ES2022",             // Mantém async/await, top-level await, etc.
+    "lib": ["ES2023"],              // APIs disponíveis em runtime
+    "types": ["node"],              // Apenas tipos Node — sem globals de browser
 
-    // Other Outputs
-    "sourceMap": true,
-    "declaration": false,
-    // "declarationMap": true,
+    // ── Saídas adicionais ─────────────────────────────────────────────────
+    "sourceMap": true,              // Essencial para stack traces e debugger
+    "declaration": true,           // Gera .d.ts (útil mesmo em apps, para IDEs)
+    "declarationMap": true,        // Liga .d.ts ao fonte original
 
-    // Stricter Typechecking Options
-    "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": true,
+    // ── Checagem estrita ──────────────────────────────────────────────────
+    "strict": true,                         // Habilita todo o bloco strict
+    "noUncheckedIndexedAccess": true,       // arr[i] é T | undefined, não T
+    "exactOptionalPropertyTypes": true,     // { a?: string } ≠ { a: string | undefined }
+    "noImplicitReturns": true,              // Toda ramificação deve retornar
+    "noImplicitOverride": true,             // Forçar uso de `override` em subclasses
+    "noFallthroughCasesInSwitch": true,     // Proíbe case sem break/return
+    "noUnusedLocals": true,                 // Variáveis locais não usadas → erro
+    "noUnusedParameters": true,             // Parâmetros não usados → erro
 
-    // Style Options
-    // "noImplicitReturns": true,
-    // "noImplicitOverride": true,
-    // "noUnusedLocals": true,
-    // "noUnusedParameters": true,
-    // "noFallthroughCasesInSwitch": true,
-    // "noPropertyAccessFromIndexSignature": true,
+    // ── Qualidade de módulos ───────────────────────────────────────────────
+    "moduleDetection": "force",             // Todo arquivo é um módulo (sem globals vazando)
+    "verbatimModuleSyntax": true,           // Imports de tipo devem usar `import type`
+    "isolatedModules": true,               // Compatível com esbuild/swc/transpilers
 
-    // Recommended Options
-    "strict": true,
-    // "jsx": "react-jsx",
-    // "verbatimModuleSyntax": false,
-    // "isolatedModules": true,
-    // "noUncheckedSideEffectImports": false,
-    "moduleDetection": "force",
-    "skipLibCheck": true,
-    "allowImportingTsExtensions": true,
-    "rewriteRelativeImportExtensions": true,
-  }
+    // ── Compatibilidade e conveniência ────────────────────────────────────
+    "skipLibCheck": true,                   // Ignora erros em .d.ts de dependências
+    "allowImportingTsExtensions": true,     // Permite `import './foo.ts'`
+    "rewriteRelativeImportExtensions": true // Reescreve .ts → .js no output
+  },
+
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
 }

@@ -21,7 +21,6 @@
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.20.0",
     "pg-hstore": "^2.3.4",
-    "sequelize": "^6.37.8",
     "validator": "^13.15.35",
     "typescript": "^6.0.2"
   },
