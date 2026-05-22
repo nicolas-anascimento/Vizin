@@ -1,16 +1,18 @@
 import parsedEnv from "./env.ts";
-import { Client } from "pg";
+import { Pool } from "pg";
 
 const dbHost = parsedEnv!.DB_HOST;
 const dbUser = parsedEnv!.DB_USER;
 const dbPwd = parsedEnv!.DB_PWD;
 const dbName = parsedEnv!.DB_NAME;
+const dbPort = parsedEnv!.DB_PORT as unknown as number;
 
-const db = new Client({
-  user: dbUser,
+const pool = new Pool({
   host: dbHost,
-  password: dbPwd,
+  port: dbPort,
   database: dbName,
+  user: dbUser,
+  password: dbPwd,
 });
 
-export default db;
+export default pool;
