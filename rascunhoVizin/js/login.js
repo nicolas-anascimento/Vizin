@@ -12,6 +12,7 @@ LoginLink.addEventListener('click',()=>{
 document.querySelector('.Register form').addEventListener('submit', async (e) => {
     e.preventDefault();
 
+    const nome = document.getElementById('registerNome').value;
     const email = document.getElementById('registerEmail').value;
     const senha = document.getElementById('registerSenha').value;
     const erro = document.getElementById('registerErro');
@@ -20,7 +21,7 @@ document.querySelector('.Register form').addEventListener('submit', async (e) =>
     erro.classList.remove("erro", "sucesso");
 
     try {
-        const data = await cadastrar(email, senha);
+        const data = await cadastrar(nome, email, senha);
 
         if (data.success) {
             erro.textContent = "Conta criada com sucesso!";
