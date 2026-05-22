@@ -45,23 +45,29 @@
             <center><img src="img/logo.png" alt="logo" class="animation" style="--li:17; --S:0"></center>
             <h2 class="animation" style="--li:17; --S:0">Crie sua conta</h2>
             <form action="#">
-                <div class="input-box animation"  style="--li:18; --S:1">
+
+                <div class="input-box animation" style="--li:18; --S:1">
+                    <input type="text" name="nome" id="registerNome" required>
+                    <label for="registerNome">Nome</label>
+                    <i class="bi bi-person-fill"></i>
+                </div>
+
+                <div class="input-box animation"  style="--li:19; --S:2">
                     <input type="text" name="email" id="registerEmail" required>
-                   <label for="registerEmail">Email</label>
+                    <label for="registerEmail">Email</label>
                     <i class="bi bi-envelope"></i>
                 </div>
-                <div class="input-box animation"  style="--li:19; --S:2">
+
+                <div class="input-box animation"  style="--li:20; --S:3">
                     <input type="password" name="senha" id="registerSenha" required>
                     <label for="registerSenha">Senha</label>
                     <i class="bi bi-lock-fill"></i>
                 </div>
-                <div class="input-box animation"  style="--li:20; --S:3">
+
+                <div class="input-box animation"  style="--li:21; --S:4">
                     <button class="btn" type="submit">Criar conta</button>
                 </div>
-                <p id="registerErro"  class="animation" style="--li:21; --S:4" ></p>
-                <div class="regi-link animation"  style="--li:21; --S:4">
-                    <p>Já tem uma conta? <a href="#" class="SignInLink">Faça login</a></p> 
-                </div>
+
             </form>
         </div>
         <div class="info-content Register">
