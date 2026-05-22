@@ -22,6 +22,10 @@ async function login(email, senha) {
 }
 
 // CADASTRO
-async function cadastrar(email, senha) {
-    return await apiRequest("/usuarios", "POST", { email, senha });
+async function cadastrar(nome, email, senha) {
+    return await apiRequest("/usuarios", "POST", {
+        nome,
+        email,
+        senha
+    });
 }
