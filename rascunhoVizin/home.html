@@ -28,11 +28,11 @@
         <li><a href="#" class="protegido"><i class="bi bi-person"></i> Perfil<span></span></a></li>
         <li><a href="#" class="protegido"><i class="bi bi-headset"></i> Suporte<span></span></a></li>
 
-        <!-- 🔥 LOGIN AGORA DENTRO -->
+        <!-- 🔥 Logout AGORA DENTRO -->
         <li class="login-mobile">
-            <a href="login.html">
-                <button class="btn-login">LOGIN</button>
-            </a>
+            <button class="btn-login" id="btnLogout">
+                <i class="bi bi-box-arrow-right"></i> SAIR
+            </button>
         </li>
     </ul>
 </nav>
@@ -44,6 +44,7 @@
 <section>
     <div class="banner">
         <div>
+            <p id="boasVindas" class="boas-vindas"></p>
             <h1>Descubra objetos próximos</h1>
             <p>Encontre o que você precisa na sua vizinhança.</p>
         </div>
@@ -118,8 +119,35 @@
             <li><a href="#">Suporte</a></li>
         </ul>
     </div>
+
+    
+    <div>
+        <h2>Contato</h2>
+        <ul>
+
+            <li>
+                <p class="email" id="emailEmpresa">
+                    <i class="bi bi-envelope"></i> equipevizin@gmail.com
+                </p>
+            </li>
+            
+            <li><i class="bi bi-telephone"></i> (19) 99999-9999</li>
+
+            <li><i class="bi bi-geo-alt"></i> Hortolândia, SP - Brasil</li>
+        </ul>
+    </div>
+    
+    </div>
+
+<hr>
+
+    <div class="inferior-center">
+        <p>© 2026 Vizin.</p>
+    </div>
     </div>
 </footer>
+
+<div id="toast" class="toast">Copiado ✔</div>
 
 <script src="js/script.js"></script>
 </body>
