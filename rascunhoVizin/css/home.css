@@ -193,9 +193,6 @@ section{
     align-items: center;
     gap: 10px;
 }
-.login-mobile{
-    display: none;
-}
 
 @media (max-width: 1280px){
     .login-mobile{
@@ -521,7 +518,7 @@ footer{
     width: 100%;
     height: 360px;
     background: linear-gradient(90deg,rgba(56, 29, 115, 1) 0%, rgba(109, 73, 242, 1) 50%, rgba(56, 29, 115, 1) 100%);
-    padding: 50px 5%;
+    padding: 50px 5% 50px 5%;
 }
 
 footer p{
@@ -533,11 +530,11 @@ footer p{
     width: 100%;
     height: auto;
     display: flex;
+    justify-content: space-between;
 }
 
 .logo-footer{
     height: 100%;
-    width: 33%;
 }
 
 .logo-footer p{
@@ -545,7 +542,7 @@ footer p{
 }
 
 footer img{
-    width: 25%;
+    width: 127px;
     margin-bottom: 20px;
 }
 
@@ -570,10 +567,10 @@ footer ul{
 
 footer ul li{
     margin: 20px 0px;
+    color: #f2f2f2d3;
 }
 
 footer ul li a{
-    color:#f2f2f2d3 ;
     text-decoration: none;
     transition: .5s;
 }
@@ -584,4 +581,103 @@ footer ul li a:hover{
 
 footer h2{
     color: #F2F2F2;
+}
+
+.email{
+    cursor: pointer;
+}
+
+.email:active{
+    color:#F27C38;
+}
+
+.toast{
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background: #0D0D0D;
+    color: #F2F2F2;
+    padding: 15px 20px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 0 20px #00000040;
+
+    opacity: 0;
+    transform: translateY(20px);
+    pointer-events: none;
+
+    transition: all 0.4s ease;
+    z-index: 9999;
+}
+
+/* quando aparece */
+.toast.show{
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* variação sucesso */
+.toast.sucesso{
+    background: linear-gradient(90deg, #6D49F2, #F27C38);
+}
+
+@media(max-width: 600px){
+    .toast{
+        right: 50%;
+        transform: translateX(50%) translateY(20px);
+    }
+
+    .toast.show{
+        transform: translateX(50%) translateY(0);
+    }
+}
+
+footer hr{
+    border-color: #f2f2f27a;
+}
+
+.inferior-center{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.boas-vindas{
+    margin-bottom: 12px;
+    font-size: 20px;
+    color: #F2F2F2;
+    font-weight: 500;
+}
+
+.boas-vindas strong{
+    color: #F27C38;
+}
+
+/* ================= USUÁRIO LOGADO ================= */
+
+.usuario-logado{
+    color: #F2F2F2;
+    font-size: 15px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.usuario-logado i{
+    font-size: 20px;
+    color: #F27C38;
+}
+
+/* MOBILE */
+
+@media (max-width: 768px){
+
+    .usuario-logado{
+        justify-content: center;
+        margin-bottom: 15px;
+    }
+
 }
