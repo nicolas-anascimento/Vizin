@@ -1,0 +1,44 @@
+{
+  // https://aka.ms/tsconfig
+  "compilerOptions": {
+
+    // ── Estrutura de arquivos ──────────────────────────────────────────────
+    "rootDir": "./src",
+    "outDir": "./dist",
+
+    // ── Ambiente (Node.js + ESM moderno) ──────────────────────────────────
+    "module": "nodenext",           // Suporte a ESM e CJS com base na extensão
+    "moduleResolution": "nodenext", // Resolve imports como o Node 22+ faz
+    "target": "ES2022",             // Mantém async/await, top-level await, etc.
+    "lib": ["ES2023"],              // APIs disponíveis em runtime
+    "types": ["node"],              // Apenas tipos Node — sem globals de browser
+
+    // ── Saídas adicionais ─────────────────────────────────────────────────
+    "sourceMap": true,              // Essencial para stack traces e debugger
+    "declaration": true,           // Gera .d.ts (útil mesmo em apps, para IDEs)
+    "declarationMap": true,        // Liga .d.ts ao fonte original
+
+    // ── Checagem estrita ──────────────────────────────────────────────────
+    "strict": true,                         // Habilita todo o bloco strict
+    "noUncheckedIndexedAccess": true,       // arr[i] é T | undefined, não T
+    "exactOptionalPropertyTypes": true,     // { a?: string } ≠ { a: string | undefined }
+    "noImplicitReturns": true,              // Toda ramificação deve retornar
+    "noImplicitOverride": true,             // Forçar uso de `override` em subclasses
+    "noFallthroughCasesInSwitch": true,     // Proíbe case sem break/return
+    "noUnusedLocals": true,                 // Variáveis locais não usadas → erro
+    "noUnusedParameters": true,             // Parâmetros não usados → erro
+
+    // ── Qualidade de módulos ───────────────────────────────────────────────
+    "moduleDetection": "force",             // Todo arquivo é um módulo (sem globals vazando)
+    "verbatimModuleSyntax": true,           // Imports de tipo devem usar `import type`
+    "isolatedModules": true,               // Compatível com esbuild/swc/transpilers
+
+    // ── Compatibilidade e conveniência ────────────────────────────────────
+    "skipLibCheck": true,                   // Ignora erros em .d.ts de dependências
+    "allowImportingTsExtensions": true,     // Permite `import './foo.ts'`
+    "rewriteRelativeImportExtensions": true // Reescreve .ts → .js no output
+  },
+
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
