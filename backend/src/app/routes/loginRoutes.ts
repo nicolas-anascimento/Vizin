@@ -3,7 +3,7 @@ import Login from "../controllers/loginController.ts";
 
 const login = express();
 
-login.get("/", Login.login);
-login.get("/logout", Login.logout);
+login.post("/", Login.login);
+login.post("/logout", Login.logout);
 
 export default login;

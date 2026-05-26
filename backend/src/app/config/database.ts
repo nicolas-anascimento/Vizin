@@ -1,18 +1,11 @@
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../../generated/prisma/client.ts";
 import parsedEnv from "./env.ts";
-import { Pool } from "pg";
 
-const dbHost = parsedEnv!.DB_HOST;
-const dbUser = parsedEnv!.DB_USER;
-const dbPwd = parsedEnv!.DB_PWD;
-const dbName = parsedEnv!.DB_NAME;
-const dbPort = parsedEnv!.DB_PORT as unknown as number;
 
-const pool = new Pool({
-  host: dbHost,
-  port: dbPort,
-  database: dbName,
-  user: dbUser,
-  password: dbPwd,
-});
+const connectionString = `${parsedEnv!.DATABASE_URL}`
+const adapter = new PrismaPg({connectionString})
+const prisma = new PrismaClient({adapter});
 
-export default pool;
+
+export default prisma;

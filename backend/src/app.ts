@@ -1,7 +1,7 @@
 import Express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import loginRoutes from "./app/routes/loginRoutes.ts";
+import api from "./app/routes/api.ts";
 
 const app = Express();
 
@@ -17,7 +17,8 @@ app.use(cors());
 // Rotas do backend
 // ===========================================================================
 
-app.use("/login", loginRoutes);
+app.use("/api", api);
+
 app.listen(8080, () => {
     console.log("http://localhost:8080");
 });
