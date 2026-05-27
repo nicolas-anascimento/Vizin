@@ -62,13 +62,13 @@ const Login: loginObj = {
 
       res.cookie("token", token, cookieConfig);
       if (user.tipo === "admin") {
-        res.redirect("/home");
+        res.redirect("/admin");
         res.json({
           success: true
         });
         return;
       } else {
-        res.redirect("/admin");
+        res.redirect("/home");
         res.json({
           success: true
         });
