@@ -80,16 +80,34 @@ document.querySelector('.Login form').addEventListener('submit', async (e) => {
             erro.textContent = "Login realizado com sucesso!";
             erro.classList.add("sucesso");
 
-            localStorage.setItem("token", data.token || "fake-token");
+            // ================= TOKEN =================
+            localStorage.setItem("token", data.token);
 
-            // salva usuário
+            // ================= USUÁRIO =================
             localStorage.setItem("usuario", JSON.stringify({
-                nome: data.usuario?.nome || "Usuário",
-                email: data.usuario?.email || email
+                id: data.usuario.id,
+                nome: data.usuario.nome,
+                email: data.usuario.email,
+                tipo: data.usuario.tipo
             }));
 
+            // ================= REDIRECIONAMENTO =================
             setTimeout(() => {
-                window.location.href = "home.html";
+
+                // ADMIN
+                if (data.usuario.tipo === "admin") {
+
+                    window.location.href = "dashboard-admin.html";
+
+                }
+
+                // USUÁRIO NORMAL
+                else {
+
+                    window.location.href = "home.html";
+
+                }
+
             }, 1000);
 
         } else {

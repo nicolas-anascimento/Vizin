@@ -3,6 +3,7 @@ import Express from "express";
 import cookieParser from "cookie-parser";
 import api from "./app/routes/api.ts";
 import path from "path";
+import web from "./app/routes/web.ts";
 
 const app = Express();
 
@@ -18,7 +19,7 @@ app.use(Express.json());
 // ===========================================================================
 
 app.use("/api", api);
-app.use("/", Express.static(path.resolve("../frontend/")))
+app.use("/", web);
 
 
 app.listen(8080, () => {

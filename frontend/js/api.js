@@ -1,4 +1,4 @@
-const API_URL = "/api";
+const API_URL = "http://localhost:3000/api";
 
 async function apiRequest(endpoint, method = "GET", body = null) {
     const options = {
