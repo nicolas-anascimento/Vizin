@@ -7,6 +7,6 @@ const senha = "123";
 const hash = await bcrypt.hash(senha, 10);
 console.log(hash);
 
-await prisma.user.create({
-  data: { email: "teste@email.com", password: hash },
+await prisma.usuarios.create({
+  data: { email: "teste@email.com", senha_hash: hash, nome: "teste User" },
 });
