@@ -23,7 +23,7 @@ const Login: loginObj = {
     const { email, senha } = req.body;
 
     try {
-      const user = await prisma.user.findUnique({
+      const user = await prisma.usuarios.findUnique({
         where: { email: email },
       });
 
@@ -35,7 +35,7 @@ const Login: loginObj = {
       console.log(user)
 
       
-      if (!(await bcrypt.compare(senha, user.password))) {
+      if (!(await bcrypt.compare(senha, user.senha_hash))) {
         res.status(401).json();
         return;
       }
@@ -73,7 +73,24 @@ const Login: loginObj = {
       return;
     }
   },
-  async register(_req, _res) {},
+  async register(req, res) {
+    const {email, senha, nome} = req.body;
+
+    try{
+      const senha_hash = await bcrypt.hash(senha, 10)
+
+      await prisma.usuarios.create({
+        data: {
+          email: email,
+          senha_hash: senha_hash,
+          nome: nome,
+        }
+      })
+    } catch(err) {
+      res.json(err)
+      return;
+    }
+  },
 
   async logout(_req, res) {
     const cookieVerify = validator.isEmpty(_req.cookies.token);
