@@ -18,7 +18,7 @@ web.get("/home", (_req, res) => {
     res.sendFile(view("home.html"))
 })
 web.get("/admin", isAdmin, (_req, res) => {
-    res.sendFile("dashboard-admin.html")
+    res.sendFile(view("dashboard-admin.html"))
 })
 web.get("/objetos", (_req, res) => {
     res.sendFile(view("meusobjetos.html"));

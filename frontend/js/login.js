@@ -80,31 +80,21 @@ document.querySelector('.Login form').addEventListener('submit', async (e) => {
             erro.textContent = "Login realizado com sucesso!";
             erro.classList.add("sucesso");
 
-            // ================= TOKEN =================
-            localStorage.setItem("token", data.token);
-
-            // ================= USUÁRIO =================
-            localStorage.setItem("usuario", JSON.stringify({
-                id: data.usuario.id,
-                nome: data.usuario.nome,
-                email: data.usuario.email,
-                tipo: data.usuario.tipo
-            }));
 
             // ================= REDIRECIONAMENTO =================
             setTimeout(() => {
 
                 // ADMIN
-                if (data.usuario.tipo === "admin") {
+                if (data.tipo === "admin") {
 
-                    window.location.href = "dashboard-admin.html";
+                    window.location.href = "/admin";
 
                 }
 
                 // USUÁRIO NORMAL
                 else {
 
-                    window.location.href = "home.html";
+                    window.location.href = "/home";
 
                 }
 
