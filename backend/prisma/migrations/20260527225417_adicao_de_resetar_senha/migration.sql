@@ -1,4 +1,5 @@
-CREATE EXTENSION IF NOT EXISTS postgis;
+-- CreateEnum
+CREATE TYPE "Tipos" AS ENUM ('admin', 'usuario');
 
 -- CreateTable
 CREATE TABLE "alugueis" (
@@ -193,6 +194,7 @@ CREATE TABLE "usuarios" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "nome" VARCHAR(100) NOT NULL,
     "email" VARCHAR(150) NOT NULL,
+    "tipo" "Tipos" NOT NULL DEFAULT 'usuario',
     "senha_hash" TEXT NOT NULL,
     "telefone" VARCHAR(20),
     "foto_url" TEXT,
@@ -217,6 +219,15 @@ CREATE TABLE "verificacoes_identidade" (
     "criado_em" TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "verificacoes_identidade_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Resetar_Senha" (
+    "id" TEXT NOT NULL,
+    "userId" UUID NOT NULL,
+    "pendente" BOOLEAN NOT NULL DEFAULT false,
+
+    CONSTRAINT "Resetar_Senha_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -314,3 +325,6 @@ ALTER TABLE "sinistros" ADD CONSTRAINT "sinistros_reportador_id_fkey" FOREIGN KE
 
 -- AddForeignKey
 ALTER TABLE "verificacoes_identidade" ADD CONSTRAINT "verificacoes_identidade_usuario_id_fkey" FOREIGN KEY ("usuario_id") REFERENCES "usuarios"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
+
+-- AddForeignKey
+ALTER TABLE "Resetar_Senha" ADD CONSTRAINT "Resetar_Senha_userId_fkey" FOREIGN KEY ("userId") REFERENCES "usuarios"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
