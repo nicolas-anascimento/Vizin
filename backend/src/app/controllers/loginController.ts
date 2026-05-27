@@ -34,7 +34,7 @@ const Login: loginObj = {
 
       console.log(user)
 
-      
+
       if (!(await bcrypt.compare(senha, user.senha_hash))) {
         res.status(401).json();
         return;
@@ -47,24 +47,33 @@ const Login: loginObj = {
       const cookieConfig: CookieOptions =
         parsedEnv!.NODE_ENV === "dev"
           ? {
-              httpOnly: true,
-              sameSite: "lax",
-              secure: false,
-              maxAge: 30 * 24 * 60 * 60 * 1000,
-            }
+            httpOnly: true,
+            sameSite: "lax",
+            secure: false,
+            maxAge: 30 * 24 * 60 * 60 * 1000,
+          }
           : {
-              httpOnly: true,
-              sameSite: "strict",
-              secure: true,
-              maxAge: 30 * 24 * 60 * 60 * 1000,
-            };
-            
+            httpOnly: true,
+            sameSite: "strict",
+            secure: true,
+            maxAge: 30 * 24 * 60 * 60 * 1000,
+          };
+
 
       res.cookie("token", token, cookieConfig);
-      res.json({
-        success: true
-      });
-      return;
+      if (user.tipo === "admin") {
+        res.redirect("/home");
+        res.json({
+          success: true
+        });
+        return;
+      } else {
+        res.redirect("/admin");
+        res.json({
+          success: true
+        });
+        return;
+      }
     } catch (err) {
       console.log(err);
       res.status(400).json({
@@ -74,9 +83,9 @@ const Login: loginObj = {
     }
   },
   async register(req, res) {
-    const {email, senha, nome} = req.body;
+    const { email, senha, nome } = req.body;
 
-    try{
+    try {
       const senha_hash = await bcrypt.hash(senha, 10)
 
       await prisma.usuarios.create({
@@ -86,7 +95,7 @@ const Login: loginObj = {
           nome: nome,
         }
       })
-    } catch(err) {
+    } catch (err) {
       res.json(err)
       return;
     }
@@ -105,17 +114,17 @@ const Login: loginObj = {
     const cookieConfig: CookieOptions =
       parsedEnv!.NODE_ENV === "dev"
         ? {
-            httpOnly: true,
-            sameSite: "lax",
-            secure: false,
-            maxAge: 30 * 24 * 60 * 60 * 1000,
-          }
+          httpOnly: true,
+          sameSite: "lax",
+          secure: false,
+          maxAge: 30 * 24 * 60 * 60 * 1000,
+        }
         : {
-            httpOnly: true,
-            sameSite: "strict",
-            secure: true,
-            maxAge: 30 * 24 * 60 * 60 * 1000,
-          };
+          httpOnly: true,
+          sameSite: "strict",
+          secure: true,
+          maxAge: 30 * 24 * 60 * 60 * 1000,
+        };
     res.clearCookie("token", cookieConfig);
     res.json();
     return;
