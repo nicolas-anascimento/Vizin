@@ -20,6 +20,9 @@
             </div>
 
             <nav>
+                <div class="admin-logado" id="adminLogado">
+        
+    </div>
     <ul>
         <li><a href="/home"><i class="bi bi-people"></i> Usuários<span></span></a></li>
         <li><a href="/objetos" ><i class="bi bi-box-seam"></i> Anúncios / itens<span></span></a></li>
@@ -30,6 +33,7 @@
         <li><a href="#"><i class="bi bi-bell"></i> Notificações<span></span></a></li>
         <li><a href="#"><i class="bi bi-gear"></i> Configurações<span></span></a></li>
     </ul>
+
     <hr>
 
     <button class="btn-login" id="btnLogout">
@@ -40,6 +44,89 @@
         </div>
     </div>
 </header>
+
+<section class="main">
+    <div class="flex-main">
+        <div>
+            <h1>Gerenciamento de Usuários</h1>
+            <p>Gerencie todos os usuários da plataforma</p>
+        </div>
+
+        <button class="btn-usuario">
+            <i class="bi bi-plus-lg"></i> Novo Usuário
+        </button>
+    </div>
+
+    <div class="flex-main">
+        <div class="usuarios-container">
+
+    <div class="usuarios-topo">
+
+        <div class="busca-box">
+            <i class="bi bi-search"></i>
+            <input
+                type="text"
+                id="buscarUsuario"
+                placeholder="Buscar por nome, email ou CPF..."
+            >
+        </div>
+
+        <button class="btn-filtro">
+            <i class="bi bi-funnel"></i>
+            Filtros
+        </button>
+
+    </div>
+
+    <div class="tabela-wrapper">
+
+        <table>
+
+            <thead>
+                <tr>
+                    <th>Foto</th>
+                    <th>Nome</th>
+                    <th>Email</th>
+                    <th>CPF</th>
+                    <th>Telefone</th>
+                    <th>Data Cadastro</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+
+            <tbody id="listaUsuarios"></tbody>
+
+        </table>
+
+    </div>
+
+    <div class="paginacao">
+
+        <span id="infoUsuarios">
+            Mostrando 0 usuários
+        </span>
+
+        <div class="paginacao-btns">
+
+            <button>Anterior</button>
+
+            <button class="ativo">
+                1
+            </button>
+
+            <button>2</button>
+
+            <button>3</button>
+
+            <button>Próximo</button>
+
+        </div>
+
+    </div>
+
+</div>
+</section>
 
 <script src="/assets/js/admin.js"></script>
     
