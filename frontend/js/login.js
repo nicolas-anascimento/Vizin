@@ -115,3 +115,27 @@ document.querySelector('.Login form').addEventListener('submit', async (e) => {
     }
 
 });
+
+// ================= RECUPERAR SENHA =================
+
+const esqueciSenha = document.getElementById("esqueciSenha");
+
+if (esqueciSenha) {
+
+    esqueciSenha.addEventListener("click", (e) => {
+
+        e.preventDefault();
+
+        const email = prompt(
+            "Digite seu email para recuperação:"
+        );
+
+        if (!email) return;
+
+        alert(
+            `Se existir uma conta vinculada ao email ${email}, você receberá instruções para redefinir sua senha.`
+        );
+
+    });
+
+}
