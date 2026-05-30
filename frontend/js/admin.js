@@ -3,7 +3,7 @@ const usuario = JSON.parse(localStorage.getItem("usuario"));
 
 if (!usuario || usuario.tipo !== "admin") {
 
-    window.location.href = "home.html";
+    window.location.href = "/home";
 
 }
 
@@ -177,3 +177,17 @@ buscarUsuario.addEventListener(
 
     }
 );
+
+// ================= MENU MOBILE =================
+const menuToggle = document.getElementById('menu-toggle');
+const nav = document.querySelector('nav');
+
+if (menuToggle && nav) {
+
+    menuToggle.addEventListener('click', () => {
+
+        nav.classList.toggle('active');
+
+    });
+
+}
