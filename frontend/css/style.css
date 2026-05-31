@@ -293,13 +293,23 @@ body{
     margin-bottom: 20px;
 }
 
-.forgot-password a{
+.forgot-password a, .voltar{
     color: #F27C38;
     text-decoration: none;
     font-size: 14px;
     font-weight: 600;
+    margin-top: 20px;
 }
 
-.forgot-password a:hover{
+.forgot-password a:hover, .voltar:hover{
     text-decoration: underline;
+}
+
+.recuperar{
+    margin-top: 20px;
+}
+
+#mensagem{
+    margin-top:15px;
+    text-align:center;
 }
