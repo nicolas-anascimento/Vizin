@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
-import bcrypt from "bcrypt";
+// import bcrypt from "bcrypt";
 import prisma from "../config/database.ts";
-import { randomBytes } from "crypto";
+import { createHash, randomBytes, type BinaryLike } from "crypto";
 import transporter from "../config/mailer.ts";
 import parsedEnv from "../config/env.ts";
 
@@ -11,6 +11,7 @@ const AccountController = {
             res.status(400).json({
                 error: "sem body",
             });
+            return;
         }
         const { email } = req.body;
 
@@ -24,13 +25,15 @@ const AccountController = {
         }
 
         const token = randomBytes(32).toString("hex");
-        const tokenHash = await bcrypt.hash(token, 10);
+        const tokenHash = createHash("sha256").update(token).digest("hex");
+
+        await prisma.resetar_Senha.deleteMany({ where: { userId: user.id } });
 
         await prisma.resetar_Senha.create({
             data: {
                 userId: user.id,
                 token: tokenHash,
-                expire_in: new Date(Date.now() + 60 * 60 * 60 * 1000),
+                expire_in: new Date(Date.now() + 60 * 60 * 1000),
             },
         });
 

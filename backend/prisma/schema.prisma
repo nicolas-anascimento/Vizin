@@ -256,7 +256,7 @@ model verificacoes_identidade {
 model Resetar_Senha {
   id        String   @id @default(uuid(7))
   userId    String   @db.Uuid
-  token     String
+  token     String   @unique
   expire_in DateTime
   user      usuarios @relation(fields: [userId], references: [id])
 }

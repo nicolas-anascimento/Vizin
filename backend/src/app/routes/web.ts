@@ -1,6 +1,8 @@
 import path from "path";
 import Express from "express";
 import isAdmin from "../middlewares/isAdmin.ts";
+import prisma from "../config/database.ts";
+import { createHash } from "crypto";
 
 const web = Express();
 
@@ -9,20 +11,38 @@ function view(view: String) {
 }
 
 web.get("/", (_req, res) => {
-    res.sendFile(view("login.html"))
-})
+    res.sendFile(view("login.html"));
+});
 web.get("/login", (_req, res) => {
-    res.sendFile(view("login.html"))
-})
+    res.sendFile(view("login.html"));
+});
 web.get("/home", (_req, res) => {
-    res.sendFile(view("home.html"))
-})
+    res.sendFile(view("home.html"));
+});
 web.get("/admin", isAdmin, (_req, res) => {
-    res.sendFile(view("dashboard-admin.html"))
-})
+    res.sendFile(view("dashboard-admin.html"));
+});
 web.get("/objetos", (_req, res) => {
     res.sendFile(view("meusobjetos.html"));
-})
+});
 
+web.get("/resetar-senha", async (req, res) => {
+    const token = req.query.token as string;
+
+    const resetRequest = await prisma.resetar_Senha.findUnique({
+        where: {
+            token: createHash("sha256").update(token).digest("hex"),
+        },
+    });
+
+    if (!resetRequest || resetRequest.expire_in < new Date()) {
+        res.redirect("/?error=invalid-token");
+        return;
+    }
+
+    res.json({
+        oi: true
+    })
+});
 
 export default web;
