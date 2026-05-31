@@ -225,7 +225,8 @@ CREATE TABLE "verificacoes_identidade" (
 CREATE TABLE "Resetar_Senha" (
     "id" TEXT NOT NULL,
     "userId" UUID NOT NULL,
-    "pendente" BOOLEAN NOT NULL DEFAULT false,
+    "token" TEXT NOT NULL,
+    "expire_in" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Resetar_Senha_pkey" PRIMARY KEY ("id")
 );

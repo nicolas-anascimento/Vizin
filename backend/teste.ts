@@ -8,5 +8,5 @@ const hash = await bcrypt.hash(senha, 10);
 console.log(hash);
 
 await prisma.usuarios.create({
-  data: { email: "teste@email.com", senha_hash: hash, nome: "teste User", tipo: "admin" },
+  data: { email: "nicolas.anascimento@eaportal.org", senha_hash: hash, nome: "teste User", tipo: "admin" },
 });
