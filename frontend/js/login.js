@@ -77,22 +77,29 @@ document.querySelector('.Login form').addEventListener('submit', async (e) => {
 
         if (data.success) {
 
-            erro.textContent = "Login realizado com sucesso!";
-            erro.classList.add("sucesso");
+    erro.textContent = "Login realizado com sucesso!";
+    erro.classList.add("sucesso");
+
+    // salva token
+    localStorage.setItem("token", data.token);
+
+    // salva usuário logado
+    localStorage.setItem("usuario", JSON.stringify({
+        id: data.usuario.id,
+        nome: data.usuario.nome,
+        email: data.usuario.email,
+        tipo: data.usuario.tipo
+    }));
 
 
             // ================= REDIRECIONAMENTO =================
             setTimeout(() => {
 
-                // ADMIN
-                if (data.tipo === "admin") {
+                if (data.usuario.tipo === "admin") {
 
                     window.location.href = "/admin";
 
-                }
-
-                // USUÁRIO NORMAL
-                else {
+                } else {
 
                     window.location.href = "/home";
 
@@ -126,15 +133,7 @@ if (esqueciSenha) {
 
         e.preventDefault();
 
-        const email = prompt(
-            "Digite seu email para recuperação:"
-        );
-
-        if (!email) return;
-
-        alert(
-            `Se existir uma conta vinculada ao email ${email}, você receberá instruções para redefinir sua senha.`
-        );
+        window.location.href = "/recuperar-senha";
 
     });
 
