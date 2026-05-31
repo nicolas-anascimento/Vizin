@@ -3,6 +3,7 @@ import AccountController from "../controllers/accountsController.ts";
 
 const accountsRoutes = Express();
 
-accountsRoutes.post("/resetar-senha", AccountController.requestResetPassword);
+accountsRoutes.post("/recuperar-senha", AccountController.requestResetPassword);
+accountsRoutes.post("/resetar-senha", AccountController.resetPassword);
 
 export default accountsRoutes;

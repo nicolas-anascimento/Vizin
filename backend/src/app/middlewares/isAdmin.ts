@@ -10,7 +10,7 @@ async function isAdmin(req: Request, res: Response, next: NextFunction): Promise
     }
     const token = req.cookies.token;
     const user = jwt.verify(token, parsedEnv!.JWT_KEY!) as jwt.JwtPayload;
-    console.log(user);
+    // console.log(user);
 
     if (user.tipo !== "admin") {
         res.redirect("/");

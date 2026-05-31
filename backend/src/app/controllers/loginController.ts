@@ -21,6 +21,13 @@ const Login: loginObj = {
         }
         const { email, senha } = req.body;
 
+        if (!email || !senha) {
+            res.status(400).json({
+                error: "no data",
+            });
+            return;
+        }
+
         try {
             const user = await prisma.usuarios.findUnique({
                 where: { email: email },
@@ -32,7 +39,6 @@ const Login: loginObj = {
                 });
                 return;
             }
-
 
             if (!(await bcrypt.compare(senha, user.senha_hash))) {
                 res.status(401).json();
@@ -100,10 +106,10 @@ const Login: loginObj = {
         }
     },
 
-    async logout(_req, res) {
-        const cookieVerify = validator.isEmpty(_req.cookies.token);
+    async logout(req, res) {
+        const cookie = req.cookies.token
 
-        if (cookieVerify) {
+        if (!cookie) {
             res.status(400).json({
                 error: "alread without account",
             });
