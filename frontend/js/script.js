@@ -43,7 +43,7 @@ const mockObjetos = [
         preco: 25,
         localizacao: "Sorocaba",
         media: 4.9,
-        imagem: "img/sem-imagem.jpg"
+        imagem: "/assets/img/sem-imagem.jpg"
     },
 
     {
@@ -54,7 +54,7 @@ const mockObjetos = [
         preco: 40,
         localizacao: "Campinas",
         media: 4.8,
-        imagem: "img/sem-imagem.jpg"
+        imagem: "/assets/img/sem-imagem.jpg"
     },
 
     {
@@ -65,7 +65,7 @@ const mockObjetos = [
         preco: 35,
         localizacao: "Hortolândia",
         media: 4.7,
-        imagem: "img/sem-imagem.jpg"
+        imagem: "/assets/img/sem-imagem.jpg"
     },
 
     {
@@ -76,7 +76,7 @@ const mockObjetos = [
         preco: 50,
         localizacao: "Monte Mor",
         media: 5.0,
-        imagem: "img/sem-imagem.jpg"
+        imagem: "/assets/img/sem-imagem.jpg"
     }
 
 ];
