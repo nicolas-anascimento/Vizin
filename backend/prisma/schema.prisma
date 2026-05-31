@@ -254,10 +254,11 @@ model verificacoes_identidade {
 }
 
 model Resetar_Senha {
-  id       String   @id @default(uuid(7))
-  userId   String @db.Uuid
-  pendente Boolean  @default(false)
-  user     usuarios @relation(fields: [userId], references: [id])
+  id        String   @id @default(uuid(7))
+  userId    String   @db.Uuid
+  token     String
+  expire_in DateTime
+  user      usuarios @relation(fields: [userId], references: [id])
 }
 
 enum Tipos {
