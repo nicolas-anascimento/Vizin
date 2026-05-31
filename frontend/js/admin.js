@@ -1,96 +1,80 @@
-// ================= VERIFICAR ADMIN =================
-const usuario = JSON.parse(localStorage.getItem("usuario"));
-
-if (!usuario || usuario.tipo !== "admin") {
-
-    window.location.href = "/home";
-
-}
-
 // ================= MOSTRAR NOME =================
-const adminLogado = document.getElementById("adminLogado");
 
-if (adminLogado && usuario) {
+let usuario;
+(async () => {
+    usuario = await apiRequest("/usuarios/", "POST");
+    console.log(usuario);
 
     adminLogado.innerHTML = `
-        <i class="bi bi-person-circle"></i>
-        <div class="block">
-            Olá, ${usuario.nome}
-        <span>ADMINISTRADOR</span>
-        </div>
-    `;
+            <i class="bi bi-person-circle"></i>
+            <div class="block">
+                Olá, ${usuario.nome}
+            <span>ADMINISTRADOR</span>
+            </div>
+        `;
+})()
 
-}
+
 
 // ================= LOGOUT =================
 const btnLogout = document.getElementById("btnLogout");
 
 if (btnLogout) {
-
-    btnLogout.addEventListener("click", () => {
-
-        localStorage.removeItem("token");
-        localStorage.removeItem("usuario");
-
+    btnLogout.addEventListener("click", async () => {
+        
+        await apiRequest("/login/logout", "POST");
         window.location.href = "/login";
-
     });
-
 }
 
 const usuariosMock = [
+    {
+        id: 1,
+        nome: "João Silva",
+        email: "joao@email.com",
+        cpf: "123.456.789-00",
+        telefone: "(11) 98765-4321",
+        dataCadastro: "15/01/2024",
+        status: "ativo",
+    },
 
-{
-    id: 1,
-    nome: "João Silva",
-    email: "joao@email.com",
-    cpf: "123.456.789-00",
-    telefone: "(11) 98765-4321",
-    dataCadastro: "15/01/2024",
-    status: "ativo"
-},
+    {
+        id: 2,
+        nome: "Maria Santos",
+        email: "maria@email.com",
+        cpf: "987.654.321-00",
+        telefone: "(11) 97654-3210",
+        dataCadastro: "20/01/2024",
+        status: "ativo",
+    },
 
-{
-    id: 2,
-    nome: "Maria Santos",
-    email: "maria@email.com",
-    cpf: "987.654.321-00",
-    telefone: "(11) 97654-3210",
-    dataCadastro: "20/01/2024",
-    status: "ativo"
-},
+    {
+        id: 3,
+        nome: "Pedro Costa",
+        email: "pedro@email.com",
+        cpf: "456.789.123-00",
+        telefone: "(11) 96543-2109",
+        dataCadastro: "10/02/2024",
+        status: "suspenso",
+    },
 
-{
-    id: 3,
-    nome: "Pedro Costa",
-    email: "pedro@email.com",
-    cpf: "456.789.123-00",
-    telefone: "(11) 96543-2109",
-    dataCadastro: "10/02/2024",
-    status: "suspenso"
-},
-
-{
-    id: 4,
-    nome: "Ana Paula",
-    email: "ana@email.com",
-    cpf: "321.654.987-00",
-    telefone: "(11) 95432-1098",
-    dataCadastro: "05/03/2024",
-    status: "ativo"
-}
-
+    {
+        id: 4,
+        nome: "Ana Paula",
+        email: "ana@email.com",
+        cpf: "321.654.987-00",
+        telefone: "(11) 95432-1098",
+        dataCadastro: "05/03/2024",
+        status: "ativo",
+    },
 ];
 
 function renderizarUsuarios(lista) {
-
-    const tbody =
-        document.getElementById("listaUsuarios");
+    const tbody = document.getElementById("listaUsuarios");
 
     tbody.innerHTML = "";
 
     lista.forEach(usuario => {
-
         tbody.innerHTML += `
         
         <tr>
@@ -101,7 +85,7 @@ function renderizarUsuarios(lista) {
                         .split(" ")
                         .map(n => n[0])
                         .join("")
-                        .substring(0,2)}
+                        .substring(0, 2)}
                 </div>
             </td>
 
@@ -146,48 +130,29 @@ function renderizarUsuarios(lista) {
         `;
     });
 
-    document.getElementById(
-        "infoUsuarios"
-    ).innerText =
-        `Mostrando ${lista.length} usuários`;
+    document.getElementById("infoUsuarios").innerText = `Mostrando ${lista.length} usuários`;
 }
 
 renderizarUsuarios(usuariosMock);
 
-const buscarUsuario =
-document.getElementById("buscarUsuario");
+const buscarUsuario = document.getElementById("buscarUsuario");
 
-buscarUsuario.addEventListener(
-    "input",
-    () => {
+buscarUsuario.addEventListener("input", () => {
+    const valor = buscarUsuario.value.toLowerCase();
 
-        const valor =
-            buscarUsuario.value.toLowerCase();
+    const filtrados = usuariosMock.filter(
+        u => u.nome.toLowerCase().includes(valor) || u.email.toLowerCase().includes(valor) || u.cpf.includes(valor),
+    );
 
-        const filtrados =
-            usuariosMock.filter(u =>
-
-                u.nome.toLowerCase().includes(valor) ||
-                u.email.toLowerCase().includes(valor) ||
-                u.cpf.includes(valor)
-
-            );
-
-        renderizarUsuarios(filtrados);
-
-    }
-);
+    renderizarUsuarios(filtrados);
+});
 
 // ================= MENU MOBILE =================
-const menuToggle = document.getElementById('menu-toggle');
-const nav = document.querySelector('nav');
+const menuToggle = document.getElementById("menu-toggle");
+const nav = document.querySelector("nav");
 
 if (menuToggle && nav) {
-
-    menuToggle.addEventListener('click', () => {
-
-        nav.classList.toggle('active');
-
+    menuToggle.addEventListener("click", () => {
+        nav.classList.toggle("active");
     });
-
 }

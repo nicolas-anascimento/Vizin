@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
-// import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
 import prisma from "../config/database.ts";
 import { createHash, randomBytes, type BinaryLike } from "crypto";
 import transporter from "../config/mailer.ts";
@@ -55,6 +56,78 @@ const AccountController = {
         });
 
         res.status(200).json({});
+    },
+
+    async resetPassword(req: Request, res: Response) {
+        if (!req.body) {
+            res.status(400).json({
+                error: "no data",
+            });
+            return;
+        }
+        const { token, senha } = req.body;
+
+        const tokenHash = createHash("sha256").update(token).digest("hex");
+
+        const verify = await prisma.resetar_Senha.findUnique({
+            where: {
+                token: tokenHash,
+            },
+        });
+
+        if (!verify || verify.expire_in < new Date()) {
+            res.status(400).json({
+                error: "token invalido",
+            });
+            return;
+        }
+
+        const senhaHash = await bcrypt.hash(senha, 10);
+
+        await prisma.usuarios.update({
+            where: {
+                id: verify.userId,
+            },
+            data: {
+                senha_hash: senhaHash,
+            },
+        });
+
+        res.json({
+            success: true,
+        });
+    },
+
+    async getUserData(req: Request, res: Response) {
+        const cookieToken = req.cookies.token;
+
+        if (!cookieToken) {
+            res.status(400).json({
+                error: "no user",
+            });
+            return;
+        }
+
+        let buffer;
+
+        try {
+            buffer = jwt.verify(cookieToken, parsedEnv!.JWT_KEY!) as jwt.JwtPayload;
+        } catch (err) {
+            return;
+        }
+
+        const user = await prisma.usuarios.findUnique({
+            omit: {
+                senha_hash: true
+            },
+            where: {
+                id: buffer.id,
+            },
+
+        });
+
+        // console.log(user);
+        res.json(user);
     },
 };
 

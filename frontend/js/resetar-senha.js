@@ -25,12 +25,12 @@ document.getElementById("formResetar")
 
         /*
         BACK-END FUTURO
-
+ */
         const token =
         new URLSearchParams(window.location.search)
         .get("token");
 
-        await fetch("/api/resetar-senha",{
+        await fetch("/api/contas/resetar-senha",{
             method:"POST",
             headers:{
                 "Content-Type":"application/json"
@@ -40,7 +40,7 @@ document.getElementById("formResetar")
                 senha
             })
         });
-        */
+       
 
         mensagem.innerHTML =
         "✅ Senha alterada com sucesso!";

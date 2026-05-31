@@ -80,22 +80,12 @@ document.querySelector('.Login form').addEventListener('submit', async (e) => {
     erro.textContent = "Login realizado com sucesso!";
     erro.classList.add("sucesso");
 
-    // salva token
-    localStorage.setItem("token", data.token);
-
-    // salva usuário logado
-    localStorage.setItem("usuario", JSON.stringify({
-        id: data.usuario.id,
-        nome: data.usuario.nome,
-        email: data.usuario.email,
-        tipo: data.usuario.tipo
-    }));
 
 
             // ================= REDIRECIONAMENTO =================
             setTimeout(() => {
 
-                if (data.usuario.tipo === "admin") {
+                if (data.tipo === "admin") {
 
                     window.location.href = "/admin";
 

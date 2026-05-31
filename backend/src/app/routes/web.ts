@@ -26,6 +26,10 @@ web.get("/objetos", (_req, res) => {
     res.sendFile(view("meusobjetos.html"));
 });
 
+web.get("/recuperar-senha", (_req, res) => {
+    res.sendFile(view("recuperar-senha.html"));
+});
+
 web.get("/resetar-senha", async (req, res) => {
     const token = req.query.token as string;
 
@@ -40,9 +44,7 @@ web.get("/resetar-senha", async (req, res) => {
         return;
     }
 
-    res.json({
-        oi: true
-    })
+    res.sendFile(view("resetar-senha.html"));
 });
 
 export default web;
