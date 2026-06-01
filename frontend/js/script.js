@@ -1,10 +1,3 @@
-// ================= PROTEGER HOME =================
-if (!localStorage.getItem("token")) {
-
-    window.location.href = "login.html";
-
-}
-
 // ================= MENU MOBILE =================
 const menuToggle = document.getElementById('menu-toggle');
 const nav = document.querySelector('nav');
