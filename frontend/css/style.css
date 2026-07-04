@@ -313,3 +313,90 @@ body{
     margin-top:15px;
     text-align:center;
 }
+
+
+/* ===================================================
+   LOGIN / CADASTRO - RESPONSIVO
+   =================================================== */
+
+@media (max-width: 650px) {
+
+    body{
+        padding: 20px;
+        min-height: 100vh;
+        height: auto;
+    }
+
+    .container{
+        width: 100%;
+        max-width: 380px;
+        height: auto;
+        min-height: auto;
+        border-radius: 20px;
+    }
+
+    /* Esconde as formas decorativas — não cabem no mobile */
+    .curved-shape,
+    .curved-shape2,
+    .info-content{
+        display: none;
+    }
+
+    /* CORRIGIDO: precisa da mesma especificidade de ".container .form-box"
+       (regra original), senão ela continua vencendo e o form
+       fica com position:absolute + height:100% */
+    .container .form-box{
+        position: relative;
+        width: 100%;
+        height: auto;
+        padding: 40px 30px;
+        left: 0;
+        right: 0;
+    }
+
+    .form-box.Login{
+        padding: 40px 30px;
+        display: flex;
+    }
+
+    .form-box.Register{
+        padding: 40px 30px;
+        display: none;
+    }
+
+    .container.active .form-box.Login{
+        display: none;
+    }
+
+    .container.active .form-box.Register{
+        display: flex;
+    }
+
+    .form-box .animation{
+        transform: none !important;
+        opacity: 1 !important;
+        filter: none !important;
+        transition: none !important;
+    }
+
+    .form-box h2{
+        font-size: 22px;
+        margin-bottom: 10px;
+    }
+
+    .form-box img{
+        width: 40%;
+    }
+}
+
+@media (max-width: 380px){
+
+    .form-box{
+        padding: 30px 20px;
+    }
+
+    .form-box h2{
+        font-size: 19px;
+    }
+
+}
