@@ -1,16 +1,24 @@
-// ================= MENU MOBILE =================
-const menuToggle = document.getElementById('menu-toggle');
-const nav = document.querySelector('nav');
+// ================= PROTEGER HOME =================
+if (!localStorage.getItem("token")) {
 
-if (menuToggle && nav) {
-
-    menuToggle.addEventListener('click', () => {
-
-        nav.classList.toggle('active');
-
-    });
+    window.location.href = "login.html";
 
 }
+
+// ================= MENU MOBILE (via delegação de eventos) =================
+document.addEventListener("click", (e) => {
+
+    const toggle = e.target.closest("#menu-toggle");
+
+    if (!toggle) return;
+
+    const nav = document.querySelector("nav");
+
+    if (nav) {
+        nav.classList.toggle("active");
+    }
+
+});
 
 // ================= BOTÃO ANUNCIAR =================
 const btnAdicionar = document.querySelector('.btn-adicionar');
@@ -36,7 +44,7 @@ const mockObjetos = [
         preco: 25,
         localizacao: "Sorocaba",
         media: 4.9,
-        imagem: "/assets/img/sem-imagem.jpg"
+        imagem: "img/sem-imagem.jpg"
     },
 
     {
@@ -47,7 +55,7 @@ const mockObjetos = [
         preco: 40,
         localizacao: "Campinas",
         media: 4.8,
-        imagem: "/assets/img/sem-imagem.jpg"
+        imagem: "img/sem-imagem.jpg"
     },
 
     {
@@ -58,7 +66,7 @@ const mockObjetos = [
         preco: 35,
         localizacao: "Hortolândia",
         media: 4.7,
-        imagem: "/assets/img/sem-imagem.jpg"
+        imagem: "img/sem-imagem.jpg"
     },
 
     {
@@ -69,7 +77,7 @@ const mockObjetos = [
         preco: 50,
         localizacao: "Monte Mor",
         media: 5.0,
-        imagem: "/assets/img/sem-imagem.jpg"
+        imagem: "img/sem-imagem.jpg"
     }
 
 ];
@@ -249,32 +257,24 @@ function mostrarToast(mensagem, tipo = "sucesso") {
 
 }
 
-// ================= COPIAR EMAIL =================
-const email = document.getElementById("emailEmpresa");
+// ================= COPIAR EMAIL (via delegação de eventos) =================
+document.addEventListener("click", (e) => {
 
-if (email) {
+    const emailEl = e.target.closest("#emailEmpresa");
 
-    email.addEventListener("click", () => {
+    if (!emailEl) return;
 
-        const texto = email.innerText;
+    const texto = emailEl.innerText;
 
-        navigator.clipboard.writeText(texto)
+    navigator.clipboard.writeText(texto)
+        .then(() => {
+            mostrarToast("📧 Email copiado ✔");
+        })
+        .catch(() => {
+            mostrarToast("Erro ao copiar ❌", "erro");
+        });
 
-            .then(() => {
-
-                mostrarToast("📧 Email copiado ✔");
-
-            })
-
-            .catch(() => {
-
-                mostrarToast("Erro ao copiar ❌", "erro");
-
-            });
-
-    });
-
-}
+});
 
 // ================= BOAS VINDAS =================
 const boasVindas = document.getElementById("boasVindas");
@@ -289,24 +289,3 @@ if (usuario && boasVindas) {
 
 }
 
-// ================= LOGOUT =================
-const btnLogout = document.getElementById("btnLogout");
-
-if (btnLogout) {
-
-    btnLogout.addEventListener("click", () => {
-
-        localStorage.removeItem("token");
-        localStorage.removeItem("usuario");
-
-        mostrarToast("Você saiu da conta ✔");
-
-        setTimeout(() => {
-
-            window.location.href = "login.html";
-
-        }, 1000);
-
-    });
-
-}
