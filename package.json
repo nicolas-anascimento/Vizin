@@ -1,0 +1,27 @@
+{
+  "name": "vizin",
+  "version": "1.0.0",
+  "description": "<h1>TCC - Vizin</h1>",
+  "main": "index.js",
+  "scripts": {
+    "build": "npm run build -w=backend",
+    "start": "npm run start -w=backend",
+    "dev": "npm run dev -w=backend",
+    "seed": "npm run seed -w=backend"
+  },
+  "workspaces": [
+    "./backend"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nicolas-anascimento/Vizin.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/nicolas-anascimento/Vizin/issues"
+  },
+  "homepage": "https://github.com/nicolas-anascimento/Vizin#readme"
+}

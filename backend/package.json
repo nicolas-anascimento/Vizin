@@ -5,8 +5,9 @@
   "main": "index.js",
   "scripts": {
     "build": "npx tsc",
-    "start": "node src/app.ts",
-    "dev": "nodemon src/app.ts"
+    "start": "node dist/app.ts",
+    "dev": "nodemon src/app.ts",
+    "seed": "node teste.ts"
   },
   "keywords": [],
   "author": "",

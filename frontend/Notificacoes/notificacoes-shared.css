@@ -1,0 +1,100 @@
+/* =====================================================
+   COMPARTILHADO EM TODAS AS PÁGINAS (badge do sino + toast)
+   ===================================================== */
+ 
+/* ---------- Badge no ícone de sino do header ---------- */
+/* Não depende de nenhum elemento extra: o JS só adiciona a classe
+   "link-notificacoes" e o atributo data-badge-count no <a> que já existe. */
+a.link-notificacoes {
+  position: relative;
+}
+ 
+a.link-notificacoes[data-badge-count]::after {
+  content: attr(data-badge-count);
+  position: absolute;
+  top: 2px;
+  left: 120px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 2px;
+  border-radius: 30px;
+  background: #F27C38;
+  color: #f2f2f2;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+ 
+/* ---------- Toast de notificação nova ---------- */
+.toast-notificacao {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  max-width: 320px;
+  background: #fff;
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: 0 8px 24px rgba(20, 20, 43, 0.18);
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  transform: translateX(130%);
+  transition: transform 0.35s ease;
+  z-index: 3000;
+  border-left: 4px solid #6f5fe0;
+}
+ 
+.toast-notificacao.show {
+  transform: translateX(0);
+}
+ 
+.toast-notificacao-icone {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  border-radius: 50%;
+  background: #ede9fe;
+  color: #6f5fe0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+ 
+.toast-notificacao-corpo {
+  min-width: 0;
+}
+ 
+.toast-notificacao-titulo {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #1f2430;
+}
+ 
+.toast-notificacao-desc {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  color: #6b7280;
+  line-height: 1.4;
+}
+ 
+.toast-notificacao-fechar {
+  border: none;
+  background: none;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 15px;
+  margin-left: auto;
+  padding: 0;
+  line-height: 1;
+}
+ 
+@media (max-width: 480px) {
+  .toast-notificacao {
+    left: 16px;
+    right: 16px;
+    max-width: none;
+  }
+}

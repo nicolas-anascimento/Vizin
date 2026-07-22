@@ -7,27 +7,27 @@ import { createHash } from "crypto";
 const web = Express();
 
 function view(view: String) {
-    return path.resolve(`../frontend/${view}`);
+    return path.resolve(`../frontend/${view}/index.html`);
 }
 
 web.get("/", (_req, res) => {
-    res.sendFile(view("login.html"));
+    res.sendFile(view("login"));
 });
 web.get("/login", (_req, res) => {
-    res.sendFile(view("login.html"));
+    res.sendFile(view("login"));
 });
 web.get("/home", (_req, res) => {
-    res.sendFile(view("home.html"));
+    res.sendFile(view("home"));
 });
 web.get("/admin", isAdmin, (_req, res) => {
-    res.sendFile(view("dashboard-admin.html"));
+    res.sendFile(view("dashboard-admin"));
 });
 web.get("/objetos", (_req, res) => {
-    res.sendFile(view("meusobjetos.html"));
+    res.sendFile(view("meusobjetos"));
 });
 
 web.get("/recuperar-senha", (_req, res) => {
-    res.sendFile(view("recuperar-senha.html"));
+    res.sendFile(view("recuperar-senha"));
 });
 
 web.get("/resetar-senha", async (req, res) => {
@@ -44,7 +44,7 @@ web.get("/resetar-senha", async (req, res) => {
         return;
     }
 
-    res.sendFile(view("resetar-senha.html"));
+    res.sendFile(view("resetar-senha"));
 });
 
 export default web;
