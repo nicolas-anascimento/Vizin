@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../Produto/fluxo-aluguel.css">
+    <link rel="stylesheet" href="retirada-objeto.css">
+    <link rel="stylesheet" href="../header/header.css">
+    <link rel="stylesheet" href="../footer/footer.css">
+    <link rel="stylesheet" href="../Notificacoes/notificacoes-shared.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <title>Retirada do Objeto</title>
+</head>
+<body>
+
+    <div id="header"></div>
+
+    <div class="page-container retirada-container">
+
+        <a href="#" id="link-voltar" class="back-link"><i class="bi bi-arrow-left"></i> Voltar</a>
+
+        <div class="card retirada-header-card">
+            <div class="retirada-icone"><i class="bi bi-camera"></i></div>
+            <div>
+                <h1 class="retirada-titulo">Retirada do Objeto</h1>
+                <p class="retirada-subtitulo">Tire fotos do objeto no momento da retirada para documentar seu estado</p>
+            </div>
+        </div>
+
+        <div class="card produto-mini-card">
+            <img id="produto-mini-imagem" src="" alt="">
+            <div>
+                <p class="produto-mini-nome" id="produto-mini-nome"></p>
+                <p class="produto-mini-categoria" id="produto-mini-categoria"></p>
+                <p class="produto-mini-proprietario">Proprietário: <strong id="produto-mini-proprietario"></strong></p>
+            </div>
+        </div>
+
+        <div class="info-box">
+            <i class="bi bi-exclamation-circle"></i>
+            <div>
+                <h3>Por que isso é importante?</h3>
+                <ul>
+                    <li>As fotos servem como comprovação do estado do objeto</li>
+                    <li>Protegem tanto o locador quanto o locatário em caso de danos</li>
+                    <li>São obrigatórias para concluir a retirada</li>
+                    <li>Tire fotos de diferentes ângulos para melhor documentação</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 id="fotos-titulo">Adicionar Fotos (0/5)</h2>
+
+            <div class="fotos-grid" id="fotos-grid">
+                <div class="foto-slot foto-slot-add" id="foto-slot-add">
+                    <i class="bi bi-upload"></i>
+                    <span class="foto-add-titulo">Clique para adicionar fotos</span>
+                    <span class="foto-add-sub">Ou arraste e solte imagens aqui</span>
+                    <span class="foto-add-formatos">PNG, JPG ou JPEG · Máximo 5 fotos</span>
+                </div>
+            </div>
+            <input type="file" id="foto-input" accept="image/png, image/jpeg, image/jpg" multiple hidden>
+
+            <div class="field campo-observacoes">
+                <label for="observacoes">Observações (opcional)</label>
+                <textarea id="observacoes" placeholder="Adicione observações sobre o estado do objeto, danos existentes, ou qualquer outro detalhe relevante..."></textarea>
+            </div>
+        </div>
+
+        <div class="retirada-actions">
+            <button type="button" class="btn btn-secondary" id="btn-cancelar">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="btn-confirmar-retirada" disabled>
+                <i class="bi bi-check-circle"></i> Confirmar Retirada
+            </button>
+        </div>
+
+        <p class="retirada-rodape">Após confirmar, você poderá levar o objeto. As fotos ficarão registradas no sistema.</p>
+
+    </div>
+
+    <div id="footer"></div>
+
+    <div id="toast" class="toast">Copiado ✔</div>
+
+    <script src="../header/frame.js"></script>
+
+    <script src="../Login/logout.js"></script>
+
+    <script src="../Notificacoes/notificacoes-shared.js"></script>
+
+    <script src="retirada-objeto.js"></script>
+</body>
+</html>

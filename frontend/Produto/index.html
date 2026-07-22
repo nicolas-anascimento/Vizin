@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../Produto/fluxo-aluguel.css">
+    <link rel="stylesheet" href="produto.css">
+    <link rel="stylesheet" href="../header/header.css">
+    <link rel="stylesheet" href="../footer/footer.css">
+    <link rel="stylesheet" href="../Notificacoes/notificacoes-shared.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <title>Detalhes do Objeto</title>
+</head>
+<body>
+ 
+    <div id="header"></div>
+ 
+    <div class="page-container">
+ 
+        <a href="../Início/index.html" class="back-link"><i class="bi bi-arrow-left"></i> Voltar aos objetos</a>
+ 
+        <div class="produto-grid">
+ 
+            <!-- COLUNA PRINCIPAL -->
+            <div class="produto-main">
+ 
+                <img id="produto-imagem" class="produto-imagem" src="" alt="">
+ 
+                <div class="card">
+                    <div class="produto-titulo-row">
+                        <h1 id="produto-titulo" class="produto-titulo"></h1>
+                        <div class="produto-preco">
+                            <span id="produto-preco" class="preco-valor"></span>
+                            <span class="preco-label">por dia</span>
+                        </div>
+                    </div>
+                    <p class="produto-local">
+                        <i class="bi bi-geo-alt"></i>
+                        <span id="produto-localizacao"></span>
+                        <span class="tag tag-categoria" id="produto-categoria"></span>
+                    </p>
+                </div>
+ 
+                <div class="card">
+                    <h2>Descrição</h2>
+                    <p id="produto-descricao" class="produto-descricao"></p>
+                </div>
+ 
+                <div class="card">
+                    <h2>Sobre o Proprietário</h2>
+                    <div class="proprietario-row">
+                        <div class="proprietario-info">
+                            <div class="avatar" id="proprietario-avatar"></div>
+                            <div>
+                                <p class="proprietario-nome" id="proprietario-nome"></p>
+                                <p class="proprietario-avaliacao">
+                                    <i class="bi bi-star-fill"></i>
+                                    <span id="proprietario-avaliacao"></span> avaliação
+                                </p>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-secondary" id="btn-ver-perfil">Ver Perfil</button>
+                    </div>
+                </div>
+ 
+            </div>
+ 
+            <!-- SIDEBAR -->
+            <div class="produto-sidebar">
+ 
+                <!-- ESTADO 1: FORMULÁRIO DE SOLICITAÇÃO -->
+                <div class="card sidebar-card" id="card-solicitar">
+                    <h2>Solicitar Aluguel</h2>
+ 
+                    <div class="field">
+                        <label for="data-retirada">Data de Retirada</label>
+                        <input type="date" id="data-retirada">
+                    </div>
+ 
+                    <div class="field">
+                        <label for="data-devolucao">Data de Devolução</label>
+                        <input type="date" id="data-devolucao">
+                    </div>
+ 
+                    <div class="resumo-datas" id="resumo-datas" style="display:none;">
+                        <div class="resumo-linha">
+                            <span>Período:</span>
+                            <span id="resumo-periodo"></span>
+                        </div>
+                        <div class="resumo-linha">
+                            <span>Preço/dia:</span>
+                            <span id="resumo-preco-dia"></span>
+                        </div>
+                        <div class="resumo-linha resumo-total">
+                            <span>Total:</span>
+                            <span id="resumo-total"></span>
+                        </div>
+                    </div>
+ 
+                    <button type="button" class="btn btn-primary btn-block" id="btn-solicitar">Solicitar Aluguel</button>
+                    <p class="sidebar-aviso">O proprietário receberá sua solicitação e você será notificado sobre a resposta.</p>
+                </div>
+ 
+                <!-- ESTADO 2: AGUARDANDO APROVAÇÃO -->
+                <div class="card sidebar-card status-card" id="card-pendente" style="display:none;">
+                    <div class="status-icone status-pendente">
+                        <i class="bi bi-clock-history"></i>
+                    </div>
+                    <h2 class="status-titulo">Solicitação enviada!</h2>
+                    <p class="status-texto">Aguardando aprovação de <strong id="pendente-proprietario-nome"></strong>.</p>
+                    <p class="status-subtexto">Você será notificado assim que houver uma resposta.</p>
+                </div>
+ 
+                <!-- ESTADO 3: APROVADO -->
+                <div class="card sidebar-card status-card" id="card-aprovado" style="display:none;">
+                    <div class="status-icone status-aprovado">
+                        <i class="bi bi-check-lg"></i>
+                    </div>
+                    <h2 class="status-titulo">Solicitação aprovada!</h2>
+                    <p class="status-texto">O proprietário aceitou seu pedido de aluguel.</p>
+                    <button type="button" class="btn btn-primary btn-block" id="btn-ir-pagamento">Finalizar Pagamento</button>
+                </div>
+ 
+            </div>
+ 
+        </div>
+ 
+    </div>
+ 
+    <div id="footer"></div>
+
+    <div id="toast" class="toast">Copiado ✔</div>
+
+    <script src="../header/frame.js"></script>
+
+    <script src="../Login/logout.js"></script>
+
+    <script src="../Notificacoes/notificacoes-shared.js"></script>
+
+    <script src="produto.js"></script>
+</body>
+</html>

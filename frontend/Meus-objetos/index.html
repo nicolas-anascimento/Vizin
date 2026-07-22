@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="meus-objetos.css">
+    <link rel="stylesheet" href="../header/header.css">
+    <link rel="stylesheet" href="../footer/footer.css">
+    <link rel="stylesheet" href="../Notificacoes/notificacoes-shared.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <title>Meus objetos</title>
+</head>
+<body>
+
+
+    <div id="header"></div>
+
+    <div class="page-container">
+
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">Meus Objetos</h1>
+                <p class="page-subtitle">Gerencie seus anúncios</p>
+            </div>
+            <a href="../Cadastrar-objeto/cadastrar-objeto.css">
+                <button class="btn-adicionar-objeto">
+                    <i class="bi bi-plus-lg"></i> Adicionar Objeto
+                </button>
+            </a>
+        </div>
+
+        <!-- Estado vazio (sem objetos cadastrados) -->
+        <div class="empty-state" id="empty-state" style="display:none;">
+            <i class="bi bi-box-seam"></i>
+            <p>Você ainda não cadastrou nenhum objeto.</p>
+        </div>
+
+        <!-- Lista de objetos do usuário -->
+        <div id="lista-meus-objetos"></div>
+
+    </div>
+
+    <!-- Modal de Visualização -->
+    <div class="modal-overlay" id="modal-visualizar">
+        <div class="modal-box">
+            <button type="button" class="modal-close" id="modal-visualizar-close">&times;</button>
+            <img id="modal-visualizar-img" src="" alt="">
+            <div class="modal-content">
+                <h2 id="modal-visualizar-titulo"></h2>
+                <p id="modal-visualizar-descricao"></p>
+                <div class="modal-tags">
+                    <span class="tag tag-categoria" id="modal-visualizar-categoria"></span>
+                    <span class="tag tag-preco" id="modal-visualizar-preco"></span>
+                    <span class="tag tag-status" id="modal-visualizar-status"></span>
+                </div>
+                <p class="modal-localizacao" id="modal-visualizar-localizacao"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação de Exclusão -->
+    <div class="modal-overlay" id="modal-excluir">
+        <div class="modal-box modal-confirm">
+            <i class="bi bi-exclamation-triangle"></i>
+            <h2>Excluir objeto?</h2>
+            <p>Tem certeza que deseja excluir "<span id="modal-excluir-nome"></span>"? Essa ação não pode ser desfeita.</p>
+            <div class="modal-confirm-actions">
+                <button type="button" class="btn btn-secondary" id="modal-excluir-cancelar">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="modal-excluir-confirmar">Excluir</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="footer"></div>
+
+    <div id="toast" class="toast">Copiado ✔</div>
+
+    <script src="../header/frame.js"></script>
+
+    <script src="../Login/logout.js"></script>
+
+    <script src="../Notificacoes/notificacoes-shared.js"></script>
+
+    <script src="meus-objetos.js"></script>
+</body>
+</html>
