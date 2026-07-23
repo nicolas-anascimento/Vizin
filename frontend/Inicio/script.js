@@ -134,7 +134,7 @@ function renderizarObjetos(lista) {
         container.innerHTML += `
  
             <div class="card-produto"
-                 onclick="window.location.href='produto.html?id=${obj.id}'">
+                 onclick="window.location.href='../Produto/index.html?id=${obj.id}'">
  
                 <div class="card-img-container">
  
