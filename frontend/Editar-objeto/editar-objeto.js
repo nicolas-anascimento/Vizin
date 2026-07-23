@@ -240,7 +240,7 @@ form.addEventListener("submit", async (e) => {
     statusMsg.className = "status-msg success";
 
     setTimeout(() => {
-      window.location.href = "meus-objetos.html";
+      window.location.href = "../Meus-objetos/index.html";
     }, 1200);
 
   } catch (err) {
