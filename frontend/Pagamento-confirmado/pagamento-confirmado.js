@@ -60,7 +60,7 @@ async function carregarPedido() {
                 retirada: pedido.retirada,
                 devolucao: pedido.devolucao
             });
-            window.location.href = `retirada-objeto.html?${query.toString()}`;
+            window.location.href = `../Retirada-objeto/index.html?${query.toString()}`;
         }, 3000);
  
     } catch (err) {
