@@ -12,7 +12,7 @@ document.addEventListener("click", (e) => {
 
     setTimeout(() => {
 
-        window.location.href = "index.html";
+        window.location.href = "../Login/index.html";
 
     }, 1000);
 
