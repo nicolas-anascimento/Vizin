@@ -1,0 +1,15 @@
+import { Router } from "express";
+import { register } from "../controllers/authController.ts";
+import { ownProfile, publicProfile, updateProfile, uploadAvatar } from "../controllers/usersController.ts";
+import { requireAuth } from "../middlewares/auth.ts";
+import { avatarUpload } from "../middlewares/upload.ts";
+import { rateLimit } from "../middlewares/rateLimit.ts";
+const router = Router();
+router.post("/", rateLimit({ windowMs: 60 * 60_000, max: 10 }), register);
+router.get("/me", requireAuth, ownProfile);
+router.get("/perfil", requireAuth, ownProfile);
+router.put("/perfil", requireAuth, updateProfile);
+router.patch("/perfil", requireAuth, updateProfile);
+router.post("/avatar", requireAuth, avatarUpload, uploadAvatar);
+router.get("/:id", publicProfile);
+export default router;

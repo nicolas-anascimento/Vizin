@@ -1,4 +1,9 @@
+node_modules/
 dist/
 .env
-node_modules/
-/src/generated/prisma
+src/generated/
+*.log
+uploads/**/*
+!uploads/avatars/.gitkeep
+!uploads/items/.gitkeep
+!uploads/withdrawals/.gitkeep

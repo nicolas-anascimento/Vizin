@@ -1,0 +1,12 @@
+import { Router } from "express";
+import { deleteUser, listAdminItems, listAdminRentals, listUsers, metrics, updateUserStatus } from "../controllers/adminController.ts";
+import { requireAdmin } from "../middlewares/auth.ts";
+const router = Router();
+router.use(requireAdmin);
+router.get("/metricas", metrics);
+router.get("/usuarios", listUsers);
+router.patch("/usuarios/:id/status", updateUserStatus);
+router.delete("/usuarios/:id", deleteUser);
+router.get("/objetos", listAdminItems);
+router.get("/alugueis", listAdminRentals);
+export default router;

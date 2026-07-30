@@ -1,14 +1,33 @@
-import Express from "express";
-import login from "./loginRoutes.ts";
-import contas from "./accountRoutes.ts";
-import usuarios from "./usuariosRoutes.ts";
+import { Router } from "express";
+import login from "./login.ts";
+import accounts from "./accounts.ts";
+import users from "./users.ts";
+import items from "./items.ts";
+import rentals from "./rentals.ts";
+import payments from "./payments.ts";
+import notifications from "./notifications.ts";
+import withdrawals from "./withdrawals.ts";
+import reviews from "./reviews.ts";
+import messages from "./messages.ts";
+import admin from "./admin.ts";
+import { getOrder } from "../controllers/paymentsController.ts";
+import { listCategories } from "../controllers/itemsController.ts";
+import { requireAuth } from "../middlewares/auth.ts";
 
-
-
-const api = Express()
-
-api.use("/login", login);
-api.use("/contas", contas)
-api.use("/usuarios", usuarios)
-
-export default api;
+const router = Router();
+router.get("/saude", (_req, res) => res.json({ status: "ok", servico: "vizin-api" }));
+router.use("/login", login);
+router.use("/contas", accounts);
+router.use("/usuarios", users);
+router.use("/objetos", items);
+router.get("/categorias", listCategories);
+router.use("/solicitacoes", rentals);
+router.use("/alugueis", rentals);
+router.use("/pagamentos", payments);
+router.get("/pedidos/:id", requireAuth, getOrder);
+router.use("/notificacoes", notifications);
+router.use("/retiradas", withdrawals);
+router.use("/avaliacoes", reviews);
+router.use("/mensagens", messages);
+router.use("/admin", admin);
+export default router;

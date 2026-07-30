@@ -1,0 +1,11 @@
+import { Router } from "express";
+import { createRentalRequest, getRentalStatus, listMyRentals, updateRentalStatus } from "../controllers/rentalsController.ts";
+import { requireAuth } from "../middlewares/auth.ts";
+const router = Router();
+router.use(requireAuth);
+router.get("/", listMyRentals);
+router.post("/", createRentalRequest);
+router.get("/:id/status", getRentalStatus);
+router.get("/:id", getRentalStatus);
+router.patch("/:id/status", updateRentalStatus);
+export default router;

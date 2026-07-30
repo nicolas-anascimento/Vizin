@@ -1,0 +1,14 @@
+import { Router } from "express";
+import { createItem, deleteItem, getItem, listCategories, listItems, myItems, updateItem } from "../controllers/itemsController.ts";
+import { requireAuth } from "../middlewares/auth.ts";
+import { createItemUpload, updateItemUpload } from "../middlewares/upload.ts";
+const router = Router();
+router.get("/categorias", listCategories);
+router.get("/meus", requireAuth, myItems);
+router.get("/", listItems);
+router.get("/:id", getItem);
+router.post("/", requireAuth, createItemUpload, createItem);
+router.put("/:id", requireAuth, updateItemUpload, updateItem);
+router.patch("/:id", requireAuth, updateItemUpload, updateItem);
+router.delete("/:id", requireAuth, deleteItem);
+export default router;
