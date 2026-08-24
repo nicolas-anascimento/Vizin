@@ -1,0 +1,834 @@
+/* ============================================================
+   TOKENS
+   ============================================================ */
+:root {
+  --purple-600: #6C5CE0;
+  --purple-500: #7C6EE8;
+  --purple-100: #EDEBFC;
+  --bg: #F2F3F7;
+  --surface: #FFFFFF;
+  --surface-alt: #F7F7FA;
+  --text-900: #1E2130;
+  --text-500: #6B6F82;
+  --text-400: #9B9EAF;
+  --border: #E7E8F0;
+  --online: #34D399;
+  --notify: #FF7A45;
+  --danger: #E5484D;
+  --radius-lg: 20px;
+  --radius-md: 14px;
+  --radius-sm: 10px;
+  --shadow-panel: 0 10px 40px rgba(30, 33, 48, 0.08);
+  --font-display: 'Plus Jakarta Sans', sans-serif;
+  --font-body: 'Inter', sans-serif;
+ 
+  /* Altura real do header fixo — atualizada dinamicamente por
+     layout-fit.js assim que o header é injetado. Este valor aqui é
+     só um fallback pra evitar que o chat fique embaixo do menu no
+     instante antes do JS medir (o header é position:fixed, então
+     não reserva espaço sozinho). */
+  --header-h: 84px;
+ 
+  /* Espaço entre o chat e as bordas da tela / header no mobile */
+  --mobile-gutter: 12px;
+}
+ 
+@import url('https://fonts.googleapis.com/css2?family=Arimo:ital,wght@0,400..700;1,400..700&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+ 
+*{
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Arimo", sans-serif;
+}
+ 
+ 
+html{
+  background-color: #F2F2F2;
+}
+ 
+.hidden { display: none !important; }
+ 
+button {
+  font-family: inherit;
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+ 
+/* ============================================================
+   LAYOUT (desktop)
+   ============================================================ */
+ 
+.app {
+  margin: 90px auto;
+  height: 85vh;
+  max-height: 780px;
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  max-width: 1180px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-panel);
+  overflow: hidden;
+}
+ 
+/* ============================================================
+   PAINEL DE CONVERSAS
+   ============================================================ */
+.conv-panel {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  min-height: 0;
+}
+ 
+.conv-panel__header {
+  padding: 24px 20px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+ 
+.app-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 22px;
+  margin: 0 0 16px;
+}
+ 
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 10px 14px;
+}
+ 
+.search-box input {
+  border: none;
+  background: none;
+  outline: none;
+  font-size: 14px;
+  color: var(--text-900);
+  width: 100%;
+  font-family: var(--font-body);
+}
+.search-box input::placeholder { color: var(--text-400); }
+ 
+.icon { width: 18px; height: 18px; color: var(--text-400); flex-shrink: 0; }
+ 
+.conv-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px 0;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+}
+ 
+.conv-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: background .15s ease;
+}
+.conv-item:hover { background: var(--surface-alt); }
+.conv-item:active { background: var(--purple-100); }
+.conv-item.active {
+  background: var(--purple-100);
+  border-left-color: var(--purple-600);
+}
+ 
+.avatar {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+}
+.avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+.avatar--lg { width: 46px; height: 46px; }
+ 
+.status-dot {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--text-400);
+  border: 2px solid var(--surface);
+}
+.status-dot.online { background: var(--online); }
+ 
+.conv-item__body { flex: 1; min-width: 0; }
+ 
+.conv-item__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+ 
+.conv-item__name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 14.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+ 
+.conv-item__time {
+  font-size: 11.5px;
+  color: var(--text-400);
+  flex-shrink: 0;
+}
+ 
+.conv-item__bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+ 
+.conv-item__preview {
+  font-size: 13px;
+  color: var(--text-500);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.conv-item.unread .conv-item__preview { color: var(--text-900); font-weight: 500; }
+.conv-item.unread .conv-item__name { font-weight: 700; }
+ 
+.badge {
+  background: var(--notify);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  flex-shrink: 0;
+}
+ 
+.item-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--purple-600);
+  background: var(--purple-100);
+  border-radius: 999px;
+  padding: 2px 8px 2px 6px;
+  margin-top: 4px;
+}
+.item-chip svg { width: 11px; height: 11px; }
+ 
+.conv-list__empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-400);
+  font-size: 13.5px;
+}
+ 
+/* ============================================================
+   PAINEL DE CHAT
+   ============================================================ */
+.chat-panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-alt);
+  min-width: 0;
+  min-height: 0;
+}
+ 
+.chat-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-400);
+}
+.chat-empty__icon { color: var(--text-400); opacity: .6; }
+ 
+.chat-active {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+ 
+.chat-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 22px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+ 
+.chat-header__user { display: flex; align-items: center; gap: 12px; min-width: 0; }
+ 
+.chat-header__info h2 {
+  font-family: var(--font-display);
+  font-size: 15.5px;
+  font-weight: 700;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+ 
+.presence { font-size: 12px; color: var(--text-400); }
+.presence.online { color: var(--online); font-weight: 600; }
+ 
+.chat-header__item { flex: 1; display: flex; justify-content: center; min-width: 0; }
+ 
+.chat-header__actions { display: flex; gap: 6px; flex-shrink: 0; }
+ 
+.icon-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-500);
+  transition: background .15s ease;
+  flex-shrink: 0;
+}
+.icon-btn:hover { background: var(--surface-alt); color: var(--text-900); }
+.icon-btn:active { background: var(--border); }
+.icon-btn svg { width: 19px; height: 19px; }
+ 
+/* -------- lista de mensagens -------- */
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+}
+ 
+.msg-date-divider {
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--text-400);
+  margin: 14px 0;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+ 
+.msg-row {
+  display: flex;
+  margin-bottom: 10px;
+  max-width: 72%;
+}
+.msg-row.me { align-self: flex-end; margin-left: auto; }
+.msg-row.them { align-self: flex-start; }
+ 
+.msg-bubble {
+  padding: 11px 15px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  line-height: 1.45;
+  position: relative;
+}
+ 
+.msg-row.them .msg-bubble {
+  background: var(--surface);
+  color: var(--text-900);
+  border-bottom-left-radius: 4px;
+  box-shadow: 0 1px 2px rgba(30,33,48,.05);
+}
+.msg-row.me .msg-bubble {
+  background: var(--purple-500);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+ 
+.msg-bubble img.msg-attachment {
+  display: block;
+  max-width: 240px;
+  border-radius: 10px;
+  margin-bottom: 6px;
+}
+ 
+.msg-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,.15);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  font-size: 12.5px;
+}
+.msg-row.them .msg-file { background: var(--surface-alt); }
+ 
+.msg-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 10.5px;
+}
+.msg-row.me .msg-meta { justify-content: flex-end; color: rgba(255,255,255,.75); }
+.msg-row.them .msg-meta { color: var(--text-400); }
+ 
+.msg-meta .ticks { display: inline-flex; }
+.msg-meta .ticks svg { width: 14px; height: 14px; }
+.msg-meta .ticks.read svg { color: #7CE0FF; }
+.msg-meta .ticks:not(.read) svg { color: rgba(255,255,255,.75); }
+ 
+.typing-indicator {
+  padding: 0 26px 10px;
+  font-size: 12px;
+  color: var(--text-400);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.typing-indicator span {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--text-400);
+  display: inline-block;
+  animation: bounce 1.2s infinite ease-in-out;
+}
+.typing-indicator span:nth-child(2) { animation-delay: .15s; }
+.typing-indicator span:nth-child(3) { animation-delay: .3s; }
+@keyframes bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-4px); } }
+ 
+/* -------- composer -------- */
+.attachment-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 22px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.attachment-preview img {
+  width: 42px; height: 42px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+.attachment-preview__info {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12.5px;
+  color: var(--text-500);
+}
+.attachment-preview__info button {
+  font-size: 18px;
+  color: var(--text-400);
+  line-height: 1;
+}
+ 
+.composer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 18px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+ 
+.composer__input {
+  flex: 1;
+  min-width: 0; /* permite o input encolher além do seu conteúdo, sem
+                   empurrar os botões pra fora em telas estreitas */
+  border: none;
+  outline: none;
+  background: var(--surface-alt);
+  border-radius: 999px;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-family: var(--font-body);
+  color: var(--text-900);
+}
+.composer__input::placeholder { color: var(--text-400); }
+ 
+.send-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--purple-500);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background .15s ease, transform .1s ease;
+}
+.send-btn svg { width: 18px; height: 18px; }
+.send-btn:disabled { background: var(--border); color: var(--text-400); cursor: not-allowed; }
+.send-btn:not(:disabled):hover { background: var(--purple-600); }
+.send-btn:not(:disabled):active { transform: scale(.94); }
+ 
+/* ============================================================
+   TOAST
+   ============================================================ */
+.toaste {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--text-900);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 999px;
+  font-size: 13px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.2);
+  z-index: 999;
+  animation: toast-in .25s ease;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translate(-50%, 10px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+ 
+/* back button (injetado por JS, só aparece no mobile) */
+.back-btn {
+  display: none;
+  width: 34px; height: 34px;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-500);
+  margin-right: 2px;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+.back-btn:active { background: var(--surface-alt); }
+ 
+/* ============================================================
+   CHAMADA DE VOZ/VÍDEO
+   ============================================================ */
+.call-overlay {
+  position: fixed;
+  inset: 0;
+  background: #1a1c26;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+ 
+.call-overlay__info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  z-index: 2;
+}
+ 
+.call-overlay__avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid rgba(255,255,255,.15);
+}
+ 
+.call-overlay__info h2 {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+}
+ 
+.call-overlay__info p {
+  color: rgba(255,255,255,.65);
+  font-size: 14px;
+}
+ 
+.call-video--remote {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+ 
+.call-video--local {
+  position: absolute;
+  bottom: 110px;
+  right: 24px;
+  width: 130px;
+  height: 174px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  border: 2px solid rgba(255,255,255,.25);
+  z-index: 3;
+  background: #000;
+}
+ 
+/* NOVO: cronômetro estilo WhatsApp, sobreposto ao topo do vídeo
+   remoto durante uma videochamada conectada. */
+.call-timer-badge {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, .4);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  padding: 6px 16px;
+  border-radius: 999px;
+  z-index: 3;
+  font-variant-numeric: tabular-nums;
+}
+ 
+/* NOVO: .call-overlay__outgoing entra no mesmo seletor de
+   posicionamento de .call-overlay__incoming / .call-overlay__controls,
+   já que os três aparecem sempre um de cada vez, no mesmo lugar
+   (base do overlay de chamada). */
+.call-overlay__incoming,
+.call-overlay__controls,
+.call-overlay__outgoing {
+  position: absolute;
+  bottom: 40px;
+  display: flex;
+  gap: 20px;
+  z-index: 3;
+}
+ 
+.call-btn {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform .1s ease, background .15s ease;
+}
+.call-btn svg { width: 24px; height: 24px; }
+.call-btn:active { transform: scale(.92); }
+ 
+.call-btn--accept { background: var(--online); color: #fff; }
+.call-btn--decline { background: var(--danger); color: #fff; }
+.call-btn--toggle { background: rgba(255,255,255,.15); color: #fff; }
+.call-btn--toggle.call-btn--active { background: #fff; color: #1a1c26; }
+ 
+/* ============================================================
+   MOBILE — estilo WhatsApp/Instagram, respeitando header e footer
+   ============================================================
+   O header é fixed (sobrepõe a página), então .app precisa de uma
+   margem no topo do tamanho de --header-h (medido via JS em
+   layout-fit.js) pra não ficar por baixo do menu.
+   O footer NÃO é fixed — ele já é um bloco normal no fluxo do
+   documento, então basta o .app também ficar em fluxo normal
+   (position: relative, não fixed) para o footer continuar
+   aparecendo logo depois dele, sem sobreposição.
+   ============================================================ */
+@media (max-width: 860px) {
+ 
+  .app {
+    position: relative;
+    margin: calc(var(--header-h) + var(--mobile-gutter)) var(--mobile-gutter) var(--mobile-gutter);
+    width: auto;
+    height: calc(100dvh - var(--header-h) - (var(--mobile-gutter) * 2));
+    max-height: none;
+    display: block; /* sai do grid de duas colunas */
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-panel);
+    overflow: hidden;
+  }
+ 
+  .conv-panel,
+  .chat-panel {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border-right: none;
+    transition: transform .3s cubic-bezier(.4, 0, .2, 1);
+    will-change: transform;
+  }
+ 
+  .conv-panel {
+    transform: translateX(0);
+    z-index: 1;
+    border-radius: var(--radius-lg);
+  }
+ 
+  .chat-panel {
+    transform: translateX(100%);
+    z-index: 2;
+    border-radius: var(--radius-lg);
+  }
+ 
+  /* Classe alternada via JS em .app quando uma conversa é aberta */
+  .app.is-chat-open .conv-panel {
+    transform: translateX(-25%);
+  }
+  .app.is-chat-open .chat-panel {
+    transform: translateX(0);
+  }
+ 
+  /* -------- painel de conversas -------- */
+  .conv-panel__header {
+    padding: 16px 16px 12px;
+    border-top-left-radius: var(--radius-lg);
+    border-top-right-radius: var(--radius-lg);
+  }
+ 
+  .app-title {
+    font-size: 22px;
+  }
+ 
+  .conv-item {
+    padding: 13px 16px;
+    gap: 13px;
+  }
+ 
+  .avatar {
+    width: 50px;
+    height: 50px;
+  }
+ 
+  /* -------- cabeçalho do chat -------- */
+  .chat-header {
+    padding: 12px 14px;
+    gap: 10px;
+    border-top-left-radius: var(--radius-lg);
+    border-top-right-radius: var(--radius-lg);
+  }
+ 
+  .back-btn {
+    display: flex;
+  }
+ 
+  .chat-header__item {
+    display: none; /* chip do item some no mobile, cabe só o essencial */
+  }
+ 
+  .chat-header__actions {
+    margin-left: auto; /* empurra ligar/videochamada pra extremidade
+                           direita, já que o chip do meio (que fazia
+                           isso com flex:1) sumiu */
+  }
+ 
+  /* -------- mensagens -------- */
+  .messages {
+    padding: 14px 12px;
+  }
+ 
+  .msg-row {
+    max-width: 82%;
+  }
+ 
+  .msg-bubble {
+    padding: 9px 13px;
+    border-radius: 16px;
+  }
+  .msg-row.them .msg-bubble { border-bottom-left-radius: 4px; }
+  .msg-row.me .msg-bubble { border-bottom-right-radius: 4px; }
+ 
+  /* -------- composer -------- */
+  .attachment-preview {
+    padding: 8px 12px;
+  }
+ 
+  .composer {
+    padding: 8px 10px;
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+    border-bottom-left-radius: var(--radius-lg);
+    border-bottom-right-radius: var(--radius-lg);
+  }
+ 
+  .composer__input {
+    font-size: 16px; /* evita zoom automático ao focar no iOS Safari */
+    padding: 11px 15px;
+  }
+ 
+  .send-btn,
+  .icon-btn {
+    width: 40px;
+    height: 40px;
+  }
+ 
+  /* -------- chamada -------- */
+  .call-video--local {
+    width: 96px;
+    height: 128px;
+    bottom: 100px;
+    right: 16px;
+  }
+ 
+  /* NOVO: .call-overlay__outgoing junto do ajuste mobile dos outros
+     dois grupos de botões de chamada. */
+  .call-overlay__incoming,
+  .call-overlay__controls,
+  .call-overlay__outgoing {
+    bottom: 30px;
+    gap: 16px;
+  }
+}
+ 
+/* Telas bem pequenas: aperta ainda mais o essencial */
+@media (max-width: 360px) {
+  .conv-item__preview,
+  .item-chip {
+    font-size: 12px;
+  }
+ 
+  :root {
+    --mobile-gutter: 8px;
+  }
+ 
+  .composer {
+    gap: 6px;
+    padding: 8px;
+  }
+ 
+  .composer__input {
+    padding: 10px 12px;
+  }
+ 
+  .send-btn,
+  .icon-btn {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+#chatAvatar {
+  cursor: pointer;
+}

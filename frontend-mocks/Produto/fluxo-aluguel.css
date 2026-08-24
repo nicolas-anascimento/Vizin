@@ -1,0 +1,185 @@
+/* ================= VARIÁVEIS COMPARTILHADAS DO FLUXO DE ALUGUEL ================= */
+:root {
+  --roxo: #6D49F2;
+  --roxo-hover: #381D73;
+  --roxo-claro: #ede9fe;
+  --laranja: #F27C38;
+  --verde: #2f9e5c;
+  --verde-claro: #dcfce7;
+  --amarelo: #f5a524;
+  --texto: #0d0d0d;
+  --texto-suave: #6b7280;
+  --texto-fraco: #9ca3af;
+  --borda: #e5e7eb;
+  --card: #ffffff;
+  --tag-categoria-bg: #eef0fb;
+  --tag-categoria-cor: #5b5fc7;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Arimo:ital,wght@0,400..700;1,400..700&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+
+*{
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Arimo", sans-serif;
+}
+
+html{
+    background-color: #F2F2F2;
+}
+
+
+.page-container {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 32px 20px 80px;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--roxo);
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  margin-bottom: 20px;
+  margin-top: 80px;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+/* ================= CARDS ================= */
+.card {
+  background: var(--card);
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 2px 10px rgba(20, 20, 43, 0.06);
+  margin-bottom: 20px;
+}
+
+.card h2 {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--texto);
+  margin: 0 0 12px;
+}
+
+/* ================= TAGS ================= */
+.tag {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tag-categoria {
+  background: var(--tag-categoria-bg);
+  color: var(--tag-categoria-cor);
+}
+
+/* ================= BOTÕES ================= */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 22px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 14.5px;
+  cursor: pointer;
+  border: none;
+  transition: background 0.2s ease, opacity 0.2s ease, transform 0.15s ease;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--roxo);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--roxo-hover);
+}
+
+.btn-secondary {
+  background: #fff;
+  color: var(--texto);
+  border: 1.5px solid var(--borda);
+}
+
+.btn-secondary:hover {
+  background: #f2f2f4;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+/* ================= CAIXAS DE DESTAQUE ================= */
+.info-box {
+  display: flex;
+  gap: 12px;
+  background: var(--roxo-claro);
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin-bottom: 20px;
+}
+
+.info-box i {
+  color: var(--roxo);
+  font-size: 18px;
+  margin-top: 2px;
+}
+
+.info-box h3 {
+  margin: 0 0 6px;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--texto);
+}
+
+.info-box ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13.5px;
+  color: var(--texto-suave);
+  line-height: 1.7;
+}
+
+.dica-box {
+  background: linear-gradient(135deg, #fff4ec, #f4f0ff);
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-size: 12.5px;
+  color: var(--texto-suave);
+  margin-top: 16px;
+}
+
+.dica-box strong {
+  color: var(--texto);
+}
+
+/* ================= LOADING SPINNER ================= */
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2.5px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: girar 0.7s linear infinite;
+}
+
+@keyframes girar {
+  to { transform: rotate(360deg); }
+}

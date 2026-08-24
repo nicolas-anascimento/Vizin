@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mensagens · Empresta+</title>
+<link rel="stylesheet" href="../header/header.css?v=12">
+<link rel="stylesheet" href="../footer/footer.css">
+<link rel="stylesheet" href="../Notificacoes/notificacoes-shared.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+<link rel="stylesheet" href="mensagens.css?v=24">
+</head>
+<body>
+ 
+  <div id="header"></div>
+ 
+<div class="espaco">
+  <div class="app">
+ 
+  <!-- ===== Coluna esquerda: lista de conversas ===== -->
+  <aside class="conv-panel">
+    <div class="conv-panel__header">
+      <h1 class="app-title">Mensagens</h1>
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" class="icon icon--search"><path d="M21 21l-4.35-4.35M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <input type="text" id="searchInput" placeholder="Buscar conversas..." autocomplete="off">
+      </div>
+    </div>
+ 
+    <ul class="conv-list" id="convList" role="list" aria-label="Lista de conversas">
+      <!-- gerado via JS (renderConversationList) -->
+    </ul>
+ 
+    <div class="conv-list__empty hidden" id="convEmpty">
+      <p>Nenhuma conversa encontrada.</p>
+    </div>
+  </aside>
+ 
+  <!-- ===== Coluna direita: chat ===== -->
+  <section class="chat-panel" id="chatPanel">
+ 
+    <!-- Estado vazio: nenhuma conversa selecionada -->
+    <div class="chat-empty" id="chatEmpty">
+      <div class="chat-empty__icon">
+        <svg viewBox="0 0 24 24" width="48" height="48"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <p>Selecione uma conversa para começar</p>
+    </div>
+ 
+    <!-- Conteúdo do chat ativo -->
+    <div class="chat-active hidden" id="chatActive">
+ 
+      <div class="chat-header">
+        <div class="chat-header__user">
+          <div class="avatar avatar--lg">
+            <img id="chatAvatar" src="" alt="">
+            <span class="status-dot" id="chatStatusDot"></span>
+          </div>
+          <div class="chat-header__info">
+            <h2 id="chatName"></h2>
+            <span class="presence" id="chatPresence"></span>
+          </div>
+        </div>
+ 
+        <div class="chat-header__item" id="chatItemChip">
+          <!-- chip do item em negociação, gerado via JS -->
+        </div>
+ 
+        <div class="chat-header__actions">
+          <button class="icon-btn" id="callAudioBtn" title="Ligar" aria-label="Ligar">
+            <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="icon-btn" id="callVideoBtn" title="Videochamada" aria-label="Videochamada">
+            <svg viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><rect x="1" y="5" width="15" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+          </button>
+        </div>
+      </div>
+ 
+      <div class="messages" id="messagesList" aria-live="polite">
+        <!-- gerado via JS (renderMessages) -->
+      </div>
+ 
+      <div class="typing-indicator hidden" id="typingIndicator">
+        <span></span><span></span><span></span> digitando...
+      </div>
+ 
+      <!-- Preview de anexo antes de enviar -->
+      <div class="attachment-preview hidden" id="attachmentPreview">
+        <img id="attachmentPreviewImg" src="" alt="Pré-visualização do anexo">
+        <div class="attachment-preview__info">
+          <span id="attachmentPreviewName"></span>
+          <button id="attachmentRemoveBtn" aria-label="Remover anexo">&times;</button>
+        </div>
+      </div>
+ 
+      <form class="composer" id="composerForm">
+        <button type="button" class="icon-btn" id="attachBtn" title="Anexar arquivo ou imagem" aria-label="Anexar arquivo">
+          <svg viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a5.5 5.5 0 0 1-7.78-7.78l9.2-9.19a3.5 3.5 0 0 1 5.5 4.34l-9.2 9.19a1.5 1.5 0 0 1-2.12-2.12l8.49-8.48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <input type="file" id="fileInput" accept="image/*,.pdf,.doc,.docx" hidden>
+ 
+        <input type="text" id="messageInput" class="composer__input" placeholder="Escreva uma mensagem..." autocomplete="off">
+ 
+        <button type="submit" class="send-btn" id="sendBtn" aria-label="Enviar mensagem" disabled>
+          <svg viewBox="0 0 24 24"><path d="M22 2 11 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 2 15 22l-4-9-9-4 20-7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </form>
+    </div>
+  </section>
+</div>
+</div>
+ 
+<!-- Overlay de chamada (voz/vídeo) -->
+<div class="call-overlay hidden" id="callOverlay">
+  <div class="call-overlay__info" id="callInfo">
+    <img class="call-overlay__avatar" id="callAvatar" src="" alt="">
+    <h2 id="callPeerName"></h2>
+    <p id="callStatusText">Chamando...</p>
+  </div>
+ 
+  <!-- NOVO: cronômetro sobreposto, usado só em videochamada (quando
+       a foto/#callInfo fica escondida atrás do vídeo em tela cheia).
+       Em chamada de voz o tempo aparece dentro de #callStatusText,
+       já que a foto continua visível. -->
+  <div class="call-timer-badge hidden" id="callTimerBadge">00:00</div>
+ 
+  <video id="remoteVideo" class="call-video call-video--remote hidden" autoplay playsinline></video>
+  <video id="localVideo" class="call-video call-video--local hidden" autoplay playsinline muted></video>
+ 
+  <!-- Ações de quem RECEBE a chamada (aceitar/recusar) -->
+  <div class="call-overlay__incoming hidden" id="callIncomingActions">
+    <button type="button" class="call-btn call-btn--decline" id="callDeclineBtn" aria-label="Recusar chamada">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92Z"/></svg>
+    </button>
+    <button type="button" class="call-btn call-btn--accept" id="callAcceptBtn" aria-label="Aceitar chamada">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92Z"/></svg>
+    </button>
+  </div>
+ 
+  <!-- NOVO: ação de quem LIGOU, enquanto espera o outro atender
+       ("Chamando..."). Permite cancelar uma ligação feita sem querer. -->
+  <div class="call-overlay__outgoing hidden" id="callOutgoingActions">
+    <button type="button" class="call-btn call-btn--decline" id="callCancelBtn" aria-label="Cancelar chamada">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92Z"/></svg>
+    </button>
+  </div>
+ 
+  <div class="call-overlay__controls hidden" id="callActiveControls">
+    <button type="button" class="call-btn call-btn--toggle" id="callMuteBtn" aria-label="Mudo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+    </button>
+    <button type="button" class="call-btn call-btn--toggle" id="callCameraBtn" aria-label="Câmera">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7Z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+    </button>
+    <button type="button" class="call-btn call-btn--decline" id="callHangupBtn" aria-label="Encerrar chamada">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92Z"/></svg>
+    </button>
+  </div>
+</div>
+ 
+<!-- Toast de notificação -->
+<div class="toaste hidden" id="toaste"></div>
+ 
+<div id="footer"></div>
+ 
+<div id="toast" class="toast">Copiado ✔</div>
+ 
+<script src="../header/frame.js"></script>
+<script src="../header/layout-fit.js"></script>
+ 
+<script src="../Login/logout.js"></script>
+ 
+<script src="../Notificacoes/notificacoes-shared.js"></script>
+ 
+<script src="mock-data.js"></script>
+<script src="api.js"></script>
+<script src="app.js"></script>
+<script src="chamada.js"></script>
+</body>
+</html>
+ 

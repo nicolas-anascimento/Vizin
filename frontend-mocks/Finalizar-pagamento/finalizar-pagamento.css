@@ -1,0 +1,257 @@
+.pagamento-grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 24px;
+  align-items: start;
+}
+
+.pagamento-titulo {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--texto);
+  margin: 0 0 4px;
+}
+
+.pagamento-subtitulo {
+  font-size: 14px;
+  color: var(--texto-suave);
+  margin: 0 0 18px;
+}
+
+.metodos-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.metodo-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 20px 14px;
+  border-radius: 14px;
+  border: 1.5px solid var(--borda);
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.metodo-btn i {
+  font-size: 22px;
+  color: var(--texto);
+  margin-bottom: 6px;
+}
+
+.metodo-btn.ativo {
+  border-color: var(--roxo);
+  background: var(--roxo-claro);
+}
+
+.metodo-btn.ativo i,
+.metodo-btn.ativo .metodo-nome {
+  color: var(--roxo);
+}
+
+.metodo-nome {
+  font-weight: 700;
+  font-size: 14.5px;
+  color: var(--texto);
+}
+
+.metodo-desc {
+  font-size: 12px;
+  color: var(--texto-suave);
+}
+
+.metodo-vazio {
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--texto-fraco);
+  margin: 20px 0 4px;
+}
+
+.metodo-conteudo hr,
+.card hr {
+  border: none;
+  border-top: 1px solid var(--borda);
+  margin: 20px 0;
+}
+
+.metodo-conteudo h2 {
+  font-size: 16px;
+  margin-bottom: 16px;
+}
+
+/* ---------- PIX ---------- */
+.qr-placeholder {
+  width: 190px;
+  height: 190px;
+  margin: 0 auto 18px;
+  border-radius: 12px;
+  background:
+    repeating-linear-gradient(45deg, #1f2430 0 8px, #fff 8px 16px),
+    repeating-linear-gradient(-45deg, #1f2430 0 8px, #fff 8px 16px);
+  background-blend-mode: multiply;
+  background-color: #fff;
+  border: 1px solid var(--borda);
+  /* Espaço reservado: o back-end deve substituir por uma imagem real
+     do QR Code gerado (ex: <img src="[url do QR gerado pela API de pagamento]">) */
+}
+
+.pix-codigo-label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--texto);
+  margin-bottom: 6px;
+}
+
+.pix-codigo-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.pix-codigo-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1.5px solid var(--borda);
+  font-size: 12.5px;
+  color: var(--texto-suave);
+  background: var(--fundo);
+}
+
+.btn-copiar {
+  width: 42px;
+  border-radius: 10px;
+  border: 1.5px solid var(--borda);
+  background: var(--roxo);
+  color: #fff;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.btn-copiar:hover {
+  background: var(--roxo-hover);
+}
+
+.pix-instrucoes {
+  margin: 0 0 20px;
+  padding-left: 20px;
+  font-size: 13.5px;
+  color: var(--texto-suave);
+  line-height: 1.9;
+}
+
+.pix-instrucoes strong {
+  color: var(--texto);
+}
+
+/* ---------- CARTÃO ---------- */
+.field {
+  margin-bottom: 14px;
+}
+
+.field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--texto);
+  margin-bottom: 6px;
+}
+
+.field input {
+  width: 100%;
+  padding: 11px 12px;
+  border-radius: 10px;
+  border: 1.5px solid var(--borda);
+  font-size: 14px;
+  color: var(--texto);
+}
+
+.field input:focus {
+  outline: none;
+  border-color: var(--roxo);
+}
+
+.row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.seguranca-msg {
+  text-align: center;
+  font-size: 12px;
+  color: var(--texto-fraco);
+  margin: 18px 0 0;
+}
+
+/* ---------- RESUMO ---------- */
+.pagamento-sidebar{
+    position: sticky;
+    top:100px;
+}
+
+.resumo-produto {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.resumo-produto img {
+  width: 52px;
+  height: 52px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: #eee;
+}
+
+.resumo-produto-nome {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--texto);
+}
+
+.resumo-produto-categoria {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  color: var(--texto-suave);
+}
+
+.pagamento-sidebar .resumo-linha {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13.5px;
+  color: var(--texto-suave);
+  padding: 5px 0;
+}
+
+.resumo-total-linha {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--texto);
+}
+
+.resumo-total-linha span:last-child {
+  color: var(--laranja);
+}
+
+.resumo-taxa {
+  color: var(--verde) !important;
+}
+
+@media (max-width: 800px) {
+  .pagamento-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .metodos-grid {
+    grid-template-columns: 1fr;
+  }
+}

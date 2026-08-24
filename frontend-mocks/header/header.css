@@ -1,0 +1,193 @@
+/* ===================================================
+   HEADER
+   =================================================== */
+
+header{
+    width: 100%;
+    padding: 20px 4%;
+    background: linear-gradient(90deg,rgba(56, 29, 115, 1) 0%, rgba(109, 73, 242, 1) 50%, rgba(56, 29, 115, 1) 100%);
+    position: fixed;
+    top: 0;      
+    left: 0;     
+    box-shadow: 0 0 25px #0d0d0d3a;
+    z-index: 100;
+}
+
+header i{
+    color: #F2F2F2;
+}
+
+header ul{
+    list-style-type: none;
+}
+
+header ul li{
+    display: inline-block;
+    margin: 0 20px;
+}
+
+header ul li a{
+    color:#F2F2F2 ;
+    text-decoration: none;
+    padding: 6px 10px;
+    transition: .5s;
+    position: relative;
+}
+
+header ul li a:hover, header ul li a:hover i{
+    color:#F27C38;
+}
+
+header nav ul li a span{
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    border-bottom: 2px solid #F27C38;
+    border-radius: 30px;
+    transform: scale(0) translateY(0px);
+    opacity: 0;
+    transition: .5s;
+}
+
+header nav ul li a:hover span{
+    transform: scale(1) translateY(0);
+    opacity: 1;
+}
+
+.logo{
+    background-image: url(../img/logo.png);
+    width: 63.6px;
+    height: 30.7px;
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
+}
+
+/* Layout interno do header (usado dentro de .container-nav) */
+.flex{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.btn-login{
+    position: relative;
+    width: 100px;
+    height: 40px;
+    background: transparent;
+    border-radius: 30px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    border: 2px solid #F27C38;
+    overflow: hidden;
+    z-index: 1;
+    color: #F2F2F2;
+}
+
+.btn-login::before{
+    content: "";
+    position: absolute;
+    height: 300%;
+    width: 100%;
+    background: linear-gradient(#381D73, #F27C38, #381D73, #F27C38);
+    top: -100%;
+    left: 0;
+    z-index: -1;
+    transition: .5s;
+}
+
+.btn-login:hover:before{
+    top: 0;
+}
+
+/* BOTÃO HAMBURGUER */
+.menu-toggle{
+    display: none;
+    font-size: 28px;
+    color: #F2F2F2;
+    cursor: pointer;
+}
+
+.menu-toggle:hover{
+    background-color:#f2f2f27a;
+    padding: 2px;
+    border-radius: 10px;
+}
+
+.acoes-mobile{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* ================= USUÁRIO LOGADO ================= */
+
+.usuario-logado{
+    color: #F2F2F2;
+    font-size: 15px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.usuario-logado i{
+    font-size: 20px;
+    color: #F27C38;
+}
+
+/* ===================================================
+   HEADER - RESPONSIVO
+   =================================================== */
+
+@media (max-width: 1280px){
+    .login-mobile{
+        display: block;
+        margin-top: 10px;
+    }
+}
+
+@media (max-width: 1280px){
+    .menu-toggle{
+        display: block;
+    }
+    .container{
+        width: 100%;
+    }
+    nav{
+        position: absolute;
+        top: 70px;
+        left: 0;
+        width: 100%;
+        background: linear-gradient(90deg,rgba(56, 29, 115, 1) 0%, rgba(109, 73, 242, 1) 50%, rgba(56, 29, 115, 1) 100%);
+        display: none;
+        flex-direction: column;
+        padding: 20px 0;
+    }
+    nav.active{
+        display: flex;
+    }
+    nav ul{
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    nav ul li{
+        margin: 15px 0;
+        display: block;
+    }
+    .flex{
+        justify-content: space-between;
+    }
+}
+
+@media (max-width: 768px){
+    .usuario-logado{
+        justify-content: center;
+        margin-bottom: 15px;
+    }
+}

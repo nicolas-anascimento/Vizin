@@ -1,0 +1,134 @@
+/* ===================================================
+   FOOTER
+   =================================================== */
+
+footer{
+    width: 100%;
+    height: 360px;
+    background: linear-gradient(90deg,rgba(56, 29, 115, 1) 0%, rgba(109, 73, 242, 1) 50%, rgba(56, 29, 115, 1) 100%);
+    padding: 50px 5% 50px 5%;
+}
+
+footer p{
+    font-size: 16px;
+    color: #f2f2f2d3;
+}
+
+footer img{
+    width: 127px;
+    margin-bottom: 20px;
+}
+
+footer ul{
+    list-style-type: none;
+}
+
+footer ul li{
+    margin: 20px 0px;
+    color: #f2f2f2d3;
+}
+
+footer ul li a{
+    text-decoration: none;
+    transition: .5s;
+    color: #f2f2f2d3;
+}
+
+footer ul li a:hover{
+    color:#F27C38;
+}
+
+footer h2{
+    color: #F2F2F2;
+}
+
+footer hr{
+    border-color: #f2f2f27a;
+}
+
+.espaco-superior{
+    width: 100%;
+    height: auto;
+    display: flex;
+    justify-content: space-between;
+}
+
+.logo-footer{
+    height: 100%;
+}
+
+.logo-footer p{
+    margin-bottom: 20px;
+}
+
+.rede{
+    display: inline-block; /* 🔥 ESSENCIAL */
+    background-color: #f2f2f22a;
+    font-size: 20px;
+    padding: 10px;
+    color: #F2F2F2;
+    border-radius: 15px;
+    transition: 0.5s;
+}
+
+.rede:hover{
+    background-color: #f2f2f27a;
+    transform: scale(1.1);
+}
+
+.email{
+    cursor: pointer;
+}
+
+.email:active{
+    color:#F27C38;
+}
+
+.inferior-center{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+@media (max-width: 1280px){
+    footer{
+        height: auto;
+    }
+
+    .espaco-superior{
+        display: block;
+    }
+}
+
+
+.toast{
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background: #0D0D0D;
+    color: #F2F2F2;
+    padding: 15px 20px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 0 20px #00000040;
+
+    opacity: 0;
+    transform: translateY(20px);
+    pointer-events: none;
+
+    transition: all 0.4s ease;
+    z-index: 9999;
+}
+
+/* quando aparece */
+.toast.show{
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* variação sucesso */
+.toast.sucesso{
+    background: linear-gradient(90deg, #6D49F2, #F27C38);
+}
