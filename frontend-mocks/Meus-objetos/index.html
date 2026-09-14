@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="meus-objetos.css">
+    <link rel="stylesheet" href="meus-objetos.css?v=9">
     <link rel="stylesheet" href="../header/header.css">
     <link rel="stylesheet" href="../footer/footer.css">
     <link rel="stylesheet" href="../Notificacoes/notificacoes-shared.css">
@@ -11,12 +11,12 @@
     <title>Meus objetos</title>
 </head>
 <body>
-
-
+ 
+ 
     <div id="header"></div>
-
+ 
     <div class="page-container">
-
+ 
         <div class="page-header">
             <div>
                 <h1 class="page-title">Meus Objetos</h1>
@@ -28,18 +28,18 @@
                 </button>
             </a>
         </div>
-
+ 
         <!-- Estado vazio (sem objetos cadastrados) -->
         <div class="empty-state" id="empty-state" style="display:none;">
             <i class="bi bi-box-seam"></i>
             <p>Você ainda não cadastrou nenhum objeto.</p>
         </div>
-
+ 
         <!-- Lista de objetos do usuário -->
         <div id="lista-meus-objetos"></div>
-
+ 
     </div>
-
+ 
     <!-- Modal de Visualização -->
     <div class="modal-overlay" id="modal-visualizar">
         <div class="modal-box">
@@ -54,10 +54,26 @@
                     <span class="tag tag-status" id="modal-visualizar-status"></span>
                 </div>
                 <p class="modal-localizacao" id="modal-visualizar-localizacao"></p>
+ 
+                <button type="button" class="btn-ver-avaliacoes" id="modal-visualizar-ver-avaliacoes">
+                    <i class="bi bi-star-fill"></i> Ver Avaliações
+                </button>
             </div>
         </div>
     </div>
-
+ 
+    <!-- Modal de Avaliações do Objeto -->
+    <div class="modal-overlay" id="modal-avaliacoes">
+        <div class="modal-box modal-avaliacoes-box">
+            <button type="button" class="modal-close" id="modal-avaliacoes-close">&times;</button>
+            <div class="modal-content">
+                <h2>Avaliações de "<span id="modal-avaliacoes-titulo-objeto"></span>"</h2>
+                <div id="modal-avaliacoes-resumo"></div>
+                <div id="modal-avaliacoes-lista"></div>
+            </div>
+        </div>
+    </div>
+ 
     <!-- Modal de Confirmação de Exclusão -->
     <div class="modal-overlay" id="modal-excluir">
         <div class="modal-box modal-confirm">
@@ -70,17 +86,19 @@
             </div>
         </div>
     </div>
-
+ 
     <div id="footer"></div>
-
+ 
     <div id="toast" class="toast">Copiado ✔</div>
-
+ 
     <script src="../header/frame.js"></script>
-
     <script src="../Login/logout.js"></script>
-
     <script src="../Notificacoes/notificacoes-shared.js"></script>
-
-    <script src="meus-objetos.js"></script>
+    <script src="../Notificacoes/solicitacoes-shared.js"></script>
+    <script src="../Avaliacao/avaliacoes-shared.js"></script>
+    <script src="../utils/formatacao.js"></script>
+    <script src="objetos-shared.js?v=9"></script>
+    <script src="meus-objetos.js?v=10"></script>
 </body>
 </html>
+ 

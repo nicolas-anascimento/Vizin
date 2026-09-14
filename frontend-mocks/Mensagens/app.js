@@ -8,6 +8,13 @@
  
 const usuarioLogado = JSON.parse(localStorage.getItem("usuario") || "null");
  
+// Guarda de sessão: sem usuário logado não tem o que fazer aqui.
+// Redireciona pro login já preservando a intenção de voltar pra
+// Mensagens depois (o Login pode ler ?redirect= e mandar de volta).
+if (!usuarioLogado) {
+  window.location.href = "../Login/index.html?redirect=" + encodeURIComponent(location.pathname + location.search);
+}
+ 
 const state = {
   conversations: [],
   activeConversationId: null,
@@ -18,7 +25,11 @@ const els = {
   app: document.querySelector(".app"),
   convList: document.getElementById("convList"),
   convEmpty: document.getElementById("convEmpty"),
+  convError: document.getElementById("convError"),
+  retryLoadBtn: document.getElementById("retryLoadBtn"),
   searchInput: document.getElementById("searchInput"),
+ 
+  offlineBanner: document.getElementById("offlineBanner"),
  
   chatEmpty: document.getElementById("chatEmpty"),
   chatActive: document.getElementById("chatActive"),
@@ -27,12 +38,22 @@ const els = {
   chatName: document.getElementById("chatName"),
   chatPresence: document.getElementById("chatPresence"),
   chatItemChip: document.getElementById("chatItemChip"),
+  chatMenuBtn: document.getElementById("chatMenuBtn"),
+  chatMenuDropdown: document.getElementById("chatMenuDropdown"),
+  blockedUsersBtn: document.getElementById("blockedUsersBtn"),
+  blockUserOption: document.getElementById("blockUserOption"),
+  reportConvOption: document.getElementById("reportConvOption"),
+  deleteConvOption: document.getElementById("deleteConvOption"),
+ 
+  itemBanner: document.getElementById("itemBanner"),
+  safetyNotice: document.getElementById("safetyNotice"),
  
   messagesList: document.getElementById("messagesList"),
   typingIndicator: document.getElementById("typingIndicator"),
  
   composerForm: document.getElementById("composerForm"),
   messageInput: document.getElementById("messageInput"),
+  charCounter: document.getElementById("charCounter"),
   sendBtn: document.getElementById("sendBtn"),
  
   attachBtn: document.getElementById("attachBtn"),
@@ -42,10 +63,19 @@ const els = {
   attachmentPreviewName: document.getElementById("attachmentPreviewName"),
   attachmentRemoveBtn: document.getElementById("attachmentRemoveBtn"),
  
-  toast: document.getElementById("toaste"),
+  toaste: document.getElementById("toaste"),
+ 
+  // Modal genérico (confirmação de bloqueio/exclusão e formulário de denúncia)
+  modalOverlay: document.getElementById("modalOverlay"),
+  modalTitle: document.getElementById("modalTitle"),
+  modalBody: document.getElementById("modalBody"),
+  modalCancelBtn: document.getElementById("modalCancelBtn"),
+  modalConfirmBtn: document.getElementById("modalConfirmBtn"),
 };
  
 let pendingAttachment = null;
+ 
+const MESSAGE_MAX_LENGTH = 2000;
  
 const mobileQuery = window.matchMedia("(max-width: 860px)");
  
@@ -67,10 +97,45 @@ function itemIcon(icon) {
    INICIALIZAÇÃO
    ============================================================ */
 async function init() {
-  state.conversations = await API.getConversations();
-  renderConversationList(state.conversations);
   bindEvents();
-  await abrirConversaViaQueryParams();
+  setupOfflineDetection();
+  await loadConversations();
+}
+ 
+// Carrega (ou recarrega, no caso de "Tentar novamente") a lista de
+// conversas, tratando falha de rede com uma tela de erro dedicada em
+// vez de deixar a lista em branco pra sempre.
+async function loadConversations() {
+  hideConvError();
+  try {
+    state.conversations = await API.getConversations();
+    renderConversationList(state.conversations);
+    await abrirConversaViaQueryParams();
+  } catch (err) {
+    showConvError();
+  }
+}
+ 
+function showConvError() {
+  els.convList.innerHTML = "";
+  els.convEmpty.classList.add("hidden");
+  els.convError.classList.remove("hidden");
+}
+ 
+function hideConvError() {
+  els.convError.classList.add("hidden");
+}
+ 
+/* ============================================================
+   DETECÇÃO DE OFFLINE
+   ============================================================ */
+function setupOfflineDetection() {
+  const update = () => {
+    els.offlineBanner.classList.toggle("hidden", navigator.onLine);
+  };
+  window.addEventListener("online", update);
+  window.addEventListener("offline", update);
+  update();
 }
  
 // Se a página foi aberta a partir do botão "Conversar" da página do
@@ -85,12 +150,18 @@ async function abrirConversaViaQueryParams() {
   const produtoId = params.get("produtoId");
   const produtoTitulo = params.get("produtoTitulo");
  
-  const conv = await API.getOrCreateConversation({
-    userId,
-    userName,
-    produtoId,
-    produtoTitulo
-  });
+  let conv;
+  try {
+    conv = await API.getOrCreateConversation({
+      userId,
+      userName,
+      produtoId,
+      produtoTitulo
+    });
+  } catch (err) {
+    showToast("Não foi possível abrir essa conversa agora.");
+    return;
+  }
  
   if (!state.conversations.some(c => c.id === conv.id)) {
     state.conversations.unshift({
@@ -108,11 +179,13 @@ async function abrirConversaViaQueryParams() {
  
 function bindEvents() {
   els.searchInput.addEventListener("input", onSearch);
+  els.retryLoadBtn.addEventListener("click", loadConversations);
   els.composerForm.addEventListener("submit", onSendMessage);
-  els.messageInput.addEventListener("input", updateSendBtnState);
+  els.messageInput.addEventListener("input", onMessageInputChange);
   els.attachBtn.addEventListener("click", () => els.fileInput.click());
   els.fileInput.addEventListener("change", onFileSelected);
   els.attachmentRemoveBtn.addEventListener("click", clearAttachment);
+  els.blockedUsersBtn.addEventListener("click", onBlockedUsersClick);
  
   // Clicar na foto do usuário no cabeçalho do chat ativo leva ao perfil dele
   els.chatAvatar.addEventListener("click", () => {
@@ -120,6 +193,44 @@ function bindEvents() {
     if (conv?.user?.id) {
       window.location.href = `../Perfil/index.html?id=${conv.user.id}`;
     }
+  });
+ 
+  // Menu "⋮" do chat: bloquear / denunciar / apagar conversa
+  els.chatMenuBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    els.chatMenuDropdown.classList.toggle("hidden");
+  });
+  document.addEventListener("click", () => els.chatMenuDropdown.classList.add("hidden"));
+  els.blockUserOption.addEventListener("click", onBlockUserClick);
+  els.reportConvOption.addEventListener("click", onReportConvClick);
+  els.deleteConvOption.addEventListener("click", onDeleteConvClick);
+ 
+  // Modal genérico
+  els.modalCancelBtn.addEventListener("click", closeModal);
+  els.modalConfirmBtn.addEventListener("click", async () => {
+    if (!modalOnConfirm) return closeModal();
+    // Trava o botão pra evitar clique duplo enquanto a ação roda
+    // (ex: clicar 2x rápido em "Bloquear" e disparar a API 2x).
+    els.modalConfirmBtn.disabled = true;
+    try {
+      const result = await modalOnConfirm();
+      // Só false explícito mantém o modal aberto (ex: validação de
+      // campo vazio no formulário de denúncia). Qualquer outro
+      // retorno — incluindo undefined — fecha o modal normalmente.
+      if (result !== false) closeModal();
+    } catch (err) {
+      // Se o onConfirm quebrar de forma inesperada depois de já ter
+      // feito a ação, o modal não pode ficar preso na tela sem
+      // explicação — fecha e avisa.
+      console.error("Erro ao confirmar ação do modal:", err);
+      closeModal();
+      showToast("Algo deu errado. Tente novamente.");
+    } finally {
+      els.modalConfirmBtn.disabled = false;
+    }
+  });
+  els.modalOverlay.addEventListener("click", (e) => {
+    if (e.target === els.modalOverlay) closeModal();
   });
  
   // Botão físico/gesto de voltar do celular fecha o chat em vez de
@@ -181,6 +292,7 @@ function renderConversationList(conversations) {
 function previewText(msg) {
   if (!msg.text && !msg.type) return "Diga olá 👋";
   if (msg.type === "image") return "📷 Imagem";
+  if (msg.type === "video") return "🎥 Vídeo";
   if (msg.type === "file") return "📎 Arquivo";
   return msg.text || "Diga olá 👋";
 }
@@ -218,6 +330,8 @@ async function openConversation(id) {
   els.chatPresence.classList.toggle("online", conv.user.online);
   els.chatItemChip.innerHTML = `<span class="item-chip">${itemIcon(conv.item.icon)} ${escapeHtml(conv.item.name)}</span>`;
  
+  renderItemBanner(conv);
+ 
   // marca como lida
   if (conv.unreadCount > 0) {
     await API.markAsRead(id);
@@ -237,15 +351,60 @@ async function openConversation(id) {
       .forEach(n => NotificacoesVizin.marcarComoLida(n.id));
   }
  
-  state.messages = await API.getMessages(id);
-  renderMessages(state.messages);
+  els.typingIndicator.classList.add("hidden");
  
+  try {
+    state.messages = await API.getMessages(id);
+    renderMessages(state.messages);
+  } catch (err) {
+    state.messages = [];
+    els.messagesList.innerHTML = `<div class="messages-error">Não foi possível carregar as mensagens dessa conversa. <button type="button" id="retryMessagesBtn">Tentar novamente</button></div>`;
+    document.getElementById("retryMessagesBtn")?.addEventListener("click", () => openConversation(id));
+  }
+ 
+  restoreDraft(id);
   ensureBackButton();
   abrirChatMobile();
+}
  
-  // Entra na "sala" de sinalização de chamadas dessa conversa —
-  // necessário tanto pra ligar quanto pra RECEBER chamadas nela.
-  if (window.joinCallRoom) joinCallRoom(id);
+/* ============================================================
+   AVISO DE ANÚNCIO INDISPONÍVEL
+   ============================================================ */
+function renderItemBanner(conv) {
+  const status = conv.item.status || "disponivel";
+  if (status === "disponivel") {
+    els.itemBanner.classList.add("hidden");
+    return;
+  }
+  const texto = status === "alugado"
+    ? "Este anúncio já foi alugado por outra pessoa. Combine com cuidado antes de seguir com a retirada."
+    : "Este anúncio não está mais disponível.";
+  els.itemBanner.textContent = texto;
+  els.itemBanner.classList.remove("hidden");
+}
+ 
+/* ============================================================
+   RASCUNHOS (salva o que a pessoa está digitando por conversa)
+   ============================================================ */
+function draftKey(convId) {
+  return `vizin:draft:${convId}`;
+}
+ 
+function saveDraft(convId, text) {
+  if (!convId) return;
+  if (text) localStorage.setItem(draftKey(convId), text);
+  else localStorage.removeItem(draftKey(convId));
+}
+ 
+function restoreDraft(convId) {
+  const draft = localStorage.getItem(draftKey(convId)) || "";
+  els.messageInput.value = draft;
+  updateCharCounter();
+  updateSendBtnState();
+}
+ 
+function clearDraft(convId) {
+  localStorage.removeItem(draftKey(convId));
 }
  
 function currentFilteredList() {
@@ -325,6 +484,8 @@ function renderMessages(messages) {
     let inner = "";
     if (msg.type === "image" && msg.attachment) {
       inner += `<img class="msg-attachment" src="${msg.attachment.url}" alt="Imagem enviada">`;
+    } else if (msg.type === "video" && msg.attachment) {
+      inner += `<video class="msg-attachment" src="${msg.attachment.url}" controls playsinline></video>`;
     } else if (msg.type === "file" && msg.attachment) {
       inner += `<div class="msg-file">📎 ${escapeHtml(msg.attachment.name)}</div>`;
     }
@@ -332,7 +493,9 @@ function renderMessages(messages) {
       inner += `<div>${escapeHtml(msg.text)}</div>`;
     }
  
-    const ticks = msg.from === "me" ? renderTicks(msg.status) : "";
+    const ticks = msg.from === "me" && msg.status !== "failed" ? renderTicks(msg.status) : "";
+ 
+    row.className += msg.status === "failed" ? " failed" : "";
  
     row.innerHTML = `
       <div class="msg-bubble">
@@ -341,15 +504,34 @@ function renderMessages(messages) {
           <span>${formatTime(msg.time)}</span>
           ${ticks}
         </div>
+        ${msg.status === "failed" ? `
+          <div class="msg-failed">
+            <span>❗ Falha ao enviar</span>
+            <button type="button" class="msg-failed__retry" data-retry-id="${msg.id}">Tentar de novo</button>
+            <button type="button" class="msg-failed__discard" data-discard-id="${msg.id}">Apagar</button>
+          </div>
+        ` : ""}
       </div>
     `;
     els.messagesList.appendChild(row);
+  });
+ 
+  els.messagesList.querySelectorAll("[data-retry-id]").forEach(btn => {
+    btn.addEventListener("click", () => retryFailedMessage(btn.dataset.retryId));
+  });
+  els.messagesList.querySelectorAll("[data-discard-id]").forEach(btn => {
+    btn.addEventListener("click", () => discardFailedMessage(btn.dataset.discardId));
   });
  
   els.messagesList.scrollTop = els.messagesList.scrollHeight;
 }
  
 function renderTicks(status) {
+  if (status === "sending") {
+    return `<span class="ticks ticks--sending" title="Enviando...">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+    </span>`;
+  }
   const read = status === "read";
   return `<span class="ticks ${read ? "read" : ""}">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12l5 5L20 4"/><path d="M9 17l3 3L23 8" opacity="${read ? 1 : 0}"/></svg>
@@ -364,6 +546,26 @@ function updateSendBtnState() {
   els.sendBtn.disabled = !hasText && !pendingAttachment;
 }
  
+function onMessageInputChange() {
+  updateSendBtnState();
+  updateCharCounter();
+  saveDraft(state.activeConversationId, els.messageInput.value);
+}
+ 
+function updateCharCounter() {
+  const len = els.messageInput.value.length;
+  const remaining = MESSAGE_MAX_LENGTH - len;
+  // Só mostra o contador quando a pessoa está perto do limite —
+  // não precisa poluir a tela o tempo todo.
+  if (remaining <= 200) {
+    els.charCounter.textContent = `${remaining} caracteres restantes`;
+    els.charCounter.classList.remove("hidden");
+    els.charCounter.classList.toggle("char-counter--danger", remaining <= 0);
+  } else {
+    els.charCounter.classList.add("hidden");
+  }
+}
+ 
 async function onSendMessage(e) {
   e.preventDefault();
   const id = state.activeConversationId;
@@ -372,46 +574,106 @@ async function onSendMessage(e) {
   const text = els.messageInput.value.trim();
   if (!text && !pendingAttachment) return;
  
-  const newMsg = await API.sendMessage(id, { text, attachment: pendingAttachment });
- 
-  state.messages.push(newMsg);
-  renderMessages(state.messages);
- 
-  // atualiza preview na lista lateral
-  const conv = state.conversations.find(c => c.id === id);
-  if (conv) {
-    conv.lastMessage = newMsg;
-    renderConversationList(currentFilteredList());
-    document.querySelector(`.conv-item[data-id="${id}"]`)?.classList.add("active");
- 
-    // ===== Notifica o destinatário =====
-    if (window.NotificacoesVizin) {
-      window.NotificacoesVizin.adicionarNotificacao(
-        {
-          tipo: "mensagem",
-          titulo: "Nova mensagem",
-          descricao: `${usuarioLogado?.nome || "Alguém"} enviou uma mensagem sobre "${conv.item.name}".`,
-          data: new Date().toLocaleDateString("pt-BR"),
-          conversaId: id
-        },
-        conv.user.id
-      );
-    }
+  if (text.length > MESSAGE_MAX_LENGTH) {
+    showToast(`Mensagem muito longa (máximo de ${MESSAGE_MAX_LENGTH} caracteres).`);
+    return;
   }
  
+  const attachment = pendingAttachment;
   els.messageInput.value = "";
   clearAttachment();
   updateSendBtnState();
+  updateCharCounter();
+  clearDraft(id);
  
-  simulateReplyStatusUpdate(id, newMsg.id);
+  // Envio otimista: a bolha aparece na hora, com um relógio, e só vira
+  // "enviada"/"falhou" quando a resposta do back-end chega. Isso evita
+  // a sensação de trava enquanto a rede responde.
+  const tempId = "tmp" + Date.now();
+  const optimisticMsg = {
+    id: tempId,
+    from: "me",
+    type: attachment ? attachment.type : "text",
+    text,
+    attachment: attachment || null,
+    time: new Date().toISOString(),
+    status: "sending"
+  };
+  state.messages.push(optimisticMsg);
+  renderMessages(state.messages);
+ 
+  await trySendMessage(id, optimisticMsg, { text, attachment });
 }
  
-// Simula, no mock, a mensagem sendo "entregue" e depois "lida" pelo outro lado.
-// TODO (back-end real): isso deve vir de um evento via WebSocket/polling,
+async function trySendMessage(convId, optimisticMsg, payload) {
+  try {
+    const newMsg = await API.sendMessage(convId, payload);
+    // substitui a mensagem otimista pela confirmada pelo back-end
+    const idx = state.messages.findIndex(m => m.id === optimisticMsg.id);
+    if (idx >= 0) state.messages[idx] = newMsg;
+    if (state.activeConversationId === convId) renderMessages(state.messages);
+ 
+    const conv = state.conversations.find(c => c.id === convId);
+    if (conv) {
+      conv.lastMessage = newMsg;
+      renderConversationList(currentFilteredList());
+      document.querySelector(`.conv-item[data-id="${convId}"]`)?.classList.add("active");
+ 
+      // ===== Notifica o destinatário =====
+      if (window.NotificacoesVizin) {
+        window.NotificacoesVizin.adicionarNotificacao(
+          {
+            tipo: "mensagem",
+            titulo: "Nova mensagem",
+            descricao: `${usuarioLogado?.nome || "Alguém"} enviou uma mensagem sobre "${conv.item.name}".`,
+            data: new Date().toLocaleDateString("pt-BR"),
+            conversaId: convId
+          },
+          conv.user.id
+        );
+      }
+    }
+ 
+    simulateReplyStatusUpdate(convId, newMsg.id);
+  } catch (err) {
+    // Falha no envio: mantém a bolha visível, marcada como "falhou",
+    // com opção de reenviar ou apagar — igual WhatsApp/Telegram fazem.
+    const msg = state.messages.find(m => m.id === optimisticMsg.id);
+    if (msg) msg.status = "failed";
+    if (state.activeConversationId === convId) renderMessages(state.messages);
+  }
+}
+ 
+// Chamado pelo botão "Tentar novamente" de uma mensagem com falha.
+function retryFailedMessage(msgId) {
+  const convId = state.activeConversationId;
+  const msg = state.messages.find(m => m.id === msgId);
+  if (!msg) return;
+  msg.status = "sending";
+  renderMessages(state.messages);
+  trySendMessage(convId, msg, { text: msg.text, attachment: msg.attachment });
+}
+ 
+// Chamado pelo botão "Apagar" de uma mensagem com falha (nunca chegou
+// a existir no back-end, então só precisa sumir da UI local).
+function discardFailedMessage(msgId) {
+  state.messages = state.messages.filter(m => m.id !== msgId);
+  renderMessages(state.messages);
+}
+ 
+// Simula, no mock, a mensagem sendo "entregue" e depois "lida" pelo outro lado
+// (com um instante de "digitando..." no meio, só de efeito visual).
+// TODO (back-end real): isso deve vir de eventos via WebSocket/polling,
 // não de um setTimeout no front-end.
 function simulateReplyStatusUpdate(convId, msgId) {
   setTimeout(() => updateMsgStatus(convId, msgId, "delivered"), 800);
-  setTimeout(() => updateMsgStatus(convId, msgId, "read"), 2200);
+  setTimeout(() => {
+    if (state.activeConversationId === convId) els.typingIndicator.classList.remove("hidden");
+  }, 1400);
+  setTimeout(() => {
+    if (state.activeConversationId === convId) els.typingIndicator.classList.add("hidden");
+    updateMsgStatus(convId, msgId, "read");
+  }, 2600);
 }
  
 function updateMsgStatus(convId, msgId, status) {
@@ -428,16 +690,26 @@ async function onFileSelected() {
   if (!file) return;
  
   showToast("Enviando anexo...");
-  const uploaded = await API.uploadFile(file);
-  pendingAttachment = uploaded;
+  try {
+    const uploaded = await API.uploadFile(file);
+    pendingAttachment = uploaded;
  
-  els.attachmentPreview.classList.remove("hidden");
-  els.attachmentPreviewName.textContent = uploaded.name;
-  els.attachmentPreviewImg.src = uploaded.type === "image" ? uploaded.url
-    : "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%238B90A0' d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Z'/%3E%3C/svg%3E";
+    els.attachmentPreview.classList.remove("hidden");
+    els.attachmentPreviewName.textContent = uploaded.name;
+    els.attachmentPreviewImg.src = uploaded.type === "image" ? uploaded.url
+      : uploaded.type === "video" ? "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='11' fill='%238B90A0'/%3E%3Cpath d='M10 8.5v7l6-3.5-6-3.5Z' fill='%23fff'/%3E%3C/svg%3E"
+      : "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%238B90A0' d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Z'/%3E%3C/svg%3E";
  
-  updateSendBtnState();
-  els.fileInput.value = "";
+    updateSendBtnState();
+  } catch (err) {
+    // Cobre tanto arquivo inválido (tamanho/tipo, validado antes do
+    // upload) quanto falha de rede durante o envio — em ambos os
+    // casos não deixamos um anexo "fantasma" preso no composer.
+    showToast(err.message || "Não foi possível enviar o arquivo.");
+    clearAttachment();
+  } finally {
+    els.fileInput.value = "";
+  }
 }
  
 function clearAttachment() {
@@ -445,6 +717,237 @@ function clearAttachment() {
   els.attachmentPreview.classList.add("hidden");
   els.attachmentPreviewImg.src = "";
   updateSendBtnState();
+}
+ 
+/* ============================================================
+   BLOQUEAR / DENUNCIAR / APAGAR CONVERSA
+   ============================================================ */
+function activeConv() {
+  return state.conversations.find(c => c.id === state.activeConversationId);
+}
+ 
+function onBlockUserClick() {
+  const conv = activeConv();
+  if (!conv) return;
+  openModal({
+    title: "Bloquear " + conv.user.name + "?",
+    bodyHtml: `<p>Vocês não vão mais poder trocar mensagens, e essa conversa vai sumir da sua lista. Isso não avisa a pessoa de que ela foi bloqueada.</p>`,
+    confirmLabel: "Bloquear",
+    confirmDanger: true,
+    onConfirm: async () => {
+      try {
+        await API.blockUser(conv.user.id);
+        state.conversations = state.conversations.filter(c => c.id !== conv.id);
+        renderConversationList(currentFilteredList());
+        state.activeConversationId = null;
+        els.chatActive.classList.add("hidden");
+        els.chatEmpty.classList.remove("hidden");
+        showToast(conv.user.name + " foi bloqueado(a).");
+      } catch (err) {
+        showToast("Não foi possível bloquear agora. Tente novamente.");
+      }
+    }
+  });
+}
+ 
+// Mesma lista de motivos usada no formulário de Denúncia da página de
+// Suporte (ver Suporte/suporte.js) — as duas telas alimentam a mesma
+// fila de moderação, então usam o mesmo vocabulário de motivo.
+const MOTIVOS_DENUNCIA = [
+  { value: "comportamento", label: "Comportamento inadequado / assédio" },
+  { value: "golpe", label: "Suspeita de golpe ou fraude" },
+  { value: "item_danificado", label: "Item danificado ou não devolvido" },
+  { value: "anuncio_falso", label: "Anúncio falso ou enganoso" },
+  { value: "conteudo_impropprio", label: "Conteúdo impróprio" },
+  { value: "pagamento", label: "Problema com pagamento ou reembolso" },
+  { value: "outro", label: "Outro" }
+];
+ 
+function onReportConvClick() {
+  const conv = activeConv();
+  if (!conv) return;
+  const opcoesMotivo = MOTIVOS_DENUNCIA
+    .map(m => `<option value="${m.value}">${m.label}</option>`)
+    .join("");
+ 
+  openModal({
+    title: "Denunciar conversa",
+    bodyHtml: `
+      <p class="modal-hint">Sua denúncia é analisada pela nossa equipe de suporte. Denúncias falsas podem resultar em suspensão da conta.</p>
+      <p class="modal-hint">Em risco imediato? Ligue <strong>190</strong> (Polícia) — não espere a análise deste formulário.</p>
+      <label class="modal-field-label" for="reportMotivo">Motivo</label>
+      <select id="reportMotivo" class="modal-select">
+        ${opcoesMotivo}
+      </select>
+      <label class="modal-field-label" for="reportMensagem">Detalhes</label>
+      <textarea id="reportMensagem" class="modal-textarea" placeholder="Descreva o que aconteceu..."></textarea>
+    `,
+    confirmLabel: "Enviar denúncia",
+    confirmDanger: true,
+    onConfirm: async () => {
+      const motivo = document.getElementById("reportMotivo").value;
+      const mensagem = document.getElementById("reportMensagem").value.trim();
+      if (!mensagem) {
+        showToast("Descreva o que aconteceu antes de enviar.");
+        return false; // impede o modal de fechar
+      }
+      try {
+        const report = await API.reportConversation(conv.id, { motivo, mensagem });
+        // Protocolo curto pra pessoa guardar/referenciar depois — no
+        // back-end real isso já viria pronto na resposta do POST.
+        const protocolo = String(report?.id || "").slice(-8).toUpperCase();
+        showToast(protocolo ? `Denúncia enviada. Protocolo #${protocolo}` : "Denúncia enviada. Nossa equipe vai analisar.");
+        // Denunciar e bloquear costumam andar juntos — oferece na
+        // sequência em vez de depender da pessoa lembrar de bloquear
+        // manualmente depois pelo menu "⋮".
+        setTimeout(() => promptBloquearAposDenuncia(conv), 350);
+      } catch (err) {
+        showToast("Não foi possível enviar a denúncia agora. Tente novamente.");
+        return false;
+      }
+    }
+  });
+}
+ 
+function promptBloquearAposDenuncia(conv) {
+  // A conversa pode já ter sumido da lista (ex: usuário trocou de aba
+  // rapidamente) — nesse caso não faz sentido oferecer bloqueio dela.
+  if (!state.conversations.some(c => c.id === conv.id)) return;
+ 
+  openModal({
+    title: "Bloquear " + conv.user.name + " também?",
+    bodyHtml: `<p>Assim ${escapeHtml(conv.user.name)} não consegue mais te mandar mensagem enquanto a denúncia é analisada.</p>`,
+    confirmLabel: "Bloquear",
+    cancelLabel: "Agora não",
+    confirmDanger: true,
+    onConfirm: async () => {
+      try {
+        await API.blockUser(conv.user.id);
+        state.conversations = state.conversations.filter(c => c.id !== conv.id);
+        renderConversationList(currentFilteredList());
+        if (state.activeConversationId === conv.id) {
+          state.activeConversationId = null;
+          els.chatActive.classList.add("hidden");
+          els.chatEmpty.classList.remove("hidden");
+        }
+        showToast(conv.user.name + " foi bloqueado(a).");
+      } catch (err) {
+        showToast("Não foi possível bloquear agora. Tente novamente.");
+      }
+    }
+  });
+}
+ 
+function onDeleteConvClick() {
+  const conv = activeConv();
+  if (!conv) return;
+  openModal({
+    title: "Apagar esta conversa?",
+    bodyHtml: `<p>Ela some só da sua lista — ${escapeHtml(conv.user.name)} continua vendo o histórico normalmente.</p>`,
+    confirmLabel: "Apagar",
+    confirmDanger: true,
+    onConfirm: async () => {
+      try {
+        await API.deleteConversationForMe(conv.id);
+        state.conversations = state.conversations.filter(c => c.id !== conv.id);
+        renderConversationList(currentFilteredList());
+        state.activeConversationId = null;
+        els.chatActive.classList.add("hidden");
+        els.chatEmpty.classList.remove("hidden");
+        showToast("Conversa apagada.");
+      } catch (err) {
+        showToast("Não foi possível apagar agora. Tente novamente.");
+      }
+    }
+  });
+}
+ 
+/* ============================================================
+   USUÁRIOS BLOQUEADOS
+   ============================================================ */
+async function onBlockedUsersClick() {
+  let blocked;
+  try {
+    blocked = await API.getBlockedUsers();
+  } catch (err) {
+    showToast("Não foi possível carregar os usuários bloqueados.");
+    return;
+  }
+  openModal({
+    title: "Usuários bloqueados",
+    bodyHtml: blockedUsersListHtml(blocked),
+    hideConfirm: true,
+    cancelLabel: "Fechar"
+  });
+  bindBlockedUsersListEvents();
+}
+ 
+function blockedUsersListHtml(blocked) {
+  if (blocked.length === 0) {
+    return `<p>Você não tem usuários bloqueados.</p>`;
+  }
+  return `<ul class="blocked-users-list">${blocked.map(u => `
+    <li class="blocked-user-item" data-user-id="${escapeHtml(u.id)}">
+      <img class="blocked-user-avatar" src="${u.avatar || ""}" alt="Foto de ${escapeHtml(u.name)}">
+      <span class="blocked-user-name">${escapeHtml(u.name)}</span>
+      <button type="button" class="blocked-user-unblock">Desbloquear</button>
+    </li>
+  `).join("")}</ul>`;
+}
+ 
+// Cada item da lista tem sua própria ação (desbloquear), então em vez
+// de usar o onConfirm único do modal genérico, escuta os cliques nos
+// botões renderizados dentro do modal-body.
+function bindBlockedUsersListEvents() {
+  els.modalBody.querySelectorAll(".blocked-user-unblock").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const li = btn.closest(".blocked-user-item");
+      const userId = li.dataset.userId;
+      btn.disabled = true;
+      btn.textContent = "Desbloqueando...";
+      try {
+        await API.unblockUser(userId);
+        li.remove();
+        showToast("Usuário desbloqueado.");
+        // A conversa volta a existir na lista principal agora que o
+        // usuário não está mais bloqueado.
+        state.conversations = await API.getConversations();
+        renderConversationList(currentFilteredList());
+        if (!els.modalBody.querySelector(".blocked-user-item")) {
+          els.modalBody.innerHTML = "<p>Você não tem usuários bloqueados.</p>";
+        }
+      } catch (err) {
+        showToast("Não foi possível desbloquear agora. Tente novamente.");
+        btn.disabled = false;
+        btn.textContent = "Desbloquear";
+      }
+    });
+  });
+}
+ 
+/* ============================================================
+   MODAL GENÉRICO (confirmação, formulário de denúncia e listas
+   com ação própria por item, como usuários bloqueados)
+   ============================================================ */
+let modalOnConfirm = null;
+ 
+function openModal({ title, bodyHtml, confirmLabel, confirmDanger, onConfirm, hideConfirm, cancelLabel }) {
+  els.modalTitle.textContent = title;
+  els.modalBody.innerHTML = bodyHtml;
+  els.modalConfirmBtn.textContent = confirmLabel || "Confirmar";
+  els.modalConfirmBtn.classList.toggle("danger", !!confirmDanger);
+  els.modalConfirmBtn.classList.toggle("hidden", !!hideConfirm);
+  els.modalConfirmBtn.disabled = false;
+  els.modalCancelBtn.textContent = cancelLabel || "Cancelar";
+  modalOnConfirm = onConfirm || null;
+  els.modalOverlay.classList.remove("hidden");
+}
+ 
+function closeModal() {
+  els.modalOverlay.classList.add("hidden");
+  els.modalBody.innerHTML = "";
+  els.modalConfirmBtn.classList.remove("hidden");
+  modalOnConfirm = null;
 }
  
 /* ============================================================

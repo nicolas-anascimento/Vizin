@@ -12,104 +12,181 @@
     <title>Finalizar Pagamento</title>
 </head>
 <body>
-
+ 
     <div id="header"></div>
-
+ 
     <div class="page-container">
-
+ 
         <a href="#" id="link-voltar" class="back-link"><i class="bi bi-arrow-left"></i> Voltar</a>
-
+ 
+        <!-- ================= TELA: PRAZO PARA PAGAR (banner) ================= -->
+        <div class="banner-prazo" id="banner-prazo" style="display:none;">
+            <i class="bi bi-clock-history"></i>
+            <span>Você tem <strong id="banner-prazo-tempo">--</strong> para pagar antes da data de retirada — depois disso a solicitação é cancelada automaticamente.</span>
+        </div>
+ 
         <div class="pagamento-grid">
-
+ 
             <!-- COLUNA PRINCIPAL -->
             <div class="pagamento-main">
-
-                <div class="card">
+ 
+                <!-- ================= TELA PRINCIPAL DE PAGAMENTO ================= -->
+                <div class="card" id="tela-pagamento">
                     <h1 class="pagamento-titulo">Finalizar Pagamento</h1>
                     <p class="pagamento-subtitulo">Escolha o método de pagamento</p>
-
+ 
                     <div class="metodos-grid">
                         <button type="button" class="metodo-btn" id="metodo-pix" data-metodo="pix">
                             <i class="bi bi-qr-code"></i>
                             <span class="metodo-nome">PIX</span>
                             <span class="metodo-desc">Pagamento instantâneo</span>
                         </button>
-
+ 
                         <button type="button" class="metodo-btn" id="metodo-cartao" data-metodo="cartao">
                             <i class="bi bi-credit-card"></i>
                             <span class="metodo-nome">Cartão de Crédito</span>
                             <span class="metodo-desc">Em até 12x sem juros</span>
                         </button>
                     </div>
-
+ 
                     <p class="metodo-vazio" id="metodo-vazio">Selecione um método de pagamento para continuar</p>
-
+ 
                     <!-- PIX -->
                     <div class="metodo-conteudo" id="conteudo-pix" style="display:none;">
                         <hr>
                         <h2>Pagamento via PIX</h2>
-
-                        <div class="pix-box">
+ 
+                        <div class="pix-box" id="pix-box">
                             <div class="qr-placeholder" id="qr-placeholder" aria-label="QR Code PIX"></div>
-
+ 
+                            <div class="pix-timer" id="pix-timer">
+                                <i class="bi bi-clock"></i> Código válido por <strong id="pix-timer-tempo">30:00</strong>
+                            </div>
+ 
                             <label class="pix-codigo-label">Código PIX (Copia e Cola)</label>
                             <div class="pix-codigo-row">
                                 <input type="text" id="pix-codigo" readonly>
                                 <button type="button" class="btn-copiar" id="btn-copiar-pix"><i class="bi bi-clipboard"></i></button>
                             </div>
-
+ 
                             <ol class="pix-instrucoes">
                                 <li>Abra o app do seu banco</li>
                                 <li>Escaneie o QR Code ou copie o código</li>
                                 <li>Confirme o pagamento de <strong id="pix-valor"></strong></li>
                                 <li>Aguarde a confirmação automática</li>
                             </ol>
-
-                            <button type="button" class="btn btn-primary btn-block" id="btn-confirmar-pix">Já realizei o pagamento PIX</button>
+ 
+                            <div class="pix-aguardando" id="pix-aguardando" style="display:none;">
+                                <span class="spinner"></span> Aguardando confirmação do banco...
+                                <button type="button" class="link-teste" id="btn-simular-pix">(simular pagamento — teste)</button>
+                            </div>
+                        </div>
+ 
+                        <!-- PIX expirado -->
+                        <div class="pix-expirado" id="pix-expirado" style="display:none;">
+                            <i class="bi bi-x-circle"></i>
+                            <p>O código PIX expirou sem confirmação de pagamento.</p>
+                            <button type="button" class="btn btn-primary btn-block" id="btn-gerar-novo-pix">Gerar novo código PIX</button>
                         </div>
                     </div>
-
+ 
                     <!-- CARTÃO -->
                     <div class="metodo-conteudo" id="conteudo-cartao" style="display:none;">
                         <hr>
                         <h2>Dados do Cartão</h2>
-
+ 
+                        <div class="alerta-erro" id="cartao-erro-geral" style="display:none;">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            <span id="cartao-erro-geral-texto">Não foi possível processar o pagamento.</span>
+                        </div>
+ 
                         <form id="form-cartao" novalidate>
-                            <div class="field">
-                                <label for="cartao-numero">Número do Cartão</label>
-                                <input type="text" id="cartao-numero" placeholder="1234 5678 9012 3456" maxlength="19" required>
+ 
+                            <!-- Cartões já cadastrados em Forma de Pagamento -->
+                            <div id="cartoes-salvos-secao" style="display:none;">
+                                <div id="cartoes-salvos-lista" class="cartoes-salvos-lista"></div>
+                                <button type="button" class="btn-link" id="btn-usar-outro-cartao">+ Usar outro cartão</button>
                             </div>
-
-                            <div class="field">
-                                <label for="cartao-nome">Nome no Cartão</label>
-                                <input type="text" id="cartao-nome" placeholder="NOME COMO ESTÁ NO CARTÃO" required>
-                            </div>
-
-                            <div class="row-2">
+ 
+                            <!-- Digitação manual: aparece se não houver cartão salvo, ou se o usuário escolher "usar outro cartão" -->
+                            <div id="campos-cartao-novo">
+                                <button type="button" class="btn-link" id="btn-usar-cartao-salvo" style="display:none;">← Usar um cartão salvo</button>
+ 
                                 <div class="field">
-                                    <label for="cartao-validade">Validade</label>
-                                    <input type="text" id="cartao-validade" placeholder="MM/AA" maxlength="5" required>
+                                    <label for="cartao-numero">Número do Cartão</label>
+                                    <input type="text" id="cartao-numero" placeholder="1234 5678 9012 3456" maxlength="19" required>
+                                    <span class="field-erro" id="erro-cartao-numero"></span>
                                 </div>
+ 
                                 <div class="field">
-                                    <label for="cartao-cvv">CVV</label>
-                                    <input type="text" id="cartao-cvv" placeholder="123" maxlength="4" required>
+                                    <label for="cartao-nome">Nome no Cartão</label>
+                                    <input type="text" id="cartao-nome" placeholder="NOME COMO ESTÁ NO CARTÃO" required>
+                                    <span class="field-erro" id="erro-cartao-nome"></span>
+                                </div>
+ 
+                                <div class="row-2">
+                                    <div class="field">
+                                        <label for="cartao-validade">Validade</label>
+                                        <input type="text" id="cartao-validade" placeholder="MM/AA" maxlength="5" required>
+                                        <span class="field-erro" id="erro-cartao-validade"></span>
+                                    </div>
+                                    <div class="field">
+                                        <label for="cartao-cvv">CVV</label>
+                                        <input type="text" id="cartao-cvv" placeholder="123" maxlength="4" required>
+                                        <span class="field-erro" id="erro-cartao-cvv"></span>
+                                    </div>
                                 </div>
                             </div>
-
+ 
                             <button type="submit" class="btn btn-primary btn-block" id="btn-pagar-cartao">Pagar</button>
+ 
+                            <div class="metodo-actions" id="cartao-acoes-erro" style="display:none;">
+                                <button type="button" class="btn-link" id="btn-tentar-outro-cartao">Tentar outro cartão</button>
+                                <button type="button" class="btn-link" id="btn-tentar-outro-metodo">Tentar outro método de pagamento</button>
+                            </div>
                         </form>
                     </div>
-
+ 
                     <p class="seguranca-msg"><i class="bi bi-shield-lock"></i> Pagamento 100% seguro e criptografado</p>
                 </div>
-
+ 
+                <!-- ================= TELA: SOLICITAÇÃO INVÁLIDA ================= -->
+                <div class="card tela-estado" id="tela-erro-solicitacao" style="display:none;">
+                    <div class="tela-estado-icone tela-estado-erro"><i class="bi bi-x-lg"></i></div>
+                    <h1 class="tela-estado-titulo">Não foi possível abrir esta cobrança</h1>
+                    <p class="tela-estado-texto" id="erro-solicitacao-texto">
+                        Esta solicitação não existe, não pertence à sua conta ou não está mais disponível para pagamento.
+                    </p>
+                    <button type="button" class="btn btn-primary btn-block" id="btn-erro-solicitacao-voltar">Voltar para meus pedidos</button>
+                </div>
+ 
+                <!-- ================= TELA: OBJETO INDISPONÍVEL ================= -->
+                <div class="card tela-estado" id="tela-objeto-indisponivel" style="display:none;">
+                    <div class="tela-estado-icone tela-estado-erro"><i class="bi bi-box-seam"></i></div>
+                    <h1 class="tela-estado-titulo">Este objeto não está mais disponível</h1>
+                    <p class="tela-estado-texto">
+                        O objeto ficou indisponível entre a aprovação e a finalização do pagamento. Se algum valor chegou a ser cobrado, ele será estornado automaticamente.
+                    </p>
+                    <button type="button" class="btn btn-primary btn-block" id="btn-objeto-indisponivel-voltar">Ver outros objetos</button>
+                </div>
+ 
+                <!-- ================= TELA: PRAZO EXPIRADO ================= -->
+                <div class="card tela-estado" id="tela-prazo-expirado" style="display:none;">
+                    <div class="tela-estado-icone tela-estado-aviso"><i class="bi bi-hourglass-bottom"></i></div>
+                    <h1 class="tela-estado-titulo">A data de retirada chegou sem o pagamento</h1>
+                    <p class="tela-estado-texto">
+                        Esta solicitação foi cancelada automaticamente e o objeto voltou a ficar disponível para outras pessoas.
+                    </p>
+                    <button type="button" class="btn btn-primary btn-block" id="btn-prazo-expirado-voltar">Voltar para o objeto</button>
+                </div>
+ 
             </div>
-
+ 
             <!-- RESUMO DO PEDIDO -->
-            <div class="pagamento-sidebar">
+            <div class="pagamento-sidebar" id="pagamento-sidebar">
                 <div class="card">
                     <h2>Resumo do Pedido</h2>
-
+ 
                     <div class="resumo-produto">
                         <img id="resumo-imagem" src="" alt="">
                         <div>
@@ -117,43 +194,43 @@
                             <p class="resumo-produto-categoria" id="resumo-produto-categoria"></p>
                         </div>
                     </div>
-
+ 
                     <hr>
-
+ 
                     <div class="resumo-linha"><span><i class="bi bi-calendar3"></i> Período:</span><span id="resumo-periodo"></span></div>
                     <div class="resumo-linha"><span>Data de Retirada:</span><span id="resumo-retirada"></span></div>
                     <div class="resumo-linha"><span>Data de Devolução:</span><span id="resumo-devolucao"></span></div>
                     <div class="resumo-linha"><span>Preço por dia:</span><span id="resumo-preco-dia"></span></div>
                     <div class="resumo-linha"><span>Subtotal:</span><span id="resumo-subtotal"></span></div>
-                    <div class="resumo-linha"><span>Taxa de serviço:</span><span class="resumo-taxa">R$ 0</span></div>
-
+                    <div class="resumo-linha"><span>Taxa de serviço:</span><span class="resumo-taxa">R$ 0,00</span></div>
+ 
                     <hr>
-
+ 
                     <div class="resumo-linha resumo-total-linha">
                         <span>Total:</span>
                         <span id="resumo-total"></span>
                     </div>
-
+ 
                     <div class="dica-box">
-                        <strong>📍 Dica:</strong> Entre em contato com o proprietário após o pagamento para combinar detalhes da retirada.
-                    </div>
+    <strong>🔒 Pagamento protegido:</strong> Seu dinheiro fica retido com segurança no Vizin até a retirada do objeto ser confirmada. Se a retirada for cancelada, o valor volta automaticamente para sua conta.
+</div>
                 </div>
             </div>
-
+ 
         </div>
-
+ 
     </div>
-
+ 
     <div id="footer"></div>
-
+ 
     <div id="toast" class="toast">Copiado ✔</div>
-
+ 
+    <script src="../utils/formatacao.js"></script>
     <script src="../header/frame.js"></script>
-
     <script src="../Login/logout.js"></script>
-
     <script src="../Notificacoes/notificacoes-shared.js"></script>
-
+    <script src="../Notificacoes/solicitacoes-shared.js"></script>
     <script src="finalizar-pagamento.js"></script>
 </body>
 </html>
+ 

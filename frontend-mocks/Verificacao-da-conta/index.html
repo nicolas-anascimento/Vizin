@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../Produto/fluxo-aluguel.css">
+    <link rel="stylesheet" href="../header/header.css">
+    <link rel="stylesheet" href="../footer/footer.css">
+    <link rel="stylesheet" href="../Minha-conta/conta-shared.css">
+    <link rel="stylesheet" href="verificacao.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <title>Verificação de conta</title>
+</head>
+<body>
+ 
+    <div id="header"></div>
+ 
+    <div class="page-container verif-container">
+ 
+        <a class="conta-voltar" href="../Perfil/index.html"><i class="bi bi-arrow-left"></i> Voltar ao perfil</a>
+ 
+        <!-- ================= TELA: JÁ VERIFICADO ================= -->
+        <div class="card verif-status-tela" id="tela-ja-verificado" style="display:none;">
+            <div class="verif-status-icone sucesso"><i class="bi bi-patch-check-fill"></i></div>
+            <h1 class="verif-status-titulo">Sua conta já é verificada</h1>
+            <p class="verif-status-texto">Não é necessário enviar novos documentos.</p>
+            <a class="btn btn-secondary" href="../Perfil/index.html">Voltar ao perfil</a>
+        </div>
+ 
+        <!-- ================= TELA: EM ANÁLISE ================= -->
+        <div class="card verif-status-tela" id="tela-em-analise" style="display:none;">
+            <div class="verif-status-icone info"><i class="bi bi-hourglass-split"></i></div>
+            <h1 class="verif-status-titulo">Documentos em análise</h1>
+            <p class="verif-status-texto">Recebemos seus documentos e estamos conferindo as informações. Isso costuma levar até 48 horas — você será avisado por notificação assim que tivermos uma resposta.</p>
+            <p class="verif-status-data" id="texto-enviado-em"></p>
+            <a class="btn btn-secondary" href="../Perfil/index.html">Voltar ao perfil</a>
+ 
+            <!-- Sem back-end real, não existe analista de verdade do outro lado — estes
+                 botões simulam a resposta que chegaria por lá, mesmo padrão de
+                 "simular pagamento (teste)" já usado em Finalizar Pagamento. -->
+            <div style="margin-top:18px;">
+                <button type="button" class="link-teste" id="btn-simular-aprovacao">(simular aprovação — teste)</button>
+                <button type="button" class="link-teste" id="btn-simular-reprovacao">(simular reprovação — teste)</button>
+            </div>
+        </div>
+ 
+        <!-- ================= FORMULÁRIO (não verificado / reprovado) ================= -->
+        <div id="tela-formulario" style="display:none;">
+ 
+            <h1 class="conta-titulo-pagina" style="text-align:center;">Verificação de conta</h1>
+            <p class="conta-subtitulo-pagina" style="text-align:center;">Contas verificadas passam mais confiança na hora de alugar ou anunciar.</p>
+ 
+            <!-- Aparece só quando a tentativa anterior foi reprovada -->
+            <div class="verif-motivo-reprovacao" id="aviso-reprovado" style="display:none;">
+                <strong>Não foi possível verificar sua conta da última vez.</strong>
+                <p id="texto-motivo-reprovacao" style="margin:6px 0 0;"></p>
+            </div>
+ 
+            <div class="verif-step-indicator">
+                <span class="verif-step-dot" data-step-dot="1"></span>
+                <span class="verif-step-dot" data-step-dot="2"></span>
+                <span class="verif-step-dot" data-step-dot="3"></span>
+            </div>
+ 
+            <div class="card">
+ 
+                <!-- ETAPA 1: frente do documento -->
+                <div class="verif-etapa" data-etapa="1">
+                    <h2>Documento com foto — frente</h2>
+                    <p class="conta-subtitulo-pagina">RG, CNH ou passaporte, ainda válido.</p>
+ 
+                    <label class="verif-upload-box" id="caixa-upload-frente" for="input-doc-frente">
+                        <i class="bi bi-cloud-arrow-up"></i>
+                        <p>Toque para enviar uma foto</p>
+                        <span>JPG, PNG ou PDF · até 10MB</span>
+                    </label>
+                    <div class="verif-preview" id="preview-frente" style="display:none;">
+                        <img id="preview-frente-img" src="" alt="Frente do documento">
+                        <button type="button" class="verif-preview-trocar" data-trocar="frente">Trocar foto</button>
+                    </div>
+                    <input type="file" id="input-doc-frente" accept="image/*,application/pdf" hidden>
+ 
+                    <div class="verif-actions">
+                        <button type="button" class="btn btn-primary" id="btn-etapa1-proximo">Próximo</button>
+                    </div>
+                </div>
+ 
+                <!-- ETAPA 2: verso do documento -->
+                <div class="verif-etapa" data-etapa="2" style="display:none;">
+                    <h2>Documento com foto — verso</h2>
+                    <p class="conta-subtitulo-pagina">A parte de trás do mesmo documento.</p>
+ 
+                    <label class="verif-upload-box" id="caixa-upload-verso" for="input-doc-verso">
+                        <i class="bi bi-cloud-arrow-up"></i>
+                        <p>Toque para enviar uma foto</p>
+                        <span>JPG, PNG ou PDF · até 10MB</span>
+                    </label>
+                    <div class="verif-preview" id="preview-verso" style="display:none;">
+                        <img id="preview-verso-img" src="" alt="Verso do documento">
+                        <button type="button" class="verif-preview-trocar" data-trocar="verso">Trocar foto</button>
+                    </div>
+                    <input type="file" id="input-doc-verso" accept="image/*,application/pdf" hidden>
+ 
+                    <div class="verif-actions">
+                        <button type="button" class="btn btn-secondary" id="btn-etapa2-voltar">Voltar</button>
+                        <button type="button" class="btn btn-primary" id="btn-etapa2-proximo">Próximo</button>
+                    </div>
+                </div>
+ 
+                <!-- ETAPA 3: selfie segurando o documento -->
+                <div class="verif-etapa" data-etapa="3" style="display:none;">
+                    <h2>Selfie com o documento</h2>
+                    <p class="conta-subtitulo-pagina">Segure o mesmo documento ao lado do rosto.</p>
+ 
+                    <label class="verif-upload-box" id="caixa-upload-selfie" for="input-selfie">
+                        <i class="bi bi-camera"></i>
+                        <p>Toque para tirar ou enviar uma foto</p>
+                        <span>Rosto e documento precisam estar visíveis e legíveis</span>
+                    </label>
+                    <div class="verif-preview" id="preview-selfie" style="display:none;">
+                        <img id="preview-selfie-img" src="" alt="Selfie com o documento">
+                        <button type="button" class="verif-preview-trocar" data-trocar="selfie">Trocar foto</button>
+                    </div>
+                    <input type="file" id="input-selfie" accept="image/*" capture="user" hidden>
+ 
+                    <div class="verif-dica">
+                        <i class="bi bi-shield-lock"></i>
+                        <span>Suas fotos são usadas só para confirmar sua identidade e não aparecem no seu perfil público.</span>
+                    </div>
+ 
+                    <label class="conta-checkbox-linha">
+                        <input type="checkbox" id="checkbox-confirmar-dados">
+                        <span>Confirmo que o documento é meu e que as informações enviadas são verdadeiras.</span>
+                    </label>
+ 
+                    <p id="mensagem-envio" class="conta-mensagem"></p>
+ 
+                    <div class="verif-actions">
+                        <button type="button" class="btn btn-secondary" id="btn-etapa3-voltar">Voltar</button>
+                        <button type="button" class="btn btn-primary" id="btn-enviar-verificacao">Enviar para análise</button>
+                    </div>
+                </div>
+ 
+            </div>
+        </div>
+ 
+    </div>
+ 
+    <div id="footer"></div>
+ 
+    <script src="../header/frame.js"></script>
+    <script src="../Notificacoes/notificacoes-shared.js"></script>
+    <script src="verificacao.js"></script>
+</body>
+</html>
+ 

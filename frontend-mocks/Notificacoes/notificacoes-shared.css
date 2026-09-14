@@ -2,7 +2,7 @@
    COMPARTILHADO EM TODAS AS PÁGINAS (badge do sino + toast)
    ===================================================== */
  
-/* ---------- Badge no ícone de sino do header ---------- */
+/* ---------- Badge no ícone de sino/mensagens do header ---------- */
 /* Não depende de nenhum elemento extra: o JS só adiciona a classe
    "link-notificacoes" e o atributo data-badge-count no <a> que já existe. */
 a.link-notificacoes {
@@ -13,7 +13,7 @@ a.link-notificacoes[data-badge-count]::after {
   content: attr(data-badge-count);
   position: absolute;
   top: 2px;
-  left: 120px;
+  left: 22px;              /* em cima do ícone, estado padrão (sem hover) */
   min-width: 16px;
   height: 16px;
   padding: 0 2px;
@@ -24,6 +24,46 @@ a.link-notificacoes[data-badge-count]::after {
   font-weight: 700;
   line-height: 16px;
   text-align: center;
+  pointer-events: none;
+  transition: left .4s cubic-bezier(.4,0,.2,1); /* mesmo timing do .nav-text */
+}
+ 
+/* Quando o link expande (hover/foco), o badge acompanha até a ponta do texto */
+a.link-notificacoes[data-badge-count]:hover::after,
+a.link-notificacoes[data-badge-count]:focus-visible::after {
+  left: calc(100% - 10px);
+}
+ 
+/* Ícones fixos do topo no mobile (.nav-mobile-top) não têm .nav-text pra
+   expandir, então o badge fica sempre em cima do ícone, sem transição. */
+.nav-mobile-top a.link-notificacoes[data-badge-count]::after {
+  left: auto;
+  right: -6px;
+  transition: none;
+}
+ 
+.nav-mobile-top a.link-notificacoes[data-badge-count]:hover::after,
+.nav-mobile-top a.link-notificacoes[data-badge-count]:focus-visible::after {
+  left: auto;
+  right: -6px;
+}
+ 
+/* Ícone de Mensagens na barra de navegação fixa (.bottom-nav): o ícone
+   fica em cima e o texto embaixo (coluna), então o badge é posicionado
+   relativo ao próprio botão, sempre colado no ícone, sem transição —
+   nem no hover/toque. */
+.bottom-nav a.link-notificacoes[data-badge-count]::after {
+  top: 2px;
+  left: auto;
+  right: 10px;
+  transition: none;
+}
+ 
+.bottom-nav a.link-notificacoes[data-badge-count]:hover::after,
+.bottom-nav a.link-notificacoes[data-badge-count]:focus-visible::after {
+  top: 2px;
+  left: auto;
+  right: 10px;
 }
  
 /* ---------- Toast de notificação nova ---------- */
@@ -98,3 +138,4 @@ a.link-notificacoes[data-badge-count]::after {
     max-width: none;
   }
 }
+ 

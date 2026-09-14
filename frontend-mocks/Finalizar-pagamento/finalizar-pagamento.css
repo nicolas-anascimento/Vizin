@@ -4,26 +4,26 @@
   gap: 24px;
   align-items: start;
 }
-
+ 
 .pagamento-titulo {
   font-size: 22px;
   font-weight: 800;
   color: var(--texto);
   margin: 0 0 4px;
 }
-
+ 
 .pagamento-subtitulo {
   font-size: 14px;
   color: var(--texto-suave);
   margin: 0 0 18px;
 }
-
+ 
 .metodos-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
 }
-
+ 
 .metodo-btn {
   display: flex;
   flex-direction: column;
@@ -36,53 +36,53 @@
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
-
+ 
 .metodo-btn i {
   font-size: 22px;
   color: var(--texto);
   margin-bottom: 6px;
 }
-
+ 
 .metodo-btn.ativo {
   border-color: var(--roxo);
   background: var(--roxo-claro);
 }
-
+ 
 .metodo-btn.ativo i,
 .metodo-btn.ativo .metodo-nome {
   color: var(--roxo);
 }
-
+ 
 .metodo-nome {
   font-weight: 700;
   font-size: 14.5px;
   color: var(--texto);
 }
-
+ 
 .metodo-desc {
   font-size: 12px;
   color: var(--texto-suave);
 }
-
+ 
 .metodo-vazio {
   text-align: center;
   font-size: 13.5px;
   color: var(--texto-fraco);
   margin: 20px 0 4px;
 }
-
+ 
 .metodo-conteudo hr,
 .card hr {
   border: none;
   border-top: 1px solid var(--borda);
   margin: 20px 0;
 }
-
+ 
 .metodo-conteudo h2 {
   font-size: 16px;
   margin-bottom: 16px;
 }
-
+ 
 /* ---------- PIX ---------- */
 .qr-placeholder {
   width: 190px;
@@ -98,7 +98,7 @@
   /* Espaço reservado: o back-end deve substituir por uma imagem real
      do QR Code gerado (ex: <img src="[url do QR gerado pela API de pagamento]">) */
 }
-
+ 
 .pix-codigo-label {
   display: block;
   font-size: 12.5px;
@@ -106,13 +106,13 @@
   color: var(--texto);
   margin-bottom: 6px;
 }
-
+ 
 .pix-codigo-row {
   display: flex;
   gap: 8px;
   margin-bottom: 18px;
 }
-
+ 
 .pix-codigo-row input {
   flex: 1;
   min-width: 0;
@@ -123,7 +123,7 @@
   color: var(--texto-suave);
   background: var(--fundo);
 }
-
+ 
 .btn-copiar {
   width: 42px;
   border-radius: 10px;
@@ -133,11 +133,11 @@
   cursor: pointer;
   font-size: 15px;
 }
-
+ 
 .btn-copiar:hover {
   background: var(--roxo-hover);
 }
-
+ 
 .pix-instrucoes {
   margin: 0 0 20px;
   padding-left: 20px;
@@ -145,16 +145,94 @@
   color: var(--texto-suave);
   line-height: 1.9;
 }
-
+ 
 .pix-instrucoes strong {
   color: var(--texto);
 }
-
+ 
+/* ---------- CARTÃO: cartões salvos (checkout) ---------- */
+.cartoes-salvos-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+ 
+.cartao-salvo-opcao {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--borda);
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+ 
+.cartao-salvo-opcao:hover {
+  border-color: var(--roxo);
+}
+ 
+.cartao-salvo-opcao.selecionado {
+  border-color: var(--roxo);
+  background: var(--roxo-claro);
+}
+ 
+.cartao-salvo-opcao input[type="radio"] {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--roxo);
+  flex-shrink: 0;
+}
+ 
+.cartao-salvo-icone {
+  width: 38px;
+  height: 27px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, var(--roxo, #6D49F2), #381D73);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+ 
+.cartao-salvo-info {
+  flex: 1;
+  min-width: 0;
+}
+ 
+.cartao-salvo-numero {
+  margin: 0 0 1px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--texto);
+}
+ 
+.cartao-salvo-validade {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--texto-fraco);
+}
+ 
+.cartao-salvo-badge-padrao {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #e8f8ee;
+  color: #2f9e5c;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+ 
 /* ---------- CARTÃO ---------- */
 .field {
   margin-bottom: 14px;
 }
-
+ 
 .field label {
   display: block;
   font-size: 13px;
@@ -162,7 +240,7 @@
   color: var(--texto);
   margin-bottom: 6px;
 }
-
+ 
 .field input {
   width: 100%;
   padding: 11px 12px;
@@ -171,38 +249,38 @@
   font-size: 14px;
   color: var(--texto);
 }
-
+ 
 .field input:focus {
   outline: none;
   border-color: var(--roxo);
 }
-
+ 
 .row-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
 }
-
+ 
 .seguranca-msg {
   text-align: center;
   font-size: 12px;
   color: var(--texto-fraco);
   margin: 18px 0 0;
 }
-
+ 
 /* ---------- RESUMO ---------- */
 .pagamento-sidebar{
     position: sticky;
     top:100px;
 }
-
+ 
 .resumo-produto {
   display: flex;
   align-items: center;
   gap: 12px;
   margin-bottom: 12px;
 }
-
+ 
 .resumo-produto img {
   width: 52px;
   height: 52px;
@@ -210,20 +288,20 @@
   object-fit: cover;
   background: #eee;
 }
-
+ 
 .resumo-produto-nome {
   margin: 0;
   font-size: 14px;
   font-weight: 700;
   color: var(--texto);
 }
-
+ 
 .resumo-produto-categoria {
   margin: 2px 0 0;
   font-size: 12.5px;
   color: var(--texto-suave);
 }
-
+ 
 .pagamento-sidebar .resumo-linha {
   display: flex;
   justify-content: space-between;
@@ -231,27 +309,200 @@
   color: var(--texto-suave);
   padding: 5px 0;
 }
-
+ 
 .resumo-total-linha {
   font-size: 16px;
   font-weight: 800;
   color: var(--texto);
 }
-
+ 
 .resumo-total-linha span:last-child {
   color: var(--laranja);
 }
-
+ 
 .resumo-taxa {
   color: var(--verde) !important;
 }
-
+ 
 @media (max-width: 800px) {
   .pagamento-grid {
     grid-template-columns: 1fr;
   }
-
+ 
   .metodos-grid {
     grid-template-columns: 1fr;
   }
 }
+ 
+/* ================= NOVOS ESTADOS: prazo, erro, timers ================= */
+ 
+.banner-prazo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff4e5;
+  border: 1px solid var(--laranja);
+  color: #8a4b0f;
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-size: 13.5px;
+  margin-bottom: 16px;
+}
+ 
+.banner-prazo.banner-urgente {
+  background: #fdecec;
+  border-color: #e0453c;
+  color: #a3241c;
+}
+ 
+.pix-timer {
+  text-align: center;
+  font-size: 13px;
+  color: var(--texto-suave);
+  margin: -8px 0 16px;
+}
+ 
+.pix-timer.pix-timer-urgente {
+  color: #e0453c;
+  font-weight: 700;
+}
+ 
+.pix-aguardando {
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--texto-suave);
+  padding: 14px 0 0;
+  border-top: 1px solid var(--borda);
+  margin-top: 4px;
+}
+ 
+.pix-aguardando .spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--borda);
+  border-top-color: var(--roxo);
+  border-radius: 50%;
+  animation: girar 0.7s linear infinite;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+ 
+@keyframes girar {
+  to { transform: rotate(360deg); }
+}
+ 
+.link-teste {
+  display: block;
+  margin: 8px auto 0;
+  background: none;
+  border: none;
+  color: var(--texto-fraco);
+  font-size: 11.5px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+ 
+.pix-expirado {
+  text-align: center;
+  padding: 10px 0 4px;
+}
+ 
+.pix-expirado i {
+  font-size: 34px;
+  color: #e0453c;
+  margin-bottom: 10px;
+  display: block;
+}
+ 
+.pix-expirado p {
+  font-size: 14px;
+  color: var(--texto-suave);
+  margin: 0 0 16px;
+}
+ 
+.alerta-erro {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: #fdecec;
+  border: 1px solid #e0453c;
+  color: #a3241c;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+ 
+.field-erro {
+  display: block;
+  min-height: 15px;
+  font-size: 12px;
+  color: #e0453c;
+  margin-top: 4px;
+}
+ 
+.field input.input-erro {
+  border-color: #e0453c;
+}
+ 
+.metodo-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+}
+ 
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--roxo);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 4px;
+}
+ 
+/* Telas de estado (solicitação inválida / objeto indisponível / prazo expirado) */
+.tela-estado {
+  text-align: center;
+  padding: 40px 32px;
+}
+ 
+.tela-estado-icone {
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  font-size: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+ 
+.tela-estado-erro {
+  background: #fdecec;
+  color: #e0453c;
+}
+ 
+.tela-estado-aviso {
+  background: #fff4e5;
+  color: var(--laranja);
+}
+ 
+.tela-estado-titulo {
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--texto);
+  margin: 0 0 8px;
+}
+ 
+.tela-estado-texto {
+  font-size: 13.5px;
+  color: var(--texto-suave);
+  line-height: 1.7;
+  max-width: 420px;
+  margin: 0 auto 22px;
+}
+ 

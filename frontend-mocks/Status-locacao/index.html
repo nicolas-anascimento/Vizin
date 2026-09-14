@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../Produto/fluxo-aluguel.css">
+    <link rel="stylesheet" href="status-locacao.css">
+    <link rel="stylesheet" href="../header/header.css">
+    <link rel="stylesheet" href="../footer/footer.css">
+    <link rel="stylesheet" href="../Notificacoes/notificacoes-shared.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <title>Status da Locação</title>
+</head>
+<body>
+
+    <div id="header"></div>
+
+    <div class="page-container status-container">
+
+        <a href="../Historico/index.html" class="back-link"><i class="bi bi-arrow-left"></i> Voltar</a>
+
+        <!-- TODO: remover este bloco quando integrar com o back-end real.
+             Serve só pra pré-visualizar a tela pelos dois papéis (locatário/
+             proprietário) numa sessão só, sem precisar logar como as duas
+             pessoas separadamente. -->
+        <div class="sim-papel-toggle" id="sim-papel-toggle">
+            <span>🧪 [Simulação] Ver como:</span>
+            <button type="button" class="sim-papel-btn" data-papel="locatario">Locatário</button>
+            <button type="button" class="sim-papel-btn" data-papel="proprietario">Proprietário</button>
+        </div>
+        
+        <div class="card status-header-card">
+            <div class="status-header-icone"><i class="bi bi-box-seam"></i></div>
+            <div>
+                <h1 class="status-header-titulo">Status da Locação</h1>
+                <p class="status-header-subtitulo">Acompanhe em tempo real o andamento da sua locação</p>
+            </div>
+        </div>
+
+        <div class="card produto-mini-card">
+            <img id="produto-mini-imagem" src="" alt="">
+            <div class="produto-mini-info">
+                <p class="produto-mini-nome" id="produto-mini-nome"></p>
+                <p class="produto-mini-categoria" id="produto-mini-categoria"></p>
+            </div>
+            <span class="status-pill" id="badge-status-geral"></span>
+        </div>
+
+        <div class="card">
+            <h2>Progresso da Locação</h2>
+            <div class="stepper" id="stepper"></div>
+        </div>
+
+        <div class="info-box" id="etapa-atual-box">
+            <i class="bi bi-info-circle"></i>
+            <div>
+                <h3 id="etapa-atual-titulo">Etapa atual</h3>
+                <p id="etapa-atual-texto" style="font-size:13px; color:var(--texto-suave); line-height:1.55;"></p>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Detalhes da Locação</h2>
+            <div class="detalhes-grid">
+                <div class="detalhe-item">
+                    <div class="detalhe-icone detalhe-icone-verde"><i class="bi bi-calendar-check"></i></div>
+                    <div><span class="detalhe-label">Data da Retirada</span><span class="detalhe-valor" id="detalhe-retirada"></span></div>
+                </div>
+                <div class="detalhe-item">
+                    <div class="detalhe-icone detalhe-icone-laranja"><i class="bi bi-calendar-event"></i></div>
+                    <div><span class="detalhe-label">Devolução Prevista</span><span class="detalhe-valor" id="detalhe-devolucao"></span></div>
+                </div>
+                <div class="detalhe-item">
+                    <div class="detalhe-icone detalhe-icone-roxo"><i class="bi bi-person"></i></div>
+                    <div><span class="detalhe-label">Proprietário</span><span class="detalhe-valor" id="detalhe-proprietario"></span></div>
+                </div>
+                <div class="detalhe-item">
+                    <div class="detalhe-icone detalhe-icone-roxo"><i class="bi bi-person"></i></div>
+                    <div><span class="detalhe-label">Locatário</span><span class="detalhe-valor" id="detalhe-locatario"></span></div>
+                </div>
+            </div>
+
+            <div class="status-atual-row">
+                <span>Status atual</span>
+                <span class="status-pill" id="badge-status-atual"></span>
+            </div>
+        </div>
+
+        <!-- CTA: Iniciar Devolução (só aparece pro locatário, quando o objeto está em posse dele) -->
+        <div class="cta-devolucao" id="cta-devolucao" style="display:none;">
+            <div class="cta-devolucao-icone"><i class="bi bi-arrow-counterclockwise"></i></div>
+            <div class="cta-devolucao-texto">
+                <h3>Pronto para devolver o objeto?</h3>
+                <p>Registre fotos do objeto no momento da devolução para documentar as condições e concluir a locação com segurança.</p>
+                <button type="button" class="btn btn-primary" id="btn-iniciar-devolucao">
+                    <i class="bi bi-arrow-counterclockwise"></i> Iniciar Devolução
+                </button>
+            </div>
+        </div>
+
+        <!-- Aviso pro proprietário enquanto aguarda o locatário devolver -->
+        <div class="dica-box" id="aviso-aguardando-proprietario" style="display:none;">
+            <strong>⏳ Aguardando o locatário:</strong> assim que ele iniciar e confirmar a devolução, você será notificado.
+        </div>
+
+        <!-- Devolução em andamento -->
+        <div class="cta-devolucao cta-devolucao-andamento" id="cta-continuar-devolucao" style="display:none;">
+            <div class="cta-devolucao-icone"><i class="bi bi-camera"></i></div>
+            <div class="cta-devolucao-texto">
+                <h3>Devolução em andamento</h3>
+                <p>Uma das partes ainda precisa enviar as fotos da devolução.</p>
+                <button type="button" class="btn btn-primary" id="btn-continuar-devolucao">
+                    <i class="bi bi-camera"></i> Ir para a Devolução
+                </button>
+            </div>
+        </div>
+
+        <div class="status-actions">
+            <button type="button" class="btn btn-secondary" id="btn-contato">
+                <i class="bi bi-chat-dots"></i> Entrar em contato
+            </button>
+            <button type="button" class="btn btn-primary" id="btn-ver-detalhes">
+                <i class="bi bi-file-earmark-text"></i> Ver detalhes da locação
+            </button>
+        </div>
+
+    </div>
+
+    <div id="footer"></div>
+
+    <div id="toast" class="toast">Copiado ✔</div>
+
+    <script src="../header/frame.js"></script>
+
+    <script src="../Login/logout.js"></script>
+
+    <script src="../Notificacoes/notificacoes-shared.js"></script>
+
+    <script src="../Notificacoes/solicitacoes-shared.js"></script>
+
+    <script src="status-locacao.js"></script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-/* =====================================================
+/* ===================================================
    INCLUIR ESSE SCRIPT EM TODAS AS PÁGINAS QUE CARREGAM O HEADER
    (depois de frame.js e logout.js), pois é ele quem:
    - Mantém o número de notificações não lidas em cima do sino do menu
@@ -39,7 +39,7 @@
         const mock = [
             {
                 id: 1,
-                tipo: "aluguel_confirmado",
+                tipo: "aluguel_aprovado",
                 titulo: "Aluguel Confirmado",
                 descricao: "Seu aluguel da Câmera DSLR Canon EOS foi confirmado!",
                 data: "14/03/2026",
@@ -47,7 +47,7 @@
             },
             {
                 id: 2,
-                tipo: "avaliacao",
+                tipo: "avaliacao_recebida",
                 titulo: "Nova Avaliação",
                 descricao: "Maria Santos deixou uma avaliação para você.",
                 data: "13/03/2026",
@@ -105,9 +105,9 @@
  
     // usuarioId aqui é o DESTINATÁRIO da notificação — por padrão o próprio
     // usuário logado (self-notify, como a simulação lá embaixo), mas
-    // páginas como produto.js e app.js (Mensagens) podem passar o id de
-    // OUTRA pessoa (ex: o dono do objeto, ou quem recebeu a mensagem)
-    // como segundo argumento.
+    // páginas como produto.js, app.js (Mensagens) e suporte.js podem passar
+    // o id de OUTRA pessoa (ex: o dono do objeto, ou quem recebeu a
+    // mensagem) como segundo argumento.
     function adicionarNotificacao(notificacao, usuarioId = usuarioAtual()) {
         const lista = obterTodas(usuarioId);
         const nova = { id: Date.now(), lida: false, ...notificacao };
@@ -125,7 +125,7 @@
     }
  
     // ================= ÍCONE POR TIPO =================
-    function iconePorTipo(tipo) {
+        function iconePorTipo(tipo) {
         switch (tipo) {
             case "aluguel_confirmado": return "bi-check-lg";
             case "avaliacao": return "bi-star-fill";
@@ -133,7 +133,14 @@
             case "solicitacao_aluguel": return "bi-inbox";
             case "aluguel_aprovado": return "bi-check-lg";
             case "aluguel_rejeitado": return "bi-x-lg";
+            case "retirada_confirmada": return "bi-camera-fill";
+            case "devolucao_confirmada": return "bi-arrow-counterclockwise";
+            case "pagamento_liberado": return "bi-cash-coin";
+            case "avaliacao_recebida": return "bi-star-fill";
+            case "aluguel_cancelado": return "bi-x-circle";
             case "mensagem": return "bi-chat-dots-fill";
+            case "resposta_email": return "bi-envelope-check-fill";
+            case "bloqueio_conta": return "bi-slash-circle";
             default: return "bi-bell";
         }
     }
@@ -148,37 +155,61 @@
     //
     // Notificações do tipo "mensagem" (criadas em app.js/produto.js quando
     // alguém manda uma mensagem) alimentam a badge do ícone de Mensagens.
-    // Todas as OUTRAS notificações alimentam a badge do sino — assim os dois
-    // contadores não somam a mesma coisa duas vezes.
+    // Todas as OUTRAS notificações (incluindo "resposta_email") alimentam a
+    // badge do sino — assim os dois contadores não somam a mesma coisa
+    // duas vezes.
+    //
+    // OBS: existe mais de um ícone de sino/mensagens no header (o do menu
+    // desktop .nav-center e o fixo no topo .nav-mobile-top), e o ícone de
+    // Mensagens também aparece de novo na .bottom-nav — que fica FORA do
+    // #header (é um <nav> separado no body). Por isso aplicarBadgeNoIcone
+    // recebe uma lista de "raízes" de busca (não só o header) e usa
+    // querySelectorAll em cada uma, aplicando em TODOS os ícones
+    // encontrados, não só no primeiro.
+    //
+    // O tipo "solicitacao_aluguel" NÃO entra na contagem do sino: agora que
+    // a decisão de aprovar/recusar mora na aba "Solicitações" do Histórico
+    // (ver solicitacoes-shared.js), o número dela aparece só em cima do
+    // ícone de Histórico — pra não mostrar duas contagens diferentes
+    // avisando da mesma coisa.
     function atualizarBadge() {
         const headerEl = document.getElementById("header");
-        if (!headerEl) return;
+        const bottomNavEl = document.querySelector(".bottom-nav");
+        const raizes = [headerEl, bottomNavEl].filter(Boolean);
+        if (!raizes.length) return;
  
-        aplicarBadgeNoIcone(headerEl, "i.bi-bell", "notificacoes.html", n => n.tipo !== "mensagem");
-        aplicarBadgeNoIcone(headerEl, "i.bi-chat-dots", "../Mensagens/index.html", n => n.tipo === "mensagem");
+        const totalSino = obterTodas().filter(n => !n.lida && n.tipo !== "mensagem" && n.tipo !== "solicitacao_aluguel").length;
+        const totalMensagens = obterTodas().filter(n => !n.lida && n.tipo === "mensagem").length;
+        const totalSolicitacoesPendentes = window.SolicitacoesVizin
+            ? window.SolicitacoesVizin.contarPendentesComoProprietario(usuarioAtual())
+            : 0;
+ 
+        aplicarBadgeNoIcone(raizes, "i.bi-bell", "notificacoes.html", totalSino);
+        aplicarBadgeNoIcone(raizes, "i.bi-chat-dots", "../Mensagens/index.html", totalMensagens);
+        aplicarBadgeNoIcone(raizes, "i.bi-clock-history", "../Historico/index.html?tab=solicitacoes", totalSolicitacoesPendentes);
     }
  
-    function aplicarBadgeNoIcone(headerEl, seletorIcone, hrefPadrao, filtroTipo) {
-        const icone = headerEl.querySelector(seletorIcone);
-        if (!icone) return;
+    function aplicarBadgeNoIcone(raizes, seletorIcone, hrefPadrao, total) {
+        raizes.forEach(raiz => {
+            raiz.querySelectorAll(seletorIcone).forEach(icone => {
+                const link = icone.closest("a");
+                if (!link) return;
  
-        const link = icone.closest("a");
-        if (!link) return;
+                // Reaproveita o mesmo estilo visual de badge já usado no sino —
+                // não precisa de nenhuma classe/CSS novo.
+                link.classList.add("link-notificacoes");
  
-        // Reaproveita o mesmo estilo visual de badge já usado no sino —
-        // não precisa de nenhuma classe/CSS novo.
-        link.classList.add("link-notificacoes");
+                if (link.getAttribute("href") === "#" || !link.getAttribute("href")) {
+                    link.setAttribute("href", hrefPadrao);
+                }
  
-        if (link.getAttribute("href") === "#" || !link.getAttribute("href")) {
-            link.setAttribute("href", hrefPadrao);
-        }
- 
-        const total = obterTodas().filter(n => !n.lida && filtroTipo(n)).length;
-        if (total > 0) {
-            link.dataset.badgeCount = total > 9 ? "9+" : String(total);
-        } else {
-            delete link.dataset.badgeCount;
-        }
+                if (total > 0) {
+                    link.dataset.badgeCount = total > 9 ? "9+" : String(total);
+                } else {
+                    delete link.dataset.badgeCount;
+                }
+            });
+        });
     }
  
     // Roda assim que possível e depois verifica periodicamente — cobre tanto
@@ -270,8 +301,17 @@
     // Substituir por um WebSocket (ou polling em GET /api/notificacoes) que,
     // ao detectar uma notificação nova, chame adicionarNotificacao(...) do
     // mesmo jeito que a simulação abaixo faz.
-    // Só simula em página carregada com o usuário logado.
-    if (localStorage.getItem("token")) {
+    //
+    // TODO: remover este bloco inteiro quando integrar com o back-end real.
+    // Como este script roda em toda página que carrega o header, sem
+    // nenhuma trava a simulação disparava de novo a cada página aberta por
+    // mais de 10s — navegar por 5 páginas gerava 5 notificações idênticas
+    // de "Pedro Costa", inflando o badge e atrapalhando testar o resto do
+    // fluxo. A chave em sessionStorage garante que ela só dispara UMA vez
+    // por aba/sessão do navegador.
+    const CHAVE_SIM_MENSAGEM = "vizin_sim_mensagem_disparada";
+    if (localStorage.getItem("token") && !sessionStorage.getItem(CHAVE_SIM_MENSAGEM)) {
+        sessionStorage.setItem(CHAVE_SIM_MENSAGEM, "1");
         setTimeout(() => {
             adicionarNotificacao({
                 tipo: "mensagem",

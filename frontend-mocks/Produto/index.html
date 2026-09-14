@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="../Produto/fluxo-aluguel.css">
-    <link rel="stylesheet" href="produto.css">
+    <link rel="stylesheet" href="../Produto/fluxo-aluguel.css?v=8">
+    <link rel="stylesheet" href="produto.css?v=3">
     <link rel="stylesheet" href="../header/header.css">
     <link rel="stylesheet" href="../footer/footer.css">
     <link rel="stylesheet" href="../Notificacoes/notificacoes-shared.css">
@@ -12,20 +12,31 @@
     <title>Detalhes do Objeto</title>
 </head>
 <body>
-
+ 
     <div id="header"></div>
-
+ 
     <div class="page-container">
-
+ 
         <a href="../Inicio/index.html" class="back-link"><i class="bi bi-arrow-left"></i> Voltar aos objetos</a>
-
+ 
+        <!-- TODO: remover este bloco quando integrar com o back-end real. -->
+<div class="sim-papel-toggle" id="sim-visao-toggle">
+    <span>🧪 [Simulação] Ver como:</span>
+    <button type="button" class="sim-papel-btn" data-visao="eu">Meu usuário</button>
+    <button type="button" class="sim-papel-btn" data-visao="terceiro">Terceira pessoa</button>
+</div>
+<div class="sim-papel-toggle" id="sim-papel-toggle-produto">
+    <span>🧪 [Simulação] Ver este anúncio como:</span>
+    <button type="button" class="sim-papel-btn" data-papel="locatario">Locatário</button>
+    <button type="button" class="sim-papel-btn" data-papel="proprietario">Proprietário</button>
+</div>
         <div class="produto-grid">
-
+ 
             <!-- COLUNA PRINCIPAL -->
             <div class="produto-main">
-
+ 
                 <img id="produto-imagem" class="produto-imagem" src="" alt="">
-
+ 
                 <div class="card">
                     <div class="produto-titulo-row">
                         <h1 id="produto-titulo" class="produto-titulo"></h1>
@@ -40,12 +51,12 @@
                         <span class="tag tag-categoria" id="produto-categoria"></span>
                     </p>
                 </div>
-
+ 
                 <div class="card">
                     <h2>Descrição</h2>
                     <p id="produto-descricao" class="produto-descricao"></p>
                 </div>
-
+ 
                 <div class="card">
                     <h2>Sobre o Proprietário</h2>
                     <div class="proprietario-row">
@@ -66,27 +77,59 @@
                             </button>
                         </div>
                     </div>
+                    <div class="dica-box">
+                        <i class="bi bi-chat-dots"></i>
+                        <strong>Antes de solicitar o aluguel</strong>, vale a pena conversar com o proprietário: combinem o local de retirada e aproveitem pra tirar qualquer dúvida sobre o objeto. Isso evita imprevistos e deixa a locação mais tranquila pra vocês dois.
+                    </div>
+                    <button type="button" class="link-denunciar-anuncio" id="btn-denunciar-anuncio">
+                        <i class="bi bi-flag"></i> Denunciar anúncio
+                    </button>
                 </div>
-
+ 
+                <div class="card" id="avaliacoes">
+                    <h2>Avaliações do Objeto</h2>
+                    <div class="produto-avaliacao-resumo" id="produto-avaliacao-resumo"></div>
+                    <div id="produto-lista-avaliacoes"></div>
+                </div>
+ 
             </div>
-
+ 
             <!-- SIDEBAR -->
             <div class="produto-sidebar">
-
+ 
+                <!-- ESTADO 0: VOCÊ É O PROPRIETÁRIO DESTE OBJETO -->
+                <!-- Some com todas as outras (o usuário não pode alugar o
+                     próprio objeto), mostrado quando usuarioLogado.email ===
+                     produto.proprietarioEmail (ver produto.js). Antes disso
+                     não existir, o dono via a mesma tela de "Solicitar
+                     Aluguel" de um locatário comum ao visitar seu próprio
+                     anúncio (ex: logo após cadastrar, ou clicando em "Ver
+                     Objeto" no próprio Histórico). -->
+                <div class="card sidebar-card status-card" id="card-dono" style="display:none;">
+                    <div class="status-icone status-info">
+                        <i class="bi bi-house-door"></i>
+                    </div>
+                    <h2 class="status-titulo">Este é o seu objeto</h2>
+                    <p class="status-texto">Você não pode solicitar o aluguel do seu próprio anúncio.</p>
+                    <p class="status-subtexto">Gerencie fotos, preço e disponibilidade, ou acompanhe as solicitações que você recebeu por ele.</p>
+                    <a class="btn btn-primary btn-block" id="btn-gerenciar-objeto" style="margin-top:14px;">Gerenciar Objeto</a>
+                    <a class="btn btn-secondary btn-block" id="btn-ver-solicitacoes-dono" style="margin-top:10px;">Ver Solicitações Recebidas</a>
+                </div>
+ 
                 <!-- ESTADO 1: FORMULÁRIO DE SOLICITAÇÃO -->
                 <div class="card sidebar-card" id="card-solicitar">
                     <h2>Solicitar Aluguel</h2>
-
+ 
                     <div class="field">
                         <label for="data-retirada">Data de Retirada</label>
                         <input type="date" id="data-retirada">
                     </div>
-
+ 
                     <div class="field">
                         <label for="data-devolucao">Data de Devolução</label>
                         <input type="date" id="data-devolucao">
                     </div>
-
+ 
                     <div class="resumo-datas" id="resumo-datas" style="display:none;">
                         <div class="resumo-linha">
                             <span>Período:</span>
@@ -101,11 +144,11 @@
                             <span id="resumo-total"></span>
                         </div>
                     </div>
-
+ 
                     <button type="button" class="btn btn-primary btn-block" id="btn-solicitar">Solicitar Aluguel</button>
                     <p class="sidebar-aviso">O proprietário receberá sua solicitação e você será notificado sobre a resposta.</p>
                 </div>
-
+ 
                 <!-- ESTADO 2: AGUARDANDO APROVAÇÃO -->
                 <div class="card sidebar-card status-card" id="card-pendente" style="display:none;">
                     <div class="status-icone status-pendente">
@@ -114,8 +157,14 @@
                     <h2 class="status-titulo">Solicitação enviada!</h2>
                     <p class="status-texto">Aguardando aprovação de <strong id="pendente-proprietario-nome"></strong>.</p>
                     <p class="status-subtexto">Você será notificado assim que houver uma resposta.</p>
+ 
+                    <!-- Ainda não foi aprovada, então "cancelar" aqui é
+                         simplesmente desistir do pedido. -->
+                    <button type="button" class="btn btn-secondary btn-block" id="btn-cancelar-pendente" style="margin-top:14px;">
+                        <i class="bi bi-x-circle"></i> Cancelar Solicitação
+                    </button>
                 </div>
-
+ 
                 <!-- ESTADO 3: APROVADO -->
                 <div class="card sidebar-card status-card" id="card-aprovado" style="display:none;">
                     <div class="status-icone status-aprovado">
@@ -123,9 +172,13 @@
                     </div>
                     <h2 class="status-titulo">Solicitação aprovada!</h2>
                     <p class="status-texto">O proprietário aceitou seu pedido de aluguel.</p>
+ 
                     <button type="button" class="btn btn-primary btn-block" id="btn-ir-pagamento">Finalizar Pagamento</button>
+                    <button type="button" class="btn btn-secondary btn-block" id="btn-cancelar-aprovado" style="margin-top:10px;">
+                        <i class="bi bi-x-circle"></i> Cancelar Locação
+                    </button>
                 </div>
-
+ 
                 <!-- ESTADO 4: REJEITADO -->
                 <div class="card sidebar-card status-card" id="card-rejeitado" style="display:none;">
                     <div class="status-icone status-rejeitado">
@@ -135,25 +188,81 @@
                     <p class="status-texto">O proprietário não aceitou seu pedido de aluguel desta vez.</p>
                     <button type="button" class="btn btn-secondary btn-block" id="btn-tentar-novamente">Tentar outras datas</button>
                 </div>
-
+ 
+                <!-- ESTADO 5: PAGO / AGUARDANDO RETIRADA -->
+                <div class="card sidebar-card status-card" id="card-pago" style="display:none;">
+                    <div class="status-icone status-pendente">
+                        <i class="bi bi-box-arrow-in-down"></i>
+                    </div>
+                    <h2 class="status-titulo">Pagamento confirmado</h2>
+                    <p class="status-texto">Aguardando a retirada do objeto para iniciar a locação.</p>
+                    <a class="btn btn-primary btn-block" id="btn-ir-retirada">Registrar Retirada</a>
+                    <button type="button" class="btn btn-secondary btn-block" id="btn-cancelar-pago" style="margin-top:10px;">
+                        <i class="bi bi-x-circle"></i> Cancelar Locação
+                    </button>
+                </div>
+ 
+                <!-- ESTADO 6: EM USO (RETIRADO) -->
+                <div class="card sidebar-card status-card" id="card-em-uso" style="display:none;">
+                    <div class="status-icone status-aprovado">
+                        <i class="bi bi-box-seam"></i>
+                    </div>
+                    <h2 class="status-titulo">Você está com o objeto</h2>
+                    <p class="status-texto">A locação está em andamento até a data de devolução combinada.</p>
+                    <a class="btn btn-primary btn-block" id="btn-ver-status-uso">Ver Status da Locação</a>
+                </div>
+ 
+                <!-- ESTADO 7: AGUARDANDO DEVOLUÇÃO -->
+                <div class="card sidebar-card status-card" id="card-aguardando-devolucao" style="display:none;">
+                    <div class="status-icone status-pendente">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                    </div>
+                    <h2 class="status-titulo">Devolução em andamento</h2>
+                    <p class="status-texto">Registre suas fotos para concluir a devolução do objeto.</p>
+                    <a class="btn btn-primary btn-block" id="btn-ir-devolucao">Ir para a Devolução</a>
+                </div>
+ 
+                <!-- ESTADO 8: CONCLUÍDO -->
+                <div class="card sidebar-card status-card" id="card-concluido" style="display:none;">
+                    <div class="status-icone status-aprovado">
+                        <i class="bi bi-check2-circle"></i>
+                    </div>
+                    <h2 class="status-titulo">Locação concluída</h2>
+                    <p class="status-texto">Obrigado por alugar com a Vizin!</p>
+                    <a class="btn btn-primary btn-block" id="btn-avaliar-locacao">Avaliar Locação</a>
+                </div>
+ 
             </div>
-
+ 
         </div>
-
+ 
     </div>
-
+ 
+    <!-- Modal de Confirmação de Cancelamento -->
+    <div class="modal-overlay" id="modal-cancelar">
+        <div class="modal-box modal-confirm">
+            <i class="bi bi-exclamation-triangle"></i>
+            <h2>Cancelar locação?</h2>
+            <p>Tem certeza que deseja cancelar? O valor pago (se houver) será estornado e o objeto voltará a ficar disponível.</p>
+            <div class="modal-confirm-actions">
+                <button type="button" class="btn btn-secondary" id="modal-cancelar-voltar">Voltar</button>
+                <button type="button" class="btn btn-danger" id="modal-cancelar-confirmar">Cancelar Locação</button>
+            </div>
+        </div>
+    </div>
+ 
     <div id="footer"></div>
-
+ 
     <div id="toast" class="toast">Copiado ✔</div>
-
+ 
+    <script src="../utils/formatacao.js"></script>
     <script src="../header/frame.js"></script>
-
     <script src="../Login/logout.js"></script>
-
     <script src="../Notificacoes/notificacoes-shared.js"></script>
-
     <script src="../Notificacoes/solicitacoes-shared.js"></script>
-
-    <script src="produto.js"></script>
+    <script src="../Meus-objetos/objetos-shared.js"></script>
+    <script src="../Avaliacao/avaliacoes-shared.js"></script>
+    <script src="produto.js?v=12"></script>
 </body>
 </html>
+ 

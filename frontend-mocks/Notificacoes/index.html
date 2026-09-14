@@ -12,11 +12,11 @@
     <title>Notificações</title>
 </head>
 <body>
-
+ 
     <div id="header"></div>
-
+ 
     <div class="page-container notificacoes-container">
-
+ 
         <!-- CABEÇALHO -->
         <div class="notificacoes-header">
             <div>
@@ -25,39 +25,54 @@
             </div>
             <i class="bi bi-bell notificacoes-icone-grande"></i>
         </div>
-
+ 
         <!-- NÃO LIDAS -->
         <div id="secao-nao-lidas">
             <h2 class="secao-titulo">Não lidas</h2>
             <div id="lista-nao-lidas"></div>
         </div>
-
+ 
         <!-- LIDAS -->
         <div id="secao-lidas">
             <h2 class="secao-titulo">Lidas</h2>
             <div id="lista-lidas"></div>
         </div>
-
+ 
         <!-- ESTADO VAZIO -->
         <div class="notificacoes-vazio" id="notificacoes-vazio" style="display:none;">
             <i class="bi bi-bell-slash"></i>
             <p>Você não tem nenhuma notificação.</p>
         </div>
-
+ 
     </div>
-
+ 
+    <!-- Modal de Confirmação de Exclusão -->
+    <div class="modal-overlay" id="modal-excluir-notificacao">
+        <div class="modal-box modal-confirm">
+            <i class="bi bi-exclamation-triangle"></i>
+            <h2>Excluir notificação?</h2>
+            <p>Essa ação não pode ser desfeita. A notificação será removida permanentemente da sua lista.</p>
+            <div class="modal-confirm-actions">
+                <button type="button" class="btn btn-secondary" id="modal-excluir-voltar">Voltar</button>
+                <button type="button" class="btn btn-danger" id="modal-excluir-confirmar">Excluir</button>
+            </div>
+        </div>
+    </div>
+ 
     <div id="footer"></div>
-
+ 
     <div id="toast" class="toast">Copiado ✔</div>
-
+ 
     <script src="../header/frame.js"></script>
-
+ 
     <script src="../Login/logout.js"></script>
-
+ 
     <script src="notificacoes-shared.js"></script>
-
-    <script src="solicitacoes-shared.js"></script>
-
+ 
+    <script src="solicitacoes-shared.js?v=8"></script>
+ 
+    <script src="../Meus-objetos/objetos-shared.js"></script>
+ 
     <script src="notificacoes.js"></script>
 </body>
 </html>

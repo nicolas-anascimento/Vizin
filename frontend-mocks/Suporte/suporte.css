@@ -1,0 +1,384 @@
+:root{
+  --purple: #6D49F2;
+  --purple-dark: #381D73;
+  --purple-light: #EDEBFC;
+  --red: #dc2626;
+  --red-light: #FDECEA;
+  --red-bg: #FDEDEE;
+  --orange: #f5a524;
+  --orange-dark: #E8873A;
+  --blue: #2563eb;
+  --blue-light: #EAF1FE;
+  --gray-bg: #F5F5F7;
+  --text: #0d0d0d;
+  --text-muted: #6B7280;
+  --border: #E4E4E7;
+  --white: #FFFFFF;
+  --radius: 14px;
+}
+ 
+@import url('https://fonts.googleapis.com/css2?family=Arimo:ital,wght@0,400..700;1,400..700&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+ 
+*{
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Arimo", sans-serif;
+}
+ 
+html{
+    background-color: #F2F2F2;
+}
+ 
+.page{
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 100px 20px 60px;
+}
+ 
+.back-link{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  color: var(--purple);
+  text-decoration:none;
+  font-size:15px;
+  font-weight:500;
+  margin-bottom: 18px;
+  background:none;
+  border:none;
+  cursor:pointer;
+  padding:0;
+}
+.back-link:hover{ text-decoration: underline; }
+ 
+h1{
+  font-size: 28px;
+  margin: 0 0 6px;
+}
+.subtitle{
+  color: var(--text-muted);
+  margin: 0 0 22px;
+  font-size: 15px;
+}
+ 
+.tabs{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+ 
+.tab-card{
+  background: var(--white);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px 16px;
+  text-align:center;
+  cursor:pointer;
+  transition: border-color .15s ease, background .15s ease, transform .1s ease;
+}
+.tab-card:hover{ transform: translateY(-1px); }
+ 
+.tab-icon{
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin: 0 auto 10px;
+  font-size: 18px;
+}
+ 
+.tab-title{
+  font-weight: 700;
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+.tab-desc{
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height:1.4;
+}
+ 
+/* Ajuda tab styling */
+#tab-ajuda .tab-icon{ background: var(--purple-light); color: var(--purple); }
+#tab-ajuda.active{
+  border-color: var(--purple);
+  background: var(--purple-light);
+}
+#tab-ajuda.active .tab-title{ color: var(--purple-dark); }
+ 
+/* Denúncia tab styling */
+#tab-denuncia .tab-icon{ background: var(--red-light); color: var(--red); }
+#tab-denuncia.active{
+  border-color: var(--red);
+  background: var(--red-bg);
+}
+#tab-denuncia.active .tab-title{ color: var(--red); }
+ 
+.panel{
+  background: var(--white);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+ 
+/* ================= CHIP DE CONTEXTO ================= */
+/* Some quando não há dados vindos de query string; aparece quando o
+   usuário chegou aqui a partir de um botão "Denunciar" já contextualizado
+   (Perfil, Produto ou Histórico de Aluguéis). */
+.context-chip{
+  display:flex;
+  align-items:center;
+  gap: 8px;
+  background: var(--purple-light);
+  color: var(--purple-dark);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.context-chip.hidden{ display:none; }
+.context-chip i{ font-size: 15px; flex-shrink:0; }
+.context-chip span{ flex:1; }
+.context-chip-limpar{
+  background:none;
+  border:none;
+  color: var(--purple-dark);
+  font-size: 18px;
+  line-height: 1;
+  cursor:pointer;
+  padding: 0 2px;
+  opacity: .7;
+}
+.context-chip-limpar:hover{ opacity: 1; }
+ 
+/* ================= AVISO DE SEGURANÇA/EMERGÊNCIA ================= */
+.safety-banner{
+  display:flex;
+  gap: 10px;
+  align-items:flex-start;
+  background: var(--blue-light);
+  border: 1px solid #BFD4FA;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #1e3a6e;
+}
+.safety-banner i{
+  color: var(--blue);
+  font-size: 16px;
+  margin-top: 1px;
+  flex-shrink:0;
+}
+ 
+.warning-box{
+  display:none;
+  background: var(--red-bg);
+  border: 1px solid #F6C9C5;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 22px;
+  gap: 10px;
+  align-items:flex-start;
+}
+.warning-box.show{ display:flex; }
+.warning-icon{
+  color: var(--red);
+  font-size: 16px;
+  line-height: 1.2;
+}
+.warning-title{
+  font-weight:700;
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+.warning-text{
+  font-size: 13px;
+  color: #7A4A46;
+  line-height: 1.4;
+}
+ 
+.field{
+  margin-bottom: 18px;
+}
+.field label{
+  display:block;
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+.field input,
+.field textarea,
+.field select{
+  width:100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--white);
+  resize: vertical;
+}
+.field select{
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+  padding-right: 36px;
+  cursor: pointer;
+}
+.field textarea{ min-height: 110px; }
+.field input:focus,
+.field textarea:focus,
+.field select:focus{
+  outline: none;
+  border-color: var(--purple);
+  box-shadow: 0 0 0 3px rgba(108,92,231,0.15);
+}
+ 
+.field-error{
+  color: var(--red);
+  font-size: 12.5px;
+  margin-top: 5px;
+  display:none;
+}
+.field.invalid input,
+.field.invalid textarea,
+.field.invalid select{
+  border-color: var(--red);
+}
+.field.invalid .field-error{ display:block; }
+ 
+/* ================= ANEXO DE EVIDÊNCIA ================= */
+.anexo-input-row{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.anexo-btn{
+  display:inline-flex;
+  align-items:center;
+  gap: 6px;
+  border: 1.5px solid var(--border);
+  background: var(--white);
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 9px 14px;
+  border-radius: 10px;
+  cursor:pointer;
+  transition: background .15s ease, border-color .15s ease;
+}
+.anexo-btn:hover{ background: var(--gray-bg); border-color: var(--purple); }
+.anexo-nome{
+  font-size: 12.5px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+.anexo-nome.preenchido{ color: var(--text); font-weight: 600; }
+.anexo-aviso{
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+ 
+.submit-btn{
+  width:100%;
+  border: none;
+  border-radius: 10px;
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--white);
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap: 8px;
+  transition: opacity .15s ease, transform .1s ease;
+}
+.submit-btn:hover{ opacity: 0.92; }
+.submit-btn:active{ transform: scale(0.99); }
+.submit-btn:disabled{ opacity: 0.6; cursor: not-allowed; }
+ 
+.submit-btn.purple{ background: linear-gradient(135deg, var(--purple), #8B7CF0); }
+.submit-btn.orange{ background: var(--orange); }
+.submit-btn.orange:hover{ background: var(--orange-dark); }
+ 
+.status-msg{
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  display:none;
+}
+.status-msg.success{
+  display:block;
+  background: #E9F9EE;
+  color: #1E7A3D;
+  border: 1px solid #BFE8CB;
+}
+.status-msg.error{
+  display:block;
+  background: var(--red-bg);
+  color: var(--red);
+  border: 1px solid #F6C9C5;
+}
+.status-msg .protocolo{
+  display:block;
+  margin-top: 4px;
+  font-weight: 700;
+  font-family: monospace;
+  letter-spacing: .5px;
+}
+ 
+.faq-section{
+  margin-top: 32px;
+  display:none;
+}
+.faq-section.show{ display:block; }
+.faq-section h2{
+  font-size: 20px;
+  margin: 0 0 16px;
+}
+.faq-item{
+  background: var(--white);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.faq-question{
+  font-weight: 700;
+  font-size: 14.5px;
+  margin-bottom: 6px;
+}
+.faq-answer{
+  font-size: 13.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin:0;
+}
+ 
+.panel-wrap{ display:none; }
+.panel-wrap.show{ display:block; }
+ 
+@media (max-width: 420px){
+  .tab-title{ font-size: 14px; }
+  .tab-desc{ font-size: 11.5px; }
+  .anexo-nome{ max-width: 140px; }
+}
+ 

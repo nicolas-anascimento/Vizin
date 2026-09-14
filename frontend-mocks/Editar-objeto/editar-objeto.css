@@ -2,7 +2,31 @@
    ESTILOS EXCLUSIVOS DA PÁGINA DE EDITAR OBJETO
    (o restante do visual vem de cadastrar-objeto.css)
    =================================================== */
-
+ 
+   #loading-msg {
+  margin-bottom: 28px;
+}
+ 
+#loading-msg[style*="display: none"] {
+  margin: 0;
+}
+ 
+.page-title {
+  font-size: 32px;
+  font-weight: 800;
+  margin: 0 0 8px;
+  color: var(--text-dark);
+  letter-spacing: -0.02em;
+}
+ 
+ 
+.page-subtitle {
+  font-size: 15px;
+  color: var(--text-gray);
+  margin: 0 0 28px;
+  line-height: 1.5;
+}
+ 
 .btn-excluir-objeto{
     display: flex;
     align-items: center;
@@ -20,18 +44,64 @@
     cursor: pointer;
     transition: background .15s;
 }
-
+ 
 .btn-excluir-objeto:hover{
     background: #fee2e2;
 }
-
+ 
 .btn-excluir-objeto:disabled{
     opacity: 0.6;
     cursor: not-allowed;
 }
-
+ 
 /* Marca visual para fotos que já existiam antes da edição
    (diferencia de fotos novas adicionadas agora) */
 .photo-slot.filled.existing::after{
     content: "";
 }
+ 
+/* ================= AVISO DE BLOQUEIO POR LOCAÇÃO ATIVA ================= */
+.aviso-bloqueio {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: #fff4e0;
+    border: 1px solid #f5c98a;
+    border-radius: var(--radius-md);
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    font-size: 13.5px;
+    color: #7a5210;
+    line-height: 1.5;
+}
+ 
+.aviso-bloqueio i {
+    font-size: 16px;
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+ 
+/* Campos travados: mantém legível, mas deixa claro que não são editáveis */
+.field.bloqueado input,
+.field.bloqueado textarea,
+.field.bloqueado select {
+    background: #f7f7f8;
+    color: var(--text-gray);
+    cursor: not-allowed;
+}
+ 
+.photos-grid.bloqueado .photo-slot {
+    cursor: not-allowed;
+    opacity: 0.85;
+}
+ 
+.photos-grid.bloqueado .photo-slot:hover {
+    transform: none;
+    box-shadow: none;
+}
+ 
+.photos-grid.bloqueado .remove-btn,
+.photos-grid.bloqueado #add-photo-slot {
+    display: none !important;
+}
+ 

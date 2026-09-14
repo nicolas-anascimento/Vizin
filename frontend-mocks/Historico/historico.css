@@ -1,0 +1,606 @@
+/* =========================================================
+   Este arquivo pressupõe que meus-objetos.css já foi carregado
+   antes dele (define :root, .page-container, .page-header,
+   .page-title, .page-subtitle, .tag, .empty-state, .btn etc.)
+   ========================================================= */
+ 
+/* ================= [SÓ PARA TESTES] TOGGLE VER COMO LOCATÁRIO/PROPRIETÁRIO =================
+   TODO: remover este bloco quando integrar com o back-end real.
+   Mesma ideia da simulação da página de Produto: força a visão da tela
+   independente de quem realmente é solicitante/proprietário nos dados mock. */
+.sim-papel-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: #fff7e6;
+  border: 1px dashed #e0a933;
+  border-radius: 12px;
+  padding: 10px 16px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  color: var(--cor-texto-suave);
+}
+ 
+.sim-papel-btn {
+  border: 1.5px solid var(--cor-borda);
+  background: #fff;
+  color: var(--cor-texto);
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+ 
+.sim-papel-btn:hover {
+  background: #ececf1;
+}
+ 
+.sim-papel-btn.ativo {
+  background: var(--cor-editar);
+  border-color: var(--cor-editar);
+  color: #fff;
+}
+ 
+.sim-papel-btn.ativo:hover {
+  background: var(--cor-editar-hover);
+}
+ 
+/* ================= ABAS DE FILTRO ================= */
+.historico-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--cor-borda);
+}
+ 
+.historico-tab {
+  border: none;
+  background: transparent;
+  padding: 9px 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--cor-texto);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+ 
+.historico-tab:hover {
+  background: #ececf1;
+}
+ 
+.historico-tab.active {
+  background: var(--cor-editar);
+  color: #fff;
+}
+ 
+.historico-tab.active:hover {
+  background: var(--cor-editar);
+}
+ 
+/* Contador de solicitações pendentes, mesma fonte de dados do badge que
+   já existe em cima do ícone de Histórico no menu
+   (contarPendentesComoProprietario). Começa oculto via JS e só aparece
+   quando há pelo menos 1 solicitação pendente. */
+.historico-tab-badge {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 7px;
+  border-radius: 999px;
+  background: #F27C38;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  vertical-align: middle;
+}
+ 
+/* ================= CARD DE ALUGUEL ================= */
+.card-aluguel {
+  display: flex;
+  flex-direction: column;
+  background: var(--cor-card);
+  border-radius: 20px;
+  padding: 20px;
+  margin: 20px 0;
+  box-shadow: 0 2px 10px rgba(20, 20, 43, 0.06);
+}
+ 
+/* Linha de cima do card (imagem + informações), lado a lado. A seção de
+   fotos de retirada/devolução fica fora dessa linha, ocupando a largura
+   inteira do card. */
+.card-aluguel-topo-linha {
+  display: flex;
+  gap: 20px;
+}
+ 
+.card-aluguel-img {
+  width: 110px;
+  height: 110px;
+  min-width: 110px;
+  border-radius: 14px;
+  object-fit: contain;
+  background: #eee;
+}
+ 
+.card-aluguel-info {
+  flex: 1;
+  min-width: 0;
+}
+ 
+.card-aluguel-topo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+ 
+.card-aluguel-titulo {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--cor-texto);
+}
+ 
+.card-aluguel-proprietario {
+  margin: 0 0 14px;
+  font-size: 13.5px;
+  color: var(--cor-texto-suave);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+ 
+.card-aluguel-preco-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+ 
+.card-aluguel-preco {
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--cor-primaria);
+  white-space: nowrap;
+}
+ 
+.status-pill {
+  padding: 4px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+ 
+.status-pill.concluido {
+  background: var(--tag-status-bg);
+  color: var(--tag-status-cor);
+}
+ 
+.status-pill.confirmado {
+  background: var(--tag-categoria-bg);
+  color: var(--tag-categoria-cor);
+}
+ 
+.status-pill.pendente {
+  background: #fff4e0;
+  color: #b3730a;
+}
+ 
+.status-pill.recusado {
+  background: #fdeaea;
+  color: #c0392b;
+}
+ 
+/* Devolução atrasada: mesmo aluguel continua "Em andamento" por baixo (o
+   fluxo não é interrompido, ver comentário em solicitacoes-shared.js), mas
+   o card precisa deixar claro qual locação está com o prazo estourado. */
+.status-pill.atrasado {
+  background: #fdeaea;
+  color: #c0392b;
+}
+ 
+.card-aluguel-detalhes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 24px;
+  margin-bottom: 16px;
+}
+ 
+.card-aluguel-detalhe span {
+  display: block;
+}
+ 
+.card-aluguel-detalhe .label {
+  font-size: 12.5px;
+  color: var(--cor-texto-suave);
+  margin-bottom: 2px;
+}
+ 
+.card-aluguel-detalhe .valor {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--cor-texto);
+}
+ 
+.card-aluguel-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+ 
+.btn-historico {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1.5px solid var(--cor-editar);
+  background: #fff;
+  color: var(--cor-editar);
+  transition: background 0.15s ease;
+}
+ 
+.btn-historico:hover {
+  background: #f1eefe;
+}
+ 
+.btn-historico.preenchido {
+  background: var(--cor-editar);
+  color: #fff;
+}
+ 
+.btn-historico.preenchido:hover {
+  background: var(--cor-editar-hover);
+}
+ 
+.btn-historico.recusar {
+  border-color: #dc2626;
+  color: #dc2626;
+}
+ 
+.btn-historico.recusar:hover {
+  background: #fdeaea;
+}
+ 
+/* ================= DICA: CONVERSAR ANTES DE DECIDIR =================
+   Aparece no card, na aba "Solicitações", enquanto o dono ainda não
+   aprovou/recusou o pedido — reforça alinhar local de retirada e dúvidas
+   sobre o objeto com o locatário antes de decidir. */
+.card-aluguel-dica {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: #f6f4ff;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  font-size: 12.5px;
+  color: var(--cor-texto-suave);
+  line-height: 1.5;
+}
+ 
+.card-aluguel-dica i {
+  color: var(--cor-editar);
+  font-size: 14px;
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+ 
+.card-aluguel-dica strong {
+  color: var(--cor-texto);
+}
+ 
+/* ================= TOGGLE "OCULTAR/MOSTRAR FOTOS" ================= */
+.card-aluguel-toggle-fotos {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+ 
+.toggle-fotos {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  background: transparent;
+  color: var(--cor-editar);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 2px;
+}
+ 
+.toggle-fotos:hover {
+  text-decoration: underline;
+}
+ 
+.toggle-fotos i {
+  transition: transform 0.15s ease;
+}
+ 
+.toggle-fotos.oculto i {
+  transform: rotate(180deg);
+}
+ 
+/* ================= SEÇÃO DE FOTOS (RETIRADA / DEVOLUÇÃO) ================= */
+.card-aluguel-fotos {
+  border-top: 1px solid var(--cor-borda);
+  margin-top: 14px;
+  padding-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+ 
+.card-aluguel-fotos.oculto {
+  display: none;
+}
+ 
+.fotos-etapa-titulo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--cor-texto);
+  margin-bottom: 10px;
+}
+ 
+.fotos-etapa-titulo i {
+  color: var(--cor-editar);
+  font-size: 14px;
+}
+ 
+.fotos-etapa-titulo .fotos-etapa-data {
+  font-weight: 400;
+  color: var(--cor-texto-suave);
+  font-size: 12.5px;
+}
+ 
+.fotos-grupo {
+  margin-bottom: 12px;
+}
+ 
+.fotos-grupo:last-child {
+  margin-bottom: 0;
+}
+ 
+.pessoa-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 999px;
+  margin-bottom: 8px;
+}
+ 
+.pessoa-pill.locatario {
+  background: #EDE7FE;
+  color: #6D49F2;
+}
+ 
+.pessoa-pill.proprietario {
+  background: #FCE8DC;
+  color: #F27C38;
+}
+ 
+.fotos-grupo-conteudo {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+ 
+.fotos-thumbs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+ 
+.fotos-thumb {
+  width: 60px;
+  height: 60px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: #eee;
+  border: 1px solid var(--cor-borda);
+  cursor: zoom-in;
+  transition: transform 0.15s ease;
+}
+ 
+.fotos-thumb:hover {
+  transform: scale(1.06);
+}
+ 
+.fotos-thumb-placeholder {
+  width: 60px;
+  height: 60px;
+  border-radius: 10px;
+  border: 1px dashed var(--cor-borda);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cor-texto-suave);
+  font-size: 20px;
+}
+ 
+.fotos-observacao {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  flex: 1;
+  min-width: 180px;
+  margin: 0;
+  padding: 10px 12px;
+  background: var(--cor-fundo, #f6f6f9);
+  border-radius: 10px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--cor-texto-suave);
+}
+ 
+.fotos-observacao i {
+  color: var(--cor-editar);
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+ 
+@media (max-width: 480px) {
+  .fotos-grupo-conteudo {
+    flex-direction: column;
+  }
+ 
+  .fotos-observacao {
+    width: 100%;
+  }
+}
+ 
+/* ================= MODAL DE CONFIRMAÇÃO (CANCELAR LOCAÇÃO) ================= */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(13, 13, 13, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  z-index: 1000;
+}
+ 
+.modal-overlay.show {
+  opacity: 1;
+  visibility: visible;
+}
+ 
+.modal-box {
+  background: var(--cor-card);
+  border-radius: 20px;
+  padding: 32px;
+  width: 100%;
+  max-width: 380px;
+  transform: scale(0.96);
+  transition: transform 0.2s ease;
+}
+ 
+.modal-overlay.show .modal-box {
+  transform: scale(1);
+}
+ 
+.modal-confirm {
+  text-align: center;
+}
+ 
+.modal-confirm > i {
+  font-size: 38px;
+  color: #dc2626;
+  margin-bottom: 14px;
+  display: inline-block;
+}
+ 
+.modal-confirm h2 {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--cor-texto);
+  margin: 0 0 10px;
+}
+ 
+.modal-confirm p {
+  font-size: 13.5px;
+  color: var(--cor-texto-suave);
+  line-height: 1.5;
+  margin: 0 0 24px;
+}
+ 
+.modal-confirm-actions {
+  display: flex;
+  gap: 12px;
+}
+ 
+.modal-confirm-actions button {
+  flex: 1;
+  padding: 12px 20px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  border: none;
+  transition: background 0.15s ease;
+}
+ 
+.modal-btn-voltar {
+  background: #fff;
+  color: var(--cor-texto);
+  border: 1.5px solid var(--cor-borda);
+}
+ 
+.modal-btn-voltar:hover {
+  background: #ececf1;
+}
+ 
+.modal-btn-confirmar-cancelamento {
+  background: #dc2626;
+  color: #fff;
+}
+ 
+.modal-btn-confirmar-cancelamento:hover {
+  background: #b91c1c;
+}
+ 
+.modal-btn-confirmar-cancelamento:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+ 
+/* ================= RESPONSIVO ================= */
+@media (max-width: 560px) {
+  .card-aluguel-topo-linha {
+    flex-direction: column;
+  }
+ 
+  .card-aluguel-img {
+    width: 100%;
+    height: 160px;
+  }
+ 
+  .card-aluguel-preco-status {
+    align-items: flex-start;
+  }
+ 
+  .card-aluguel-detalhes {
+    grid-template-columns: 1fr;
+  }
+ 
+  .historico-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+ 
+  .historico-tabs::-webkit-scrollbar {
+    display: none;
+  }
+}
+ 

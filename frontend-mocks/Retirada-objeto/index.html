@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="../Produto/fluxo-aluguel.css">
+    <link rel="stylesheet" href="../Produto/fluxo-aluguel.css?v=8">
     <link rel="stylesheet" href="retirada-objeto.css">
     <link rel="stylesheet" href="../header/header.css">
     <link rel="stylesheet" href="../footer/footer.css">
@@ -12,21 +12,28 @@
     <title>Retirada do Objeto</title>
 </head>
 <body>
-
+ 
     <div id="header"></div>
-
+ 
     <div class="page-container retirada-container">
-
+ 
         <a href="#" id="link-voltar" class="back-link"><i class="bi bi-arrow-left"></i> Voltar</a>
-
+ 
+        <!-- TODO: remover este bloco quando integrar com o back-end real. -->
+        <div class="sim-papel-toggle" id="sim-papel-toggle">
+            <span>🧪 [Simulação] Ver como:</span>
+            <button type="button" class="sim-papel-btn" data-papel="locatario">Locatário</button>
+            <button type="button" class="sim-papel-btn" data-papel="proprietario">Proprietário</button>
+        </div>
+ 
         <div class="card retirada-header-card">
             <div class="retirada-icone"><i class="bi bi-camera"></i></div>
             <div>
                 <h1 class="retirada-titulo">Retirada do Objeto</h1>
-                <p class="retirada-subtitulo">Tire fotos do objeto no momento da retirada para documentar seu estado</p>
+                <p class="retirada-subtitulo" id="retirada-subtitulo">Registre suas fotos no momento da retirada</p>
             </div>
         </div>
-
+ 
         <div class="card produto-mini-card">
             <img id="produto-mini-imagem" src="" alt="">
             <div>
@@ -35,60 +42,141 @@
                 <p class="produto-mini-proprietario">Proprietário: <strong id="produto-mini-proprietario"></strong></p>
             </div>
         </div>
-
+ 
         <div class="info-box">
             <i class="bi bi-exclamation-circle"></i>
             <div>
                 <h3>Por que isso é importante?</h3>
                 <ul>
-                    <li>As fotos servem como comprovação do estado do objeto</li>
-                    <li>Protegem tanto o locador quanto o locatário em caso de danos</li>
-                    <li>São obrigatórias para concluir a retirada</li>
-                    <li>Tire fotos de diferentes ângulos para melhor documentação</li>
-                </ul>
+    <li>As fotos servem como comprovação do estado do objeto</li>
+    <li>Protegem tanto o locador quanto o locatário em caso de danos</li>
+    <li>São obrigatórias para concluir a retirada</li>
+    <li>Tire fotos de diferentes ângulos para melhor documentação</li>
+    <li>Ao confirmar, o pagamento é liberado para o proprietário do objeto</li>
+</ul>
             </div>
         </div>
-
-        <div class="card">
-            <h2 id="fotos-titulo">Adicionar Fotos (0/5)</h2>
-
-            <div class="fotos-grid" id="fotos-grid">
-                <div class="foto-slot foto-slot-add" id="foto-slot-add">
+ 
+        <!-- ================= ESTADO: ENVIAR MINHAS FOTOS ================= -->
+        <div id="etapa-enviar">
+ 
+            <div class="card">
+                <div class="parte-header parte-header-propria" id="minha-parte-header">
+                    <div class="parte-avatar" id="minha-parte-avatar"><i class="bi bi-person-fill"></i></div>
+                    <div class="parte-info">
+                        <p class="parte-nome" id="minha-parte-nome">Suas fotos</p>
+                        <p class="parte-sub" id="minha-parte-sub">Envie pelo menos uma foto sua com o objeto</p>
+                    </div>
+                    <span class="parte-badge" id="badge-minhas-fotos">0/3</span>
+                </div>
+ 
+                <div class="parte-dropzone" id="dropzone-minhas-fotos">
                     <i class="bi bi-upload"></i>
-                    <span class="foto-add-titulo">Clique para adicionar fotos</span>
-                    <span class="foto-add-sub">Ou arraste e solte imagens aqui</span>
-                    <span class="foto-add-formatos">PNG, JPG ou JPEG · Máximo 5 fotos</span>
+                    <span class="parte-dropzone-titulo">Clique para adicionar</span>
+                    <span class="parte-dropzone-sub">Ou arraste e solte imagens aqui</span>
+                    <span class="parte-dropzone-formatos">PNG, JPG ou JPEG · Máximo 3 fotos</span>
+                </div>
+                <input type="file" id="input-minhas-fotos" accept="image/png, image/jpeg, image/jpg" multiple hidden>
+ 
+                <div class="parte-fotos-grid" id="fotos-grid-minhas"></div>
+ 
+                <div class="field campo-observacoes">
+                    <label for="observacoes">Observações (opcional)</label>
+                    <textarea id="observacoes" placeholder="Adicione observações sobre o estado do objeto, danos existentes, ou qualquer outro detalhe relevante..."></textarea>
                 </div>
             </div>
-            <input type="file" id="foto-input" accept="image/png, image/jpeg, image/jpg" multiple hidden>
-
-            <div class="field campo-observacoes">
-                <label for="observacoes">Observações (opcional)</label>
-                <textarea id="observacoes" placeholder="Adicione observações sobre o estado do objeto, danos existentes, ou qualquer outro detalhe relevante..."></textarea>
+ 
+            <!-- Status da outra parte (somente leitura) -->
+            <div class="card status-outra-parte-card">
+                <h2>Status da Retirada</h2>
+                <div class="status-outra-parte" id="status-lista"></div>
+            </div>
+ 
+            <div class="retirada-actions">
+                <button type="button" class="btn btn-secondary" id="btn-cancelar"><i class="bi bi-x-circle"></i> Cancelar Locação</button>
+                <button type="button" class="btn btn-primary" id="btn-enviar-minhas-fotos" disabled>
+                    <i class="bi bi-check-circle"></i> Enviar Minhas Fotos
+                </button>
+            </div>
+ 
+            <div class="dica-box">
+                <strong>⏰ Atenção ao prazo:</strong> se a retirada não for confirmada por ambas as partes até a data combinada, o aluguel é cancelado automaticamente e o valor pago retorna para o locatário.
             </div>
         </div>
-
-        <div class="retirada-actions">
-            <button type="button" class="btn btn-secondary" id="btn-cancelar">Cancelar</button>
-            <button type="button" class="btn btn-primary" id="btn-confirmar-retirada" disabled>
-                <i class="bi bi-check-circle"></i> Confirmar Retirada
+ 
+        <!-- ================= ESTADO: AGUARDANDO A OUTRA PARTE ================= -->
+        <div class="card status-card" id="etapa-aguardando" style="display:none;">
+            <div class="status-icone status-pendente"><i class="bi bi-clock-history"></i></div>
+            <h2 class="status-titulo">Suas fotos foram enviadas!</h2>
+            <p class="status-texto" id="aguardando-texto">Aguardando o envio das fotos da outra parte.</p>
+            <p class="status-subtexto">Assim que a outra pessoa enviar as fotos dela, a retirada será confirmada automaticamente para os dois.</p>
+ 
+            <!-- Ainda dá pra cancelar aqui: a retirada só é considerada
+                 confirmada de verdade quando AS DUAS partes enviarem as
+                 fotos (ver etapa-confirmada abaixo). -->
+            <button type="button" class="btn btn-secondary btn-block" id="btn-cancelar-aguardando" style="margin-top:16px;">
+                <i class="bi bi-x-circle"></i> Cancelar Locação
+            </button>
+ 
+            <!-- Se a outra parte simplesmente não enviar as fotos dela, o
+                 cancelamento acima já resolve. Mas cancelar nem sempre é o
+                 que a pessoa quer (ex: já combinou tudo por fora e só falta
+                 a outra parte confirmar aqui) — esse link dá uma saída sem
+                 precisar desistir da locação. -->
+            <p class="retirada-rodape" style="margin-top:14px;">
+                Está demorando muito? <a href="#" id="link-suporte-aguardando">Fale com o Suporte</a>
+            </p>
+ 
+            <!-- TODO: remover este botão quando integrar com o back-end real.
+                 Serve só pra testar o fluxo completo sozinho, sem precisar logar
+                 como as duas partes em sessões separadas. -->
+            <button type="button" class="btn btn-secondary btn-block sim-botao" id="btn-simular-outra-parte" style="margin-top:10px;">
+                🧪 [Simulação] Marcar fotos da outra parte como enviadas
             </button>
         </div>
-
-        <p class="retirada-rodape">Após confirmar, você poderá levar o objeto. As fotos ficarão registradas no sistema.</p>
-
+ 
+        <!-- ================= ESTADO: RETIRADA CONFIRMADA ================= -->
+        <div class="card status-card" id="etapa-confirmada" style="display:none;">
+            <div class="status-icone status-aprovado"><i class="bi bi-check-lg"></i></div>
+            <h2 class="status-titulo">Retirada confirmada!</h2>
+            <p class="status-texto">As fotos de ambas as partes foram registradas com sucesso.</p>
+            <p class="status-subtexto" id="confirmada-subtexto"></p>
+        </div>
+ 
+        <p class="retirada-rodape">Se você cancelar, o valor pago será estornado automaticamente para sua conta original.</p>
+ 
+        <p class="retirada-rodape">As fotos ficarão registradas no sistema para consulta em caso de disputa.</p>
+ 
     </div>
-
+ 
+    <!-- Modal de Confirmação de Cancelamento -->
+    <div class="modal-overlay" id="modal-cancelar">
+        <div class="modal-box modal-confirm">
+            <i class="bi bi-exclamation-triangle"></i>
+            <h2>Cancelar locação?</h2>
+            <p>Tem certeza que deseja cancelar esta locação? O valor pago será estornado e o objeto voltará a ficar disponível.</p>
+            <div class="modal-confirm-actions">
+                <button type="button" class="btn btn-secondary" id="modal-cancelar-voltar">Voltar</button>
+                <button type="button" class="btn btn-danger" id="modal-cancelar-confirmar">Cancelar Locação</button>
+            </div>
+        </div>
+    </div>
+ 
     <div id="footer"></div>
-
+ 
     <div id="toast" class="toast">Copiado ✔</div>
-
+ 
     <script src="../header/frame.js"></script>
-
+ 
     <script src="../Login/logout.js"></script>
-
+ 
     <script src="../Notificacoes/notificacoes-shared.js"></script>
-
+ 
+    <script src="../Notificacoes/solicitacoes-shared.js"></script>
+ 
+    <script src="retirada-shared.js"></script>
+ 
     <script src="retirada-objeto.js"></script>
 </body>
 </html>
+ 

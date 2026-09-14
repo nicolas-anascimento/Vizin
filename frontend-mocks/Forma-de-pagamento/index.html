@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../Produto/fluxo-aluguel.css">
+    <link rel="stylesheet" href="../header/header.css">
+    <link rel="stylesheet" href="../footer/footer.css">
+    <link rel="stylesheet" href="../Minha-conta/conta-shared.css">
+    <link rel="stylesheet" href="pagamento.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <title>Forma de pagamento</title>
+</head>
+<body>
+ 
+    <div id="header"></div>
+ 
+    <div class="page-container conta-container">
+ 
+        <a class="conta-voltar" href="../Perfil/index.html"><i class="bi bi-arrow-left"></i> Voltar ao perfil</a>
+ 
+        <h1 class="conta-titulo-pagina">Forma de pagamento</h1>
+        <p class="conta-subtitulo-pagina">Usada para pagar os aluguéis que você faz na plataforma.</p>
+ 
+        <div class="conta-info">
+            <i class="bi bi-shield-lock"></i>
+            <span>Seus dados de cartão são processados por um parceiro de pagamentos e não ficam armazenados nos nossos servidores.</span>
+        </div>
+ 
+        <div class="card">
+            <h2>Cartões salvos</h2>
+            <div id="lista-cartoes"></div>
+            <p id="cartoes-vazio" style="font-size:13.5px; color:var(--texto-suave,#555); display:none;">Nenhum cartão cadastrado ainda.</p>
+            <button type="button" class="btn-mostrar-mais" id="btn-adicionar-cartao" style="margin-top:14px;">+ Adicionar cartão</button>
+        </div>
+ 
+    </div>
+ 
+    <!-- Modal: adicionar cartão -->
+    <div class="modal-overlay" id="modal-adicionar-cartao">
+        <div class="modal-box">
+            <h2>Adicionar cartão</h2>
+            <form id="formAdicionarCartao">
+                <div class="conta-field">
+                    <label for="cartaoNumero">Número do cartão</label>
+                    <input type="text" id="cartaoNumero" inputmode="numeric" maxlength="19" placeholder="0000 0000 0000 0000" required>
+                </div>
+                <div class="conta-field">
+                    <label for="cartaoNome">Nome impresso no cartão</label>
+                    <input type="text" id="cartaoNome" required>
+                </div>
+                <div style="display:flex; gap:12px;">
+                    <div class="conta-field" style="flex:1;">
+                        <label for="cartaoValidade">Validade (MM/AA)</label>
+                        <input type="text" id="cartaoValidade" inputmode="numeric" maxlength="5" placeholder="MM/AA" required>
+                    </div>
+                    <div class="conta-field" style="flex:1;">
+                        <label for="cartaoCvv">CVV</label>
+                        <input type="text" id="cartaoCvv" inputmode="numeric" maxlength="4" required>
+                    </div>
+                </div>
+ 
+                <p id="mensagemCartao" class="conta-mensagem"></p>
+ 
+                <div class="modal-confirm-actions">
+                    <button type="button" class="btn btn-secondary" id="btn-cancelar-cartao">Cancelar</button>
+                    <button type="submit" class="btn btn-perfil-salvar">Salvar cartão</button>
+                </div>
+            </form>
+        </div>
+    </div>
+ 
+    <!-- Modal: confirmar remoção -->
+    <div class="modal-overlay" id="modal-remover-cartao">
+        <div class="modal-box modal-confirm">
+            <i class="bi bi-exclamation-triangle"></i>
+            <h2>Remover cartão?</h2>
+            <p id="texto-remover-cartao"></p>
+            <div class="modal-confirm-actions">
+                <button type="button" class="btn btn-secondary" id="modal-remover-voltar">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="modal-remover-confirmar">Remover</button>
+            </div>
+        </div>
+    </div>
+ 
+    <div id="footer"></div>
+ 
+    <script src="../header/frame.js"></script>
+    <script src="../Notificacoes/solicitacoes-shared.js"></script>
+    <script src="pagamento.js"></script>
+</body>
+</html>
+ 

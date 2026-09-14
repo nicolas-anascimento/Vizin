@@ -1,8 +1,8 @@
 const API_URL = "/api";
-
+ 
 async function apiRequest(endpoint, method = "GET", body = null) {
     const token = localStorage.getItem("token");
-
+ 
     const options = {
         method,
         headers: {
@@ -13,25 +13,30 @@ async function apiRequest(endpoint, method = "GET", body = null) {
             ...(token ? { "Authorization": `Bearer ${token}` } : {})
         }
     };
-
+ 
     if (body) {
         options.body = JSON.stringify(body);
     }
-
+ 
     const response = await fetch(`${API_URL}${endpoint}`, options);
     return await response.json();
 }
-
+ 
 // LOGIN
-async function login(email, senha) {
-    return await apiRequest("/login", "POST", { email, senha });
+// Autentica por CPF (não email) — é o campo usado na tela de Login.
+async function login(cpf, senha) {
+    return await apiRequest("/login", "POST", { cpf, senha });
 }
-
+ 
 // CADASTRO
-async function cadastrar(nome, email, senha) {
+// Inclui cpf e whatsapp, que a etapa 3 do formulário de cadastro
+// também coleta (o cpf, inclusive, é a credencial de login).
+async function cadastrar(nome, email, cpf, whatsapp, senha) {
     return await apiRequest("/usuarios", "POST", {
         nome,
         email,
+        cpf,
+        whatsapp,
         senha
     });
 }

@@ -13,12 +13,21 @@
  * — basta que api.js passe a chamar fetch() de verdade.
  * ------------------------------------------------------------------
  */
-
+ 
 const CURRENT_USER = {
   id: "u-me",
   name: "Você"
 };
-
+ 
+// Usuários bloqueados pelo usuário atual (mock em memória).
+// Conversas com userId presente aqui somem da lista e não podem
+// mais trocar mensagens. Back-end real: GET/POST /api/blocked-users.
+const MOCK_BLOCKED_USERS = [];
+ 
+// Denúncias de conversas enviadas pelo usuário atual (mock em memória).
+// Back-end real: POST /api/conversations/:id/report (ver api.js).
+const MOCK_REPORTS = [];
+ 
 const MOCK_CONVERSATIONS = [
   {
     id: "c1",
@@ -28,7 +37,8 @@ const MOCK_CONVERSATIONS = [
       avatar: "https://i.pravatar.cc/150?img=47",
       online: true
     },
-    item: { name: "Furadeira", icon: "drill", produtoId: "1" },
+    // status do anúncio em negociação: "disponivel" | "removido" | "alugado"
+    item: { name: "Furadeira", icon: "drill", produtoId: "1", status: "disponivel" },
     unreadCount: 2,
     messages: [
       {
@@ -70,7 +80,9 @@ const MOCK_CONVERSATIONS = [
       avatar: "https://i.pravatar.cc/150?img=12",
       online: true
     },
-    item: { name: "Escada", icon: "ladder", produtoId: "2" },
+    // Demo: este anúncio foi removido pelo dono depois da conversa —
+    // usado pra exibir o aviso "anúncio indisponível" no chat.
+    item: { name: "Escada", icon: "ladder", produtoId: "2", status: "removido" },
     unreadCount: 0,
     messages: [
       {
@@ -105,7 +117,7 @@ const MOCK_CONVERSATIONS = [
       avatar: "https://i.pravatar.cc/150?img=32",
       online: false
     },
-    item: { name: "Serra", icon: "saw", produtoId: "3" },
+    item: { name: "Serra", icon: "saw", produtoId: "3", status: "disponivel" },
     unreadCount: 1,
     messages: [
       {
@@ -140,7 +152,9 @@ const MOCK_CONVERSATIONS = [
       avatar: "https://i.pravatar.cc/150?img=53",
       online: false
     },
-    item: { name: "Betoneira", icon: "tool", produtoId: "4" },
+    // Demo: item já foi alugado por outra pessoa — usado pra exibir o
+    // aviso correspondente no chat.
+    item: { name: "Betoneira", icon: "tool", produtoId: "4", status: "alugado" },
     unreadCount: 0,
     messages: [
       {

@@ -15,27 +15,27 @@
   --tag-categoria-bg: #eef0fb;
   --tag-categoria-cor: #5b5fc7;
 }
-
+ 
 @import url('https://fonts.googleapis.com/css2?family=Arimo:ital,wght@0,400..700;1,400..700&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
-
+ 
 *{
   margin: 0;
   padding: 0;
   box-sizing: border-box;
   font-family: "Arimo", sans-serif;
 }
-
+ 
 html{
     background-color: #F2F2F2;
 }
-
-
+ 
+ 
 .page-container {
   max-width: 1080px;
   margin: 0 auto;
   padding: 32px 20px 80px;
 }
-
+ 
 .back-link {
   display: inline-flex;
   align-items: center;
@@ -47,11 +47,11 @@ html{
   margin-bottom: 20px;
   margin-top: 80px;
 }
-
+ 
 .back-link:hover {
   text-decoration: underline;
 }
-
+ 
 /* ================= CARDS ================= */
 .card {
   background: var(--card);
@@ -60,14 +60,14 @@ html{
   box-shadow: 0 2px 10px rgba(20, 20, 43, 0.06);
   margin-bottom: 20px;
 }
-
+ 
 .card h2 {
   font-size: 17px;
   font-weight: 700;
   color: var(--texto);
   margin: 0 0 12px;
 }
-
+ 
 /* ================= TAGS ================= */
 .tag {
   display: inline-block;
@@ -77,12 +77,12 @@ html{
   font-weight: 600;
   white-space: nowrap;
 }
-
+ 
 .tag-categoria {
   background: var(--tag-categoria-bg);
   color: var(--tag-categoria-cor);
 }
-
+ 
 /* ================= BOTÕES ================= */
 .btn {
   display: inline-flex;
@@ -97,35 +97,112 @@ html{
   border: none;
   transition: background 0.2s ease, opacity 0.2s ease, transform 0.15s ease;
 }
-
+ 
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
-
+ 
 .btn-primary {
   background: var(--roxo);
   color: #fff;
 }
-
+ 
 .btn-primary:hover:not(:disabled) {
   background: var(--roxo-hover);
 }
-
+ 
 .btn-secondary {
   background: #fff;
   color: var(--texto);
   border: 1.5px solid var(--borda);
 }
-
+ 
 .btn-secondary:hover {
   background: #f2f2f4;
 }
-
+ 
 .btn-block {
   width: 100%;
 }
-
+ 
+.btn-danger {
+  background: #dc2626;
+  color: #fff;
+}
+ 
+.btn-danger:hover:not(:disabled) {
+  background: #b91c1c;
+}
+ 
+/* ================= MODAL DE CONFIRMAÇÃO ================= */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(13, 13, 13, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  z-index: 1000;
+}
+ 
+.modal-overlay.show {
+  opacity: 1;
+  visibility: visible;
+}
+ 
+.modal-box {
+  background: #fff;
+  border-radius: 20px;
+  padding: 32px;
+  width: 100%;
+  max-width: 380px;
+  transform: scale(0.96);
+  transition: transform 0.2s ease;
+}
+ 
+.modal-overlay.show .modal-box {
+  transform: scale(1);
+}
+ 
+.modal-confirm {
+  text-align: center;
+}
+ 
+.modal-confirm > i {
+  font-size: 38px;
+  color: #dc2626;
+  margin-bottom: 14px;
+  display: inline-block;
+}
+ 
+.modal-confirm h2 {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--texto);
+  margin: 0 0 10px;
+}
+ 
+.modal-confirm p {
+  font-size: 13.5px;
+  color: var(--texto-suave);
+  line-height: 1.5;
+  margin: 0 0 24px;
+}
+ 
+.modal-confirm-actions {
+  display: flex;
+  gap: 12px;
+}
+ 
+.modal-confirm-actions .btn {
+  flex: 1;
+}
+ 
 /* ================= CAIXAS DE DESTAQUE ================= */
 .info-box {
   display: flex;
@@ -135,20 +212,20 @@ html{
   padding: 18px 20px;
   margin-bottom: 20px;
 }
-
+ 
 .info-box i {
   color: var(--roxo);
   font-size: 18px;
   margin-top: 2px;
 }
-
+ 
 .info-box h3 {
   margin: 0 0 6px;
   font-size: 14.5px;
   font-weight: 700;
   color: var(--texto);
 }
-
+ 
 .info-box ul {
   margin: 0;
   padding-left: 18px;
@@ -156,7 +233,7 @@ html{
   color: var(--texto-suave);
   line-height: 1.7;
 }
-
+ 
 .dica-box {
   background: linear-gradient(135deg, #fff4ec, #f4f0ff);
   border-radius: 12px;
@@ -165,11 +242,11 @@ html{
   color: var(--texto-suave);
   margin-top: 16px;
 }
-
+ 
 .dica-box strong {
   color: var(--texto);
 }
-
+ 
 /* ================= LOADING SPINNER ================= */
 .spinner {
   width: 18px;
@@ -179,7 +256,9 @@ html{
   border-radius: 50%;
   animation: girar 0.7s linear infinite;
 }
-
+ 
 @keyframes girar {
   to { transform: rotate(360deg); }
 }
+ 
+ 

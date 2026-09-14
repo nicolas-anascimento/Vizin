@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../Produto/fluxo-aluguel.css">
+    <link rel="stylesheet" href="../header/header.css">
+    <link rel="stylesheet" href="../footer/footer.css">
+    <link rel="stylesheet" href="../Minha-conta/conta-shared.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <title>Privacidade</title>
+</head>
+<body>
+ 
+    <div id="header"></div>
+ 
+    <div class="page-container conta-container">
+ 
+        <a class="conta-voltar" href="../Perfil/index.html"><i class="bi bi-arrow-left"></i> Voltar ao perfil</a>
+ 
+        <h1 class="conta-titulo-pagina">Privacidade</h1>
+        <p class="conta-subtitulo-pagina">Controle o que os outros usuários veem e o que fazemos com seus dados.</p>
+ 
+        <div class="card">
+            <h2>Visibilidade do perfil</h2>
+ 
+            <div class="conta-linha-opcao">
+                <div class="conta-linha-texto">
+                    <h3>Mostrar meu telefone</h3>
+                    <p>Só é exibido para quem já teve um aluguel aceito com você — nunca para visitantes aleatórios do seu perfil.</p>
+                </div>
+                <label class="conta-toggle">
+                    <input type="checkbox" id="toggle-telefone-condicional" disabled checked>
+                    <span class="conta-toggle-track"></span>
+                </label>
+            </div>
+ 
+            <div class="conta-linha-opcao">
+                <div class="conta-linha-texto">
+                    <h3>Perfil visível na busca pública</h3>
+                    <p>Se desligado, seu perfil só aparece para quem já negociou um aluguel com você.</p>
+                </div>
+                <label class="conta-toggle">
+                    <input type="checkbox" id="toggle-perfil-publico">
+                    <span class="conta-toggle-track"></span>
+                </label>
+            </div>
+        </div>
+ 
+        <div class="card">
+            <h2>Seus dados</h2>
+            <p style="font-size:12.5px; color:var(--texto-suave,#555); margin:0 0 14px;">
+                De acordo com a LGPD, você pode solicitar uma cópia dos seus dados ou pedir a exclusão da sua conta a qualquer momento.
+            </p>
+ 
+            <div class="conta-linha-opcao">
+                <div class="conta-linha-texto">
+                    <h3>Baixar meus dados</h3>
+                    <p>Gera um arquivo com seu perfil, objetos anunciados e avaliações.</p>
+                </div>
+                <button type="button" class="btn btn-secondary" id="btn-baixar-dados">Baixar</button>
+            </div>
+ 
+            <div class="conta-linha-opcao">
+                <div class="conta-linha-texto">
+                    <h3>Excluir meus dados</h3>
+                    <p>Leva você para o fluxo de exclusão de conta.</p>
+                </div>
+                <a class="btn btn-danger" href="../Excluir-conta/index.html">Excluir conta</a>
+            </div>
+        </div>
+ 
+        <div class="card">
+            <h2>Saiba mais</h2>
+            <div class="conta-linha-opcao">
+                <div class="conta-linha-texto">
+                    <h3>Política de Privacidade</h3>
+                    <p>Como coletamos, usamos e protegemos seus dados.</p>
+                </div>
+                <a class="btn btn-secondary" href="../Politica-privacidade/index.html">Ler</a>
+            </div>
+        </div>
+ 
+    </div>
+ 
+    <div id="footer"></div>
+ 
+    <script src="../header/frame.js"></script>
+    <script src="privacidade.js"></script>
+</body>
+</html>
+ 

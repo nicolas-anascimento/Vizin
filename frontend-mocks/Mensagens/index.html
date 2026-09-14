@@ -20,11 +20,22 @@
   <!-- ===== Coluna esquerda: lista de conversas ===== -->
   <aside class="conv-panel">
     <div class="conv-panel__header">
-      <h1 class="app-title">Mensagens</h1>
+      <div class="conv-panel__title-row">
+        <h1 class="app-title">Mensagens</h1>
+        <button type="button" class="icon-btn" id="blockedUsersBtn" title="Usuários bloqueados" aria-label="Usuários bloqueados">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-6.5 8-6.5"/><circle cx="17.5" cy="17.5" r="4.5"/><path d="M15.2 19.8 19.8 15.2"/></svg>
+        </button>
+      </div>
       <div class="search-box">
         <svg viewBox="0 0 24 24" class="icon icon--search"><path d="M21 21l-4.35-4.35M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <input type="text" id="searchInput" placeholder="Buscar conversas..." autocomplete="off">
       </div>
+    </div>
+ 
+    <!-- Aviso de sem conexão -->
+    <div class="offline-banner hidden" id="offlineBanner">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l22 22M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.58 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
+      Você está offline. Algumas ações podem não funcionar.
     </div>
  
     <ul class="conv-list" id="convList" role="list" aria-label="Lista de conversas">
@@ -33,6 +44,11 @@
  
     <div class="conv-list__empty hidden" id="convEmpty">
       <p>Nenhuma conversa encontrada.</p>
+    </div>
+ 
+    <div class="conv-list__error hidden" id="convError">
+      <p>Não foi possível carregar suas conversas.</p>
+      <button type="button" id="retryLoadBtn" class="retry-btn">Tentar novamente</button>
     </div>
   </aside>
  
@@ -66,14 +82,26 @@
           <!-- chip do item em negociação, gerado via JS -->
         </div>
  
-        <div class="chat-header__actions">
-          <button class="icon-btn" id="callAudioBtn" title="Ligar" aria-label="Ligar">
-            <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div class="chat-header__menu">
+          <button type="button" class="icon-btn" id="chatMenuBtn" aria-label="Mais opções">
+            <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
           </button>
-          <button class="icon-btn" id="callVideoBtn" title="Videochamada" aria-label="Videochamada">
-            <svg viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><rect x="1" y="5" width="15" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
-          </button>
+          <div class="chat-menu-dropdown hidden" id="chatMenuDropdown">
+            <button type="button" id="blockUserOption">Bloquear usuário</button>
+            <button type="button" id="reportConvOption">Denunciar conversa</button>
+            <button type="button" class="danger" id="deleteConvOption">Apagar conversa</button>
+          </div>
         </div>
+ 
+      </div>
+ 
+      <!-- Aviso quando o anúncio da conversa não está mais disponível -->
+      <div class="item-banner hidden" id="itemBanner"></div>
+ 
+      <!-- Aviso de segurança padrão do chat -->
+      <div class="safety-notice" id="safetyNotice">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
+        Nunca compartilhe dados bancários, senhas ou códigos de confirmação pelo chat.
       </div>
  
       <div class="messages" id="messagesList" aria-live="polite">
@@ -97,69 +125,34 @@
         <button type="button" class="icon-btn" id="attachBtn" title="Anexar arquivo ou imagem" aria-label="Anexar arquivo">
           <svg viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a5.5 5.5 0 0 1-7.78-7.78l9.2-9.19a3.5 3.5 0 0 1 5.5 4.34l-9.2 9.19a1.5 1.5 0 0 1-2.12-2.12l8.49-8.48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
-        <input type="file" id="fileInput" accept="image/*,.pdf,.doc,.docx" hidden>
+        <input type="file" id="fileInput" accept="image/*,video/*,.pdf,.doc,.docx" hidden>
  
-        <input type="text" id="messageInput" class="composer__input" placeholder="Escreva uma mensagem..." autocomplete="off">
+        <input type="text" id="messageInput" class="composer__input" maxlength="2000" placeholder="Escreva uma mensagem..." autocomplete="off">
  
         <button type="submit" class="send-btn" id="sendBtn" aria-label="Enviar mensagem" disabled>
           <svg viewBox="0 0 24 24"><path d="M22 2 11 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 2 15 22l-4-9-9-4 20-7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
       </form>
+      <div class="char-counter hidden" id="charCounter"></div>
     </div>
   </section>
 </div>
 </div>
  
-<!-- Overlay de chamada (voz/vídeo) -->
-<div class="call-overlay hidden" id="callOverlay">
-  <div class="call-overlay__info" id="callInfo">
-    <img class="call-overlay__avatar" id="callAvatar" src="" alt="">
-    <h2 id="callPeerName"></h2>
-    <p id="callStatusText">Chamando...</p>
-  </div>
- 
-  <!-- NOVO: cronômetro sobreposto, usado só em videochamada (quando
-       a foto/#callInfo fica escondida atrás do vídeo em tela cheia).
-       Em chamada de voz o tempo aparece dentro de #callStatusText,
-       já que a foto continua visível. -->
-  <div class="call-timer-badge hidden" id="callTimerBadge">00:00</div>
- 
-  <video id="remoteVideo" class="call-video call-video--remote hidden" autoplay playsinline></video>
-  <video id="localVideo" class="call-video call-video--local hidden" autoplay playsinline muted></video>
- 
-  <!-- Ações de quem RECEBE a chamada (aceitar/recusar) -->
-  <div class="call-overlay__incoming hidden" id="callIncomingActions">
-    <button type="button" class="call-btn call-btn--decline" id="callDeclineBtn" aria-label="Recusar chamada">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92Z"/></svg>
-    </button>
-    <button type="button" class="call-btn call-btn--accept" id="callAcceptBtn" aria-label="Aceitar chamada">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92Z"/></svg>
-    </button>
-  </div>
- 
-  <!-- NOVO: ação de quem LIGOU, enquanto espera o outro atender
-       ("Chamando..."). Permite cancelar uma ligação feita sem querer. -->
-  <div class="call-overlay__outgoing hidden" id="callOutgoingActions">
-    <button type="button" class="call-btn call-btn--decline" id="callCancelBtn" aria-label="Cancelar chamada">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92Z"/></svg>
-    </button>
-  </div>
- 
-  <div class="call-overlay__controls hidden" id="callActiveControls">
-    <button type="button" class="call-btn call-btn--toggle" id="callMuteBtn" aria-label="Mudo">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
-    </button>
-    <button type="button" class="call-btn call-btn--toggle" id="callCameraBtn" aria-label="Câmera">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7Z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
-    </button>
-    <button type="button" class="call-btn call-btn--decline" id="callHangupBtn" aria-label="Encerrar chamada">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92Z"/></svg>
-    </button>
-  </div>
-</div>
- 
 <!-- Toast de notificação -->
 <div class="toaste hidden" id="toaste"></div>
+ 
+<!-- Modal genérico: confirmação de bloqueio/exclusão e formulário de denúncia -->
+<div class="modal-overlay hidden" id="modalOverlay">
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <h3 class="modal-title" id="modalTitle"></h3>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-actions">
+      <button type="button" class="modal-btn modal-btn--ghost" id="modalCancelBtn">Cancelar</button>
+      <button type="button" class="modal-btn modal-btn--solid" id="modalConfirmBtn">Confirmar</button>
+    </div>
+  </div>
+</div>
  
 <div id="footer"></div>
  
@@ -175,7 +168,6 @@
 <script src="mock-data.js"></script>
 <script src="api.js"></script>
 <script src="app.js"></script>
-<script src="chamada.js"></script>
 </body>
 </html>
  

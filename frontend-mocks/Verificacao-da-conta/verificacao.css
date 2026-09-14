@@ -1,0 +1,198 @@
+.verif-container {
+  max-width: 560px;
+  margin-top: 90px;
+}
+ 
+/* ================= INDICADOR DE ETAPAS ================= */
+.verif-step-indicator {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+ 
+.verif-step-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--borda, #e4e4e8);
+  transition: .3s;
+}
+ 
+.verif-step-dot.ativo {
+  width: 22px;
+  border-radius: 4px;
+  background: var(--roxo, #6D49F2);
+}
+ 
+.verif-step-dot.concluido {
+  background: #2f9e5c;
+}
+ 
+/* ================= UPLOAD ================= */
+.verif-upload-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 2px dashed var(--borda, #e4e4e8);
+  border-radius: 16px;
+  padding: 28px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease;
+  margin-bottom: 14px;
+}
+ 
+.verif-upload-box:hover,
+.verif-upload-box.arrastando {
+  border-color: var(--roxo, #6D49F2);
+  background: #f8f6ff;
+}
+ 
+.verif-upload-box i {
+  font-size: 30px;
+  color: var(--texto-fraco, #999);
+  display: block;
+  margin-bottom: 10px;
+}
+ 
+.verif-upload-box p {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--texto-suave, #555);
+}
+ 
+.verif-upload-box span {
+  display: block;
+  font-size: 11.5px;
+  color: var(--texto-fraco, #999);
+  margin-top: 4px;
+}
+ 
+.verif-preview {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 14px;
+  border: 1.5px solid var(--borda, #e4e4e8);
+}
+ 
+.verif-preview img {
+  width: 100%;
+  max-height: 240px;
+  object-fit: contain;
+  background: #f4f4f6;
+  display: block;
+}
+ 
+.verif-preview-trocar {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  background: rgba(0,0,0,.65);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+ 
+.verif-dica {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 12.5px;
+  color: var(--texto-suave, #555);
+  line-height: 1.5;
+  margin-bottom: 18px;
+}
+ 
+.verif-dica i {
+  color: var(--roxo, #6D49F2);
+  margin-top: 1px;
+}
+ 
+.verif-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+ 
+/* ================= TELAS DE STATUS (em análise / verificado) ================= */
+.verif-status-tela {
+  text-align: center;
+  padding: 30px 10px;
+}
+ 
+.verif-status-icone {
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  font-size: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+ 
+.verif-status-icone.info {
+  background: #f4f0ff;
+  color: var(--roxo, #6D49F2);
+}
+ 
+.verif-status-icone.sucesso {
+  background: #e8f8ee;
+  color: #2f9e5c;
+}
+ 
+.verif-status-icone.erro {
+  background: #fdeaea;
+  color: #c0392b;
+}
+ 
+.verif-status-titulo {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--texto, #1a1a2e);
+  margin: 0 0 8px;
+}
+ 
+.verif-status-texto {
+  font-size: 13.5px;
+  color: var(--texto-suave, #555);
+  line-height: 1.7;
+  max-width: 400px;
+  margin: 0 auto 18px;
+}
+ 
+.verif-status-data {
+  font-size: 12px;
+  color: var(--texto-fraco, #999);
+  margin: -10px 0 20px;
+}
+ 
+.link-teste {
+  display: inline-block;
+  margin: 4px 8px;
+  background: none;
+  border: none;
+  color: var(--texto-fraco, #999);
+  font-size: 11.5px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+ 
+.verif-motivo-reprovacao {
+  text-align: left;
+  background: #fdeaea;
+  border: 1.5px solid #f5c2c0;
+  color: #a3241c;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+ 

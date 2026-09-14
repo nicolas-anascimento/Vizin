@@ -10,10 +10,12 @@
 html{
     background-color: #F2F2F2;
 }
-
+ 
 .container{
-     width:1000px;
-     margin: 3% 5%;
+     width: 100%;
+     max-width: 1000px;
+     margin: 3% auto;
+     padding: 0 5%;
 }
  
 section{
@@ -30,7 +32,7 @@ section{
     margin-top: 67px;
     width: 100%;
     height: 156px;
-    background: linear-gradient(90deg,rgba(56, 29, 115, 1) 0%, rgba(109, 73, 242, 1) 50%, rgba(56, 29, 115, 1) 100%);
+    background: linear-gradient(120deg, #381D73, #6D49F2 45%, #F27C38 130%);
     border-radius: 27px;
     display: flex;
     align-items: center;
@@ -98,38 +100,6 @@ section{
     color: #F27C38;
 }
  
-/* MOBILE (layout geral) */
-@media (max-width: 1280px){
-    .flex{
-        justify-content: space-between;
-    }
-}
- 
-@media (max-width: 1000px){
-    .banner{
-        flex-direction: column;
-        height: auto;
-        gap: 15px;
-        padding: 33px;
-        display: block;
-    }
-    .btn-adicionar{
-        width: 50%;
-        height: 56px;
-        font-size: 18px;
-        margin-top: 33px;
-    }
-}
- 
-@media (max-width: 500px){
-     .banner h1{
-        font-size: 44px;
-    }
-    .banner p{
-        font-size: 22px; margin-top: 22px;
-    }
-}
- 
 .banner-pesquisa{
     margin-top: 27px;
     width: 100%;
@@ -140,18 +110,19 @@ section{
     box-shadow: 0 0 25px #0d0d0d3a;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 16px;
     padding: 0 24px;
 }
  
 .buscar-box{
     position: relative;
-    width: 32%;
+    flex: 1;
+    min-width: 0;
     height: 56px;
     background-color: #F2F2F2;
     overflow: hidden;
     display: flex;
-    justify-content: space-between;
+    align-items: center;
     border-radius: 25px;
     border: 2px solid #0d0d0d3a;
     transition: .3s;
@@ -171,19 +142,22 @@ section{
  
 .buscar-box2{
     position: relative;
-    width: 32%;
+    flex: 1;
+    min-width: 0;
     height: 56px;
     background-color: #F2F2F2;
-    overflow: hidden;
     display: flex;
+    align-items: center;
     justify-content: center;
     border-radius: 25px;
     border: 2px solid #0d0d0d3a;
+    padding-right: 17px;
 }
  
 .buscar-box .lupa-buscar{
-    min-width: 67px;
-    height: 56px;
+    min-width: 56px;
+    flex-shrink: 0;
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -199,25 +173,29 @@ select:focus {
     outline: none; /* remove o contorno preto */
 }
  
+/* select ocupa o espaço naturalmente via flex,
+   em vez de position:absolute (evita corte/overflow em telas estreitas) */
 select{
-    position: absolute;
-    width: 85%;
+    width: 100%;
     height: 100%;
-    font-size: 18px;
+    padding: 0 16px;
+    font-size: 16px; /* evita zoom automático no iOS ao focar */
     border: none;
     background-color: transparent;
     color: #0d0d0d80;
 }
  
+/* input-buscar agora é flex, sem position:absolute:
+   encolhe/cresce junto com o box em qualquer largura de tela */
 .buscar-box .input-buscar{
-    position: absolute;
-    left: 56px;
-    width: 100%;
+    flex: 1;
+    min-width: 0;
     height: 100%;
-    line-height: 56px;
 }
  
 .buscar-box .input-buscar input{
+    width: 100%;
+    height: 100%;
     border: 0;
     outline: 0;
     font-size: 17px;
@@ -240,37 +218,34 @@ select{
     cursor: pointer;
 }
  
-@media (max-width: 768px){
-     .banner-pesquisa{
-        display: block;
-        height: auto; /* MUITO IMPORTANTE */
-        padding: 22px;
-    }
-    .buscar-box, .buscar-box2{
-        width: 100%; /* ocupa linha inteira */
-        margin-top: 11px;
-    }
-}
- 
-/* GRID DOS PRODUTOS */
+/* GRID DOS PRODUTOS - 3 colunas fixas no desktop */
 #lista-objetos {
     margin-top: 33px;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(278px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
     gap: 20px;
 }
  
-/* CARD */
+/* CARD (agora é um <a> - reset de estilos de link) */
 .card-produto {
     background: #ffffff;
     border-radius: 33px;
     box-shadow: 0 0 15px #00000020;
     display: flex;
     flex-direction: column;
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+ 
+.card-produto:focus-visible {
+    outline: 3px solid #6D49F2;
+    outline-offset: 3px;
 }
  
 .sub-card{
-padding: 11px 33px;
+    padding: 11px 33px;
 }
  
 .card-produto:hover {
@@ -285,14 +260,18 @@ padding: 11px 33px;
     overflow: hidden; /* corta o zoom */
     border-top-left-radius: 33px;
     border-top-right-radius: 33px;
+        display: flex;
+    justify-content: center;
+    align-items: center;
 }
  
 /* imagem */
 .card-img {
-    width: 100%;
+    width: auto;
     height: 172px;
-    object-fit: cover;
+    object-fit: contain;
     transition: transform 0.5s ease; /* animação suave */
+    background: #eee;
 }
  
 /* efeito hover */
@@ -345,14 +324,30 @@ padding: 11px 33px;
     margin: 17px 0;
 }
  
-/* LOCALIZAÇÃO */
+/* CATEGORIA + LOCALIZAÇÃO (juntas no corpo do card) */
+.card-meta{
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin: 12px 0;
+}
+ 
+.categoria-tag{
+    font-size: 14px;
+    color: #777;
+    text-transform: capitalize;
+}
+ 
 .localizacao {
     font-size: 14px;
     color: #777;
 }
  
+.categoria-tag i,
 .localizacao i {
     color: #6D49F2;
+    margin-right: 4px;
 }
  
 hr{
@@ -363,7 +358,6 @@ hr{
 .card-footer {
     margin-top: 11px;
     display: flex;
-    justify-content: space-between;
     align-items: center;
 }
  
@@ -392,13 +386,252 @@ hr{
     color: #FFD700;
 }
  
-@media(max-width: 600px){
-    .toast{
-        right: 50%;
-        transform: translateX(50%) translateY(20px);
-    }
+/* SEM RESULTADOS */
+.sem-resultado{
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px 20px;
+    color: #0d0d0d80;
+}
  
-    .toast.show{
-        transform: translateX(50%) translateY(0);
+.sem-resultado i{
+    font-size: 32px;
+    display: block;
+    margin-bottom: 10px;
+}
+ 
+/* Botão de ação dentro do estado vazio — serve tanto pro link
+   "Anunciar o primeiro objeto" (base sem nenhum objeto cadastrado)
+   quanto pro botão "Limpar filtros" (busca sem resultado) */
+.sem-resultado .btn-limpar{
+    display: inline-block;
+    margin-top: 17px;
+    padding: 11px 24px;
+    background: transparent;
+    border: 2px solid #6D49F2;
+    border-radius: 30px;
+    color: #6D49F2;
+    font-size: 15px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    font-family: inherit;
+    transition: .3s;
+}
+ 
+.sem-resultado .btn-limpar:hover{
+    background: #6D49F2;
+    color: #F2F2F2;
+}
+ 
+/* CONTADOR DE RESULTADOS */
+.contador-resultados{
+    margin-top: 22px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 20px;
+    background: #ffffff;
+    border: 1px solid #0d0d0d14;
+    border-radius: 30px;
+    box-shadow: 0 0 12px #0d0d0d14;
+    font-size: 14px;
+    font-weight: 600;
+    color: #6D49F2;
+    transition: .3s;
+}
+ 
+.contador-resultados:hover{
+    box-shadow: 0 0 18px #0d0d0d20;
+}
+ 
+.contador-resultados i{
+    font-size: 15px;
+    color: #F27C38;
+}
+ 
+.contador-resultados--oculto{
+    display: none;
+}
+ 
+/* ================= MEDIA QUERIES ================= */
+ 
+/* MOBILE (layout geral) */
+@media (max-width: 1280px){
+    .flex{
+        justify-content: space-between;
     }
 }
+ 
+@media (max-width: 1000px){
+    .btn-adicionar{
+        width: 100%;
+        max-width: 320px;
+        height: 56px;
+        font-size: 18px;
+        margin-top: 33px;
+    }
+}
+ 
+@media (max-width: 768px){
+     .banner{
+        margin-top: 60px;
+     }
+     .banner-pesquisa{
+        height: auto;
+        min-height: 68px;
+        margin-top: 18px;
+        padding: 10px 14px;
+        gap: 10px;
+     }
+     .buscar-box, .buscar-box2{
+        height: 48px;
+     }
+     .buscar-box .lupa-buscar{
+        min-width: 44px;
+     }
+     .buscar-box .input-buscar input,
+     select{
+        font-size: 15px;
+     }
+    #lista-objetos {
+        margin-top: 24px;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 14px;
+    }
+}
+ 
+@media (max-width: 900px){
+    .container{
+        padding: 0 4%;
+        margin: 6% auto;
+    }
+    .banner{
+        margin-top: 60px;
+    }
+    .banner h1{
+        font-size: 24px;
+    }
+    .banner p{
+        font-size: 15px;
+        margin-top: 8px;
+    }
+    .boas-vindas{
+        font-size: 15px;
+    }
+
+    /* botão "Anunciar objeto" some em telas pequenas */
+    .banner-cta{
+        display: none;
+    }
+    
+    .banner-pesquisa{
+        padding: 8px 10px;
+        gap: 6px;
+    }
+    .buscar-box, .buscar-box2{
+        height: 44px;
+    }
+    .buscar-box .lupa-buscar{
+        min-width: 38px;
+    }
+    .buscar-box .lupa-buscar i{
+        font-size: 15px;
+    }
+    .buscar-box .input-buscar input,
+    select{
+        font-size: 14px;
+    }
+    select{
+        padding: 0 6px;
+    }
+    .contador-resultados{
+        margin-top: 16px;
+        padding: 7px 16px;
+        font-size: 12px;
+    }
+    .contador-resultados i{
+        font-size: 13px;
+    }
+    #lista-objetos {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        margin-top: 22px;
+    }
+    /* card compacto pra caber bem em 2 colunas */
+    .card-produto{
+        border-radius: 18px;
+    }
+    .card-img-container{
+        border-top-left-radius: 18px;
+        border-top-right-radius: 18px;
+    }
+    .card-img{
+        height: 110px;
+    }
+    .preco{
+        top: 6px;
+        right: 6px;
+        padding: 6px 9px;
+        font-size: 12px;
+    }
+    .card-body{
+        margin: 12px 14px;
+    }
+    .card-body h3{
+        font-size: 15px;
+    }
+    .card-body p{
+        font-size: 12px;
+        margin: 6px 0;
+    }
+    .card-meta{
+        gap: 8px;
+        margin: 8px 0;
+    }
+    .categoria-tag,
+    .localizacao{
+        font-size: 11px;
+    }
+    .card-footer{
+        margin-top: 8px;
+    }
+    .card-rating{
+        font-size: 11px;
+        padding: 4px 8px;
+    }
+    .toast{
+        max-width: 90%;
+        right: 5%;
+        left: 5%;
+        transform: translateY(20px);
+    }
+    .toast.show{
+        transform: translateY(0);
+    }
+}
+ 
+@media (max-width: 400px){
+    .banner-pesquisa{
+        flex-wrap: wrap;
+        height: auto;
+    }
+    .buscar-box{
+        flex: 1 1 calc(50% - 3px);
+        min-width: 0;
+    }
+    .buscar-box2{
+        flex: 1 1 100%;
+        height: 44px;
+    }
+    .buscar-box .lupa-buscar{
+        min-width: 40px;
+    }
+    .card-body{
+        margin: 10px 12px;
+    }
+    .banner h1{
+        font-size: 21px;
+    }
+}
+ 

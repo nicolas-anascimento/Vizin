@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../Produto/fluxo-aluguel.css">
+    <link rel="stylesheet" href="../header/header.css">
+    <link rel="stylesheet" href="../footer/footer.css">
+    <link rel="stylesheet" href="../Minha-conta/conta-shared.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <title>Excluir conta</title>
+</head>
+<body>
+ 
+    <div id="header"></div>
+ 
+    <div class="page-container conta-container">
+ 
+        <a class="conta-voltar" href="../Minha-conta/index.html"><i class="bi bi-arrow-left"></i> Voltar para Minha conta</a>
+ 
+        <h1 class="conta-titulo-pagina">Excluir conta</h1>
+        <p class="conta-subtitulo-pagina">Essa ação é permanente. Leia com atenção antes de continuar.</p>
+ 
+        <!-- Aparece quando existem impedimentos (aluguéis ativos, saldo a receber etc.) -->
+        <div class="conta-aviso" id="aviso-bloqueio" style="display:none;">
+            <i class="bi bi-exclamation-octagon-fill"></i>
+            <div>
+                <strong>Não é possível excluir sua conta agora.</strong>
+                <ul id="lista-motivos-bloqueio"></ul>
+            </div>
+        </div>
+ 
+        <div class="card">
+            <h2>O que acontece ao excluir</h2>
+            <ul id="lista-consequencias" style="margin:0; padding-left:20px; font-size:13.5px; color:var(--texto-suave,#555); line-height:1.9;">
+                <li>Seu perfil, foto e bio deixam de existir na plataforma.</li>
+                <li>Seus objetos anunciados são removidos e não podem mais ser alugados.</li>
+                <li>Seu histórico de conversas e solicitações é encerrado.</li>
+                <li>As avaliações que você recebeu permanecem visíveis para preservar o histórico de quem alugou com você, mas passam a aparecer como "Usuário excluído".</li>
+                <li>Você tem <strong>30 dias</strong> para desistir: durante esse período, basta fazer login novamente para reativar a conta.</li>
+            </ul>
+        </div>
+ 
+        <!-- Formulário de confirmação: só fica habilitado quando não há bloqueios -->
+        <div class="card conta-zona-risco" id="card-confirmacao">
+            <h2>Confirmar exclusão</h2>
+ 
+            <div class="conta-field conta-field-senha">
+                <label for="senhaConfirmacaoExclusao">Confirme sua senha</label>
+                <input type="password" id="senhaConfirmacaoExclusao" autocomplete="current-password">
+                <i class="bi bi-eye-slash toggle-senha" id="toggleSenhaExclusao"></i>
+            </div>
+ 
+            <div class="conta-field">
+                <label for="textoConfirmacaoExclusao">Digite <strong>EXCLUIR</strong> para confirmar</label>
+                <input type="text" id="textoConfirmacaoExclusao" autocomplete="off">
+            </div>
+ 
+            <label class="conta-checkbox-linha">
+                <input type="checkbox" id="checkboxCienteExclusao">
+                <span>Estou ciente de que essa ação é permanente após os 30 dias e não pode ser desfeita depois disso.</span>
+            </label>
+ 
+            <p id="mensagemExclusao" class="conta-mensagem"></p>
+ 
+            <button type="button" class="btn btn-danger" id="btnExcluirConta" disabled>Excluir minha conta</button>
+        </div>
+ 
+    </div>
+ 
+    <!-- Modal de confirmação final -->
+    <div class="modal-overlay" id="modal-confirmar-exclusao">
+        <div class="modal-box modal-confirm">
+            <i class="bi bi-exclamation-triangle"></i>
+            <h2>Tem certeza?</h2>
+            <p>Sua conta será desativada agora e excluída definitivamente em 30 dias, caso você não faça login novamente antes disso.</p>
+            <div class="modal-confirm-actions">
+                <button type="button" class="btn btn-secondary" id="modal-exclusao-voltar">Voltar</button>
+                <button type="button" class="btn btn-danger" id="modal-exclusao-confirmar">Sim, excluir conta</button>
+            </div>
+        </div>
+    </div>
+ 
+    <div id="footer"></div>
+ 
+    <script src="../header/frame.js"></script>
+    <script src="../Notificacoes/solicitacoes-shared.js"></script>
+    <script src="../Meus-objetos/objetos-shared.js"></script>
+    <script src="excluir-conta.js"></script>
+</body>
+</html>
+ 

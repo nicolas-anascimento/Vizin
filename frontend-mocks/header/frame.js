@@ -5,7 +5,7 @@ fetch("../header/index.html")
     })
     .then(html => document.getElementById("header").innerHTML = html)
     .catch(err => console.error("Falha ao carregar header:", err));
-
+ 
 fetch("../footer/index.html")
     .then(r => {
         if (!r.ok) throw new Error(`Erro ${r.status} ao buscar ../footer/index.html`);
@@ -13,8 +13,8 @@ fetch("../footer/index.html")
     })
     .then(html => document.getElementById("footer").innerHTML = html)
     .catch(err => console.error("Falha ao carregar footer:", err));
-
-
+ 
+ 
 // ================= TOAST =================
 // Cria a <div id="toast"> sozinho se a página esquecer de declarar,
 // para não depender de lembrar de colar isso em todo HTML novo.
@@ -28,31 +28,31 @@ function garantirElementoToast() {
     }
     return toast;
 }
-
+ 
 function mostrarToast(mensagem, tipo = "sucesso") {
     const toast = garantirElementoToast();
-
+ 
     toast.innerText = mensagem;
     toast.className = `toast show ${tipo}`;
-
+ 
     setTimeout(() => {
         toast.classList.remove("show");
     }, 2500);
 }
-
+ 
 // ================= COPIAR EMAIL (via delegação de eventos) =================
 document.addEventListener("click", (e) => {
     console.log("clique em:", e.target);
-
+ 
     const emailEl = e.target.closest("#emailEmpresa");
     console.log("emailEl encontrado:", emailEl);
-
+ 
     if (!emailEl) return;
-
+ 
     const texto = emailEl.innerText.trim();
-
+ 
     if (navigator.clipboard && window.isSecureContext) {
-
+ 
         navigator.clipboard.writeText(texto)
         .then(() => {
             mostrarToast("📧 Email copiado ✔");
@@ -61,9 +61,9 @@ document.addEventListener("click", (e) => {
         .catch(() => {
             mostrarToast("Erro ao copiar ❌", "erro");
         });
-
+ 
     } else {
-
+ 
         // Fallback para contextos sem navigator.clipboard (ex: HTTP sem TLS)
         const textarea = document.createElement("textarea");
         textarea.value = texto;
@@ -72,31 +72,58 @@ document.addEventListener("click", (e) => {
         document.body.appendChild(textarea);
         textarea.focus();
         textarea.select();
-
+ 
         try {
             document.execCommand("copy");
             mostrarToast("📧 Email copiado ✔");
         } catch (err) {
             mostrarToast("Erro ao copiar ❌", "erro");
         }
-
+ 
         document.body.removeChild(textarea);
-
+ 
     }
-
+ 
 });
-
+ 
 // ================= MENU MOBILE (via delegação de eventos) =================
 document.addEventListener("click", (e) => {
-
+ 
     const toggle = e.target.closest("#menu-toggle");
-
+ 
     if (!toggle) return;
-
+ 
     const nav = document.querySelector("nav");
-
+ 
     if (nav) {
         nav.classList.toggle("active");
     }
-
+ 
+});
+ 
+// ================= LOGOUT (via delegação de eventos) =================
+// Escuta a classe ".js-logout" em vez de um id fixo, porque agora existem
+// TRÊS gatilhos de logout na página (botão SAIR do menu desktop, o ícone
+// de Sair no menu fixo do topo no mobile, e o botão Sair da bottom-nav no
+// mobile) — todos com essa mesma classe, então um único listener cobre
+// os três, não importa em qual o usuário clicar.
+document.addEventListener("click", (e) => {
+ 
+    const btnLogout = e.target.closest(".js-logout");
+ 
+    if (!btnLogout) return;
+ 
+    e.preventDefault(); // evita navegar para "#" quando o gatilho é um <a>
+ 
+    localStorage.removeItem("token");
+    localStorage.removeItem("usuario");
+ 
+    mostrarToast("Você saiu da conta ✔");
+ 
+    setTimeout(() => {
+ 
+        window.location.href = "../Login/index.html";
+ 
+    }, 1000);
+ 
 });
