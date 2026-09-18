@@ -1,14 +1,57 @@
-import Express from "express";
-import login from "./loginRoutes.ts";
-import contas from "./accountRoutes.ts";
-import usuarios from "./usuariosRoutes.ts";
+import * as addresses from "../controllers/addressesController.ts";
+import conversations from "./conversations.ts";
+import * as support from "../controllers/supportController.ts";
+import * as chat from "../controllers/conversationsController.ts";
+import { attachmentUpload, verifyUploads } from "../middlewares/privateUpload.ts";
+import { rateLimit } from "../middlewares/rateLimit.ts";
+import { Router } from "express";
+import login from "./login.ts";
+import accounts from "./accounts.ts";
+import users from "./users.ts";
+import items from "./items.ts";
+import rentals from "./rentals.ts";
+import payments from "./payments.ts";
+import notifications from "./notifications.ts";
+import { handoverRouter } from "./withdrawals.ts";
+import withdrawals from "./withdrawals.ts";
+import reviews from "./reviews.ts";
+import messages from "./messages.ts";
+import admin from "./admin.ts";
+import { getOrder } from "../controllers/paymentsController.ts";
+import { listCategories } from "../controllers/itemsController.ts";
+import { requireAuth } from "../middlewares/auth.ts";
 
-
-
-const api = Express()
-
-api.use("/login", login);
-api.use("/contas", contas)
-api.use("/usuarios", usuarios)
-
-export default api;
+const router = Router();
+router.get("/saude", (_req, res) => res.json({ status: "ok", servico: "vizin-api" }));
+router.use("/login", login);
+router.use("/contas", accounts);
+router.use("/usuarios", users);
+router.get("/enderecos", requireAuth, addresses.listAddresses);
+router.get("/enderecos/:id", requireAuth, addresses.getAddress);
+router.post("/enderecos", requireAuth, addresses.saveAddress);
+router.patch("/enderecos/:id", requireAuth, addresses.saveAddress);
+router.put("/enderecos/:id", requireAuth, addresses.saveAddress);
+router.delete("/enderecos/:id", requireAuth, addresses.removeAddress);
+router.use("/objetos", items);
+router.get("/categorias", listCategories);
+router.use("/solicitacoes", rentals);
+router.use("/alugueis", rentals);
+router.use("/pagamentos", payments);
+router.get("/pedidos/:id", requireAuth, getOrder);
+router.use("/notificacoes", notifications);
+router.use("/retiradas", withdrawals);
+router.use("/devolucoes", handoverRouter(true));
+router.use("/avaliacoes", reviews);
+router.use("/mensagens", messages);
+router.use("/conversations", conversations);
+router.post("/users/:userId/block", requireAuth, chat.blockUser);
+router.post("/users/:userId/unblock", requireAuth, chat.unblockUser);
+router.get("/blocked-users", requireAuth, chat.blockedUsers);
+router.post("/uploads", requireAuth, rateLimit({windowMs:60000,max:20}), attachmentUpload, verifyUploads, chat.uploadAttachment);
+router.get("/uploads/:id", requireAuth, chat.downloadAttachment);
+router.post("/suporte/ajuda", requireAuth, rateLimit({windowMs:60000,max:5}), support.requestHelp);
+router.post("/suporte/denuncia", requireAuth, rateLimit({windowMs:60000,max:5}), support.report);
+router.post("/suporte/sinistro", requireAuth, support.reportClaim);
+router.get("/suporte/me", requireAuth, support.mySupport);
+router.use("/admin", admin);
+export default router;

@@ -8,30 +8,39 @@ datasource db {
   provider = "postgresql"
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model alugueis {
-  id                                       String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  item_id                                  String       @db.Uuid
-  locatario_id                             String       @db.Uuid
-  locador_id                               String       @db.Uuid
-  data_inicio                              DateTime     @db.Date
-  data_fim                                 DateTime     @db.Date
-  valor_total                              Decimal      @db.Decimal(10, 2)
-  taxa_plataforma                          Decimal      @default(0.00) @db.Decimal(10, 2)
-  ganho_locador                            Decimal      @default(0.00) @db.Decimal(10, 2)
-  status                                   String?      @default("pendente") @db.VarChar(30)
-  criado_em                                DateTime?    @default(now()) @db.Timestamp(6)
-  atualizado_em                            DateTime?    @default(now()) @db.Timestamp(6)
-  itens                                    itens        @relation(fields: [item_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  usuarios_alugueis_locador_idTousuarios   usuarios     @relation("alugueis_locador_idTousuarios", fields: [locador_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  usuarios_alugueis_locatario_idTousuarios usuarios     @relation("alugueis_locatario_idTousuarios", fields: [locatario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id                                       String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  item_id                                  String            @db.Uuid
+  locatario_id                             String            @db.Uuid
+  locador_id                               String            @db.Uuid
+  data_inicio                              DateTime          @db.Date
+  data_fim                                 DateTime          @db.Date
+  valor_total                              Decimal           @db.Decimal(10, 2)
+  taxa_plataforma                          Decimal           @default(0.00) @db.Decimal(10, 2)
+  ganho_locador                            Decimal           @default(0.00) @db.Decimal(10, 2)
+  status                                   String?           @default("pendente") @db.VarChar(30)
+  criado_em                                DateTime?         @default(now()) @db.Timestamp(6)
+  atualizado_em                            DateTime?         @default(now()) @db.Timestamp(6)
+  itens                                    itens             @relation(fields: [item_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuarios_alugueis_locador_idTousuarios   usuarios          @relation("alugueis_locador_idTousuarios", fields: [locador_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuarios_alugueis_locatario_idTousuarios usuarios          @relation("alugueis_locatario_idTousuarios", fields: [locatario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   avaliacoes                               avaliacoes[]
   mensagens                                mensagens[]
   pagamentos                               pagamentos[]
   sinistros                                sinistros[]
+  denuncias                                denuncias[]
+  eventos                                  eventos_aluguel[]
+  devolucoes                               devolucoes[]
+  expira_em                                DateTime?
+  pagamento_ate                            DateTime?
+  atraso_notificado                        String?
+  retiradas                                retiradas[]
+
+  @@index([item_id, data_inicio, data_fim])
+  @@index([locador_id, status])
+  @@index([locatario_id, status])
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model assinaturas {
   id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   usuario_id String    @db.Uuid
@@ -44,8 +53,10 @@ model assinaturas {
   usuarios   usuarios  @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model avaliacoes {
+  contexto                                   String    @default("usuario")
+  item_id                                    String?   @db.Uuid
+  item                                       itens?    @relation(fields: [item_id], references: [id])
   id                                         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   aluguel_id                                 String    @db.Uuid
   avaliador_id                               String    @db.Uuid
@@ -58,15 +69,16 @@ model avaliacoes {
   usuarios_avaliacoes_avaliador_idTousuarios usuarios  @relation("avaliacoes_avaliador_idTousuarios", fields: [avaliador_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([aluguel_id, avaliador_id], map: "uq_avaliacao_aluguel_avaliador")
+  @@index([item_id, contexto])
 }
 
 model categorias {
   id    String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   nome  String  @unique @db.VarChar(80)
+  slug  String  @unique @db.VarChar(100)
   itens itens[]
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model enderecos {
   id          String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   usuario_id  String                    @unique(map: "uq_endereco_principal", where: raw("(principal = true)")) @db.Uuid
@@ -77,6 +89,8 @@ model enderecos {
   bairro      String?                   @db.VarChar(100)
   cidade      String?                   @db.VarChar(100)
   estado      String?                   @db.Char(2)
+  latitude    Float?
+  longitude   Float?
   localizacao Unsupported("geography")?
   principal   Boolean?                  @default(false)
   usuarios    usuarios                  @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -85,7 +99,6 @@ model enderecos {
   @@index([localizacao], map: "idx_enderecos_localizacao", type: Gist)
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model extrato_carteira {
   id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   usuario_id    String    @db.Uuid
@@ -99,13 +112,15 @@ model extrato_carteira {
 
 model fotos_item {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  item_id   String   @unique(map: "uq_foto_principal", where: raw("(principal = true)")) @db.Uuid
+  item_id   String   @db.Uuid
   url       String
   principal Boolean? @default(false)
   itens     itens    @relation(fields: [item_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([item_id], map: "uq_foto_principal", where: raw("(principal = true)"))
+  @@index([item_id])
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model fundo_reserva {
   id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   valor         Decimal   @db.Decimal(10, 2)
@@ -115,46 +130,58 @@ model fundo_reserva {
   criado_em     DateTime? @default(now()) @db.Timestamp(6)
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model itens {
-  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  usuario_id    String      @db.Uuid
-  categoria_id  String?     @db.Uuid
-  endereco_id   String?     @db.Uuid
-  titulo        String      @db.VarChar(150)
-  descricao     String?
-  preco_por_dia Decimal     @db.Decimal(10, 2)
-  valor_mercado Decimal     @db.Decimal(10, 2)
-  disponivel    Boolean?    @default(true)
-  condicao      String?     @db.VarChar(20)
-  segurado      Boolean?    @default(false)
-  criado_em     DateTime?   @default(now()) @db.Timestamp(6)
-  atualizado_em DateTime?   @default(now()) @db.Timestamp(6)
-  alugueis      alugueis[]
-  fotos_item    fotos_item?
-  categorias    categorias? @relation(fields: [categoria_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  enderecos     enderecos?  @relation(fields: [endereco_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  usuarios      usuarios    @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id                String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuario_id        String       @db.Uuid
+  categoria_id      String?      @db.Uuid
+  endereco_id       String?      @db.Uuid
+  titulo            String       @db.VarChar(150)
+  descricao         String?
+  preco_por_dia     Decimal      @db.Decimal(10, 2)
+  valor_mercado     Decimal      @db.Decimal(10, 2)
+  localizacao_texto String?      @db.VarChar(200)
+  disponivel        Boolean?     @default(true)
+  arquivado         Boolean      @default(false)
+  condicao          String?      @db.VarChar(20)
+  segurado          Boolean?     @default(false)
+  criado_em         DateTime?    @default(now()) @db.Timestamp(6)
+  atualizado_em     DateTime?    @default(now()) @db.Timestamp(6)
+  avaliacoes        avaliacoes[]
+  conversas         conversas[]
+  denuncias         denuncias[]
+  alugueis          alugueis[]
+  fotos_item        fotos_item[]
+  categorias        categorias?  @relation(fields: [categoria_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  enderecos         enderecos?   @relation(fields: [endereco_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuarios          usuarios     @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([usuario_id])
+  @@index([categoria_id])
+  @@index([disponivel, arquivado])
 }
 
 model mensagens {
-  id                                           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  remetente_id                                 String    @db.Uuid
-  destinatario_id                              String    @db.Uuid
-  aluguel_id                                   String?   @db.Uuid
+  id                                           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversa_id                                  String?    @db.Uuid
+  conversa                                     conversas? @relation(fields: [conversa_id], references: [id], onDelete: Cascade)
+  anexo_id                                     String?    @unique @db.Uuid
+  anexo                                        anexos?    @relation(fields: [anexo_id], references: [id])
+  remetente_id                                 String     @db.Uuid
+  destinatario_id                              String     @db.Uuid
+  aluguel_id                                   String?    @db.Uuid
   conteudo                                     String
-  lida                                         Boolean?  @default(false)
-  enviada_em                                   DateTime? @default(now()) @db.Timestamp(6)
-  alugueis                                     alugueis? @relation(fields: [aluguel_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  usuarios_mensagens_destinatario_idTousuarios usuarios  @relation("mensagens_destinatario_idTousuarios", fields: [destinatario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  usuarios_mensagens_remetente_idTousuarios    usuarios  @relation("mensagens_remetente_idTousuarios", fields: [remetente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  lida                                         Boolean?   @default(false)
+  enviada_em                                   DateTime?  @default(now()) @db.Timestamp(6)
+  alugueis                                     alugueis?  @relation(fields: [aluguel_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  usuarios_mensagens_destinatario_idTousuarios usuarios   @relation("mensagens_destinatario_idTousuarios", fields: [destinatario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuarios_mensagens_remetente_idTousuarios    usuarios   @relation("mensagens_remetente_idTousuarios", fields: [remetente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
+  @@index([conversa_id, enviada_em], map: "mensagens_conversa_data_idx")
   @@index([aluguel_id], map: "idx_mensagens_aluguel")
   @@index([destinatario_id], map: "idx_mensagens_destinatario")
   @@index([remetente_id], map: "idx_mensagens_remetente")
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model notificacoes {
   id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   usuario_id String    @db.Uuid
@@ -163,18 +190,30 @@ model notificacoes {
   mensagem   String?
   lida       Boolean?  @default(false)
   criado_em  DateTime? @default(now()) @db.Timestamp(6)
+  contexto   Json      @default("{}")
   usuarios   usuarios  @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([usuario_id, lida])
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model pagamentos {
-  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  aluguel_id String    @db.Uuid
-  valor      Decimal   @db.Decimal(10, 2)
-  metodo     String?   @db.VarChar(50)
-  status     String?   @default("pendente") @db.VarChar(30)
-  pago_em    DateTime? @db.Timestamp(6)
-  alugueis   alugueis  @relation(fields: [aluguel_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  aluguel_id   String    @db.Uuid
+  valor        Decimal   @db.Decimal(10, 2)
+  metodo       String?   @db.VarChar(50)
+  status       String?   @default("pendente") @db.VarChar(30)
+  pago_em      DateTime? @db.Timestamp(6)
+  referencia   String?   @unique
+  idempotencia String?   @unique
+  gateway      String    @default("real")
+  dados        Json      @default("{}")
+  criado_em    DateTime  @default(now())
+  conciliacoes conciliacoes_pagamento[]
+  alugueis     alugueis  @relation(fields: [aluguel_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([aluguel_id], map: "pagamentos_uma_cobranca_ativa", where: raw("status IN ('pendente','pago','cancelamento_pendente','estorno_pendente')"))
+  @@unique([aluguel_id], map: "pagamentos_um_pago_por_aluguel", where: raw("((status)::text = 'pago'::text)"))
+  @@index([aluguel_id])
 }
 
 model planos {
@@ -186,7 +225,6 @@ model planos {
   assinaturas assinaturas[]
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model sinistros {
   id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   aluguel_id       String    @db.Uuid
@@ -202,7 +240,28 @@ model sinistros {
   usuarios         usuarios  @relation(fields: [reportador_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model retiradas {
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  aluguel_id  String           @db.Uuid
+  usuario_id  String           @db.Uuid
+  observacoes String?
+  criado_em   DateTime         @default(now()) @db.Timestamp(6)
+  alugueis    alugueis         @relation(fields: [aluguel_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  usuarios    usuarios         @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  confirmado  Boolean          @default(true)
+  fotos       fotos_retirada[]
+
+  @@unique([aluguel_id, usuario_id])
+  @@index([aluguel_id])
+}
+
+model fotos_retirada {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  retirada_id String    @db.Uuid
+  url         String
+  retiradas   retiradas @relation(fields: [retirada_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
 model spatial_ref_sys {
   srid      Int     @id
   auth_name String? @db.VarChar(256)
@@ -219,9 +278,13 @@ model usuarios {
   senha_hash                                    String
   telefone                                      String?                   @db.VarChar(20)
   foto_url                                      String?
+  preferencias                                  Json                      @default("{}")
+  privacidade                                   Json                      @default("{}")
   bio                                           String?
   cpf                                           String?                   @unique @db.VarChar(14)
   verificado                                    Boolean?                  @default(false)
+  ativo                                         Boolean                   @default(true)
+  token_version                                 Int                       @default(0)
   saldo_carteira                                Decimal?                  @default(0.00) @db.Decimal(10, 2)
   criado_em                                     DateTime?                 @default(now()) @db.Timestamp(6)
   atualizado_em                                 DateTime?                 @default(now()) @db.Timestamp(6)
@@ -230,27 +293,42 @@ model usuarios {
   assinaturas                                   assinaturas[]
   avaliacoes_avaliacoes_avaliado_idTousuarios   avaliacoes[]              @relation("avaliacoes_avaliado_idTousuarios")
   avaliacoes_avaliacoes_avaliador_idTousuarios  avaliacoes[]              @relation("avaliacoes_avaliador_idTousuarios")
-  enderecos                                     enderecos?
+  enderecos                                     enderecos[]
   extrato_carteira                              extrato_carteira[]
   itens                                         itens[]
   mensagens_mensagens_destinatario_idTousuarios mensagens[]               @relation("mensagens_destinatario_idTousuarios")
   mensagens_mensagens_remetente_idTousuarios    mensagens[]               @relation("mensagens_remetente_idTousuarios")
   notificacoes                                  notificacoes[]
   sinistros                                     sinistros[]
-  verificacoes_identidade                       verificacoes_identidade[]
+  verificacoes_identidade                       verificacoes_identidade[] @relation("titular_verificacao")
+  verificacoes_revisadas                        verificacoes_identidade[] @relation("revisor_verificacao")
+  eventos                                       eventos_aluguel[]
   resetar_senha                                 Resetar_Senha[]
+  devolucoes                                    devolucoes[]
+  suportes                                      suportes[]
+  denuncias                                     denuncias[]               @relation("autor_denuncia")
+  denunciado                                    denuncias[]               @relation("alvo_denuncia")
+  participantes                                 participantes_conversa[]
+  anexos                                        anexos[]
+  bloqueios                                     bloqueios[]               @relation("bloqueador")
+  bloqueado                                     bloqueios[]               @relation("bloqueado")
+  emails_pendentes                              emails_pendentes[]
+  retiradas                                     retiradas[]
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model verificacoes_identidade {
   id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   usuario_id   String    @db.Uuid
+  documentos   Json      @default("{}")
+  motivo       String?
+  revisor_id   String?   @db.Uuid
+  revisor      usuarios? @relation("revisor_verificacao", fields: [revisor_id], references: [id], onDelete: SetNull)
   tipo         String?   @db.VarChar(50)
   foto_url     String?
   status       String?   @default("pendente") @db.VarChar(30)
   analisado_em DateTime? @db.Timestamp(6)
   criado_em    DateTime? @default(now()) @db.Timestamp(6)
-  usuarios     usuarios  @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  usuarios     usuarios  @relation("titular_verificacao", fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 model Resetar_Senha {
@@ -258,10 +336,153 @@ model Resetar_Senha {
   userId    String   @db.Uuid
   token     String   @unique
   expire_in DateTime
-  user      usuarios @relation(fields: [userId], references: [id])
+  user      usuarios @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 enum Tipos {
   admin
   usuario
+}
+
+model eventos_aluguel {
+  id         String    @id @default(uuid()) @db.Uuid
+  aluguel_id String    @db.Uuid
+  usuario_id String?   @db.Uuid
+  usuario    usuarios? @relation(fields: [usuario_id], references: [id], onDelete: SetNull)
+  status     String
+  motivo     String?
+  criado_em  DateTime  @default(now())
+  aluguel    alugueis  @relation(fields: [aluguel_id], references: [id], onDelete: Cascade)
+
+  @@index([aluguel_id, criado_em])
+}
+
+model devolucoes {
+  id          String   @id @default(uuid()) @db.Uuid
+  aluguel_id  String   @db.Uuid
+  usuario_id  String   @db.Uuid
+  fotos       Json
+  observacoes String?
+  danos       String?
+  confirmado  Boolean  @default(true)
+  criado_em   DateTime @default(now())
+  aluguel     alugueis @relation(fields: [aluguel_id], references: [id], onDelete: Cascade)
+  usuario     usuarios @relation(fields: [usuario_id], references: [id])
+
+  @@unique([aluguel_id, usuario_id])
+}
+
+model suportes {
+  id            String   @id @default(uuid()) @db.Uuid
+  usuario_id    String   @db.Uuid
+  assunto       String   @db.VarChar(150)
+  mensagem      String
+  status        String   @default("aberto")
+  protocolo     String   @unique
+  resposta      String?
+  criado_em     DateTime @default(now())
+  atualizado_em DateTime @updatedAt
+  usuario       usuarios @relation(fields: [usuario_id], references: [id])
+
+  @@index([status, criado_em])
+}
+
+model denuncias {
+  objeto        itens?     @relation(fields: [objeto_id], references: [id])
+  aluguel       alugueis?  @relation(fields: [aluguel_id], references: [id])
+  conversa      conversas? @relation(fields: [conversa_id], references: [id])
+  id            String     @id @default(uuid()) @db.Uuid
+  usuario_id    String     @db.Uuid
+  denunciado_id String?    @db.Uuid
+  objeto_id     String?    @db.Uuid
+  aluguel_id    String?    @db.Uuid
+  conversa_id   String?    @db.Uuid
+  motivo        String
+  assunto       String?
+  mensagem      String
+  evidencias    Json       @default("[]")
+  status        String     @default("aberta")
+  protocolo     String     @unique
+  notas         String?
+  criado_em     DateTime   @default(now())
+  atualizado_em DateTime   @updatedAt
+  usuario       usuarios   @relation("autor_denuncia", fields: [usuario_id], references: [id])
+  denunciado    usuarios?  @relation("alvo_denuncia", fields: [denunciado_id], references: [id])
+
+  @@index([status, criado_em])
+}
+
+model conversas {
+  objeto        itens?                   @relation(fields: [objeto_id], references: [id])
+  denuncias     denuncias[]
+  id            String                   @id @default(uuid()) @db.Uuid
+  chave         String                   @unique
+  objeto_id     String?                  @db.Uuid
+  criado_em     DateTime                 @default(now())
+  atualizado_em DateTime                 @updatedAt
+  participantes participantes_conversa[]
+  mensagens     mensagens[]
+}
+
+model participantes_conversa {
+  conversa_id String    @db.Uuid
+  usuario_id  String    @db.Uuid
+  arquivada   Boolean   @default(false)
+  lida_em     DateTime?
+  conversa    conversas @relation(fields: [conversa_id], references: [id], onDelete: Cascade)
+  usuario     usuarios  @relation(fields: [usuario_id], references: [id])
+
+  @@id([conversa_id, usuario_id])
+  @@index([usuario_id, arquivada])
+}
+
+model anexos {
+  id         String     @id @default(uuid()) @db.Uuid
+  usuario_id String     @db.Uuid
+  caminho    String
+  nome       String
+  mime       String
+  tamanho    Int
+  criado_em  DateTime   @default(now())
+  usuario    usuarios   @relation(fields: [usuario_id], references: [id])
+  mensagem   mensagens?
+}
+
+model bloqueios {
+  usuario_id   String   @db.Uuid
+  bloqueado_id String   @db.Uuid
+  criado_em    DateTime @default(now())
+  usuario      usuarios @relation("bloqueador", fields: [usuario_id], references: [id])
+  bloqueado    usuarios @relation("bloqueado", fields: [bloqueado_id], references: [id])
+
+  @@id([usuario_id, bloqueado_id])
+}
+
+model emails_pendentes {
+  id         String   @id @default(uuid()) @db.Uuid
+  usuario_id String   @unique @db.Uuid
+  email      String
+  token      String   @unique
+  expira_em  DateTime
+  usuario    usuarios @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+}
+
+model webhook_eventos {
+  id        String   @id
+  criado_em DateTime @default(now())
+  payload   Json?
+  processado_em DateTime?
+  @@index([processado_em, criado_em])
+}
+
+model conciliacoes_pagamento {
+  id String @id @default(uuid()) @db.Uuid
+  pagamento_id String @db.Uuid
+  chave String @unique
+  motivo String
+  status String @default("aberta")
+  dados Json @default("{}")
+  criado_em DateTime @default(now())
+  pagamento pagamentos @relation(fields: [pagamento_id], references: [id], onDelete: Restrict)
+  @@index([status, criado_em])
 }
