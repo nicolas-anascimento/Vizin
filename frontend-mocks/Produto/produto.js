@@ -3,6 +3,20 @@ if (!localStorage.getItem("token")) {
     window.location.href = "../Login/index.html";
 }
  
+// A checagem acima só roda uma vez, no carregamento. Se a pessoa fizer
+// logout em outra aba (ou o token for limpo por expiração) enquanto está
+// no meio de preencher as datas aqui, antes ela só ia descobrir que não
+// está mais logada ao clicar em "Solicitar Aluguel" e cair num alert seco
+// — diferente do resto do site (Histórico, Notificações), que redireciona
+// pro Login sozinho assim que a sessão cai. O evento nativo "storage" só
+// dispara nas OUTRAS abas (nunca na que fez a mudança), que é exatamente o
+// cenário aqui.
+window.addEventListener("storage", (e) => {
+    if (e.key === "token" && !e.newValue) {
+        window.location.href = "../Login/index.html?sessao_expirada=1";
+    }
+});
+ 
 // ================= USUÁRIO LOGADO =================
 const usuarioLogado = JSON.parse(localStorage.getItem("usuario") || "null");
  
@@ -325,15 +339,26 @@ if (btnDenunciarAnuncio) {
 }
  
 // ================= CONVERSAR COM O PROPRIETÁRIO =================
-document.getElementById("btn-conversar").addEventListener("click", () => {
-    const query = new URLSearchParams({
-        userId: produto.proprietarioEmail,
-        userName: produto.proprietarioNome,
-        produtoId: produto.id,
-        produtoTitulo: produto.titulo
+// Não faz sentido o dono conversar consigo mesmo: nem o botão "Conversar"
+// nem o recado sugerindo conversar antes de solicitar fazem sentido quando
+// quem está vendo o próprio anúncio é o proprietário (mesmo padrão de
+// "souDono" já usado em "Denunciar anúncio" acima).
+const btnConversar = document.getElementById("btn-conversar");
+const dicaConversarProprietario = document.getElementById("dica-conversar-proprietario");
+if (souDono) {
+    if (btnConversar) btnConversar.style.display = "none";
+    if (dicaConversarProprietario) dicaConversarProprietario.style.display = "none";
+} else if (btnConversar) {
+    btnConversar.addEventListener("click", () => {
+        const query = new URLSearchParams({
+            userId: produto.proprietarioEmail,
+            userName: produto.proprietarioNome,
+            produtoId: produto.id,
+            produtoTitulo: produto.titulo
+        });
+        window.location.href = `../Mensagens/index.html?${query.toString()}`;
     });
-    window.location.href = `../Mensagens/index.html?${query.toString()}`;
-});
+}
  
 // ================= CÁLCULO DE PERÍODO E TOTAL =================
 const inputRetirada = document.getElementById("data-retirada");
@@ -344,12 +369,43 @@ const btnSolicitar = document.getElementById("btn-solicitar");
 const hoje = new Date().toISOString().split("T")[0];
 inputRetirada.min = hoje;
  
+// Erro inline pra quando as datas escolhidas não formam um período válido —
+// antes, `calcularPeriodo` só escondia o resumo em silêncio (`dias <= 0`),
+// sem dizer o motivo. A pessoa preenchia as duas datas, nada aparecia, e
+// não tinha nenhuma pista de que a devolução precisava ser depois da
+// retirada (o `min` do input ajuda a evitar a maioria dos casos, mas não
+// cobre igualar as duas datas, por exemplo).
+const erroDatas = document.getElementById("erro-datas");
+ 
+function mostrarErroDatas(mensagem) {
+    resumoDatas.style.display = "none";
+    if (!erroDatas) return;
+    erroDatas.textContent = mensagem;
+    erroDatas.style.display = "flex";
+}
+ 
+function esconderErroDatas() {
+    if (erroDatas) erroDatas.style.display = "none";
+}
+ 
+// PONTO DE INTEGRAÇÃO COM O BACK-END:
+// Mesma regra usada no checkout (ver TAXA_SERVICO_PERCENTUAL em
+// finalizar-pagamento.js): 10% fixo sobre o preço da diária, não sobre o
+// subtotal (dias * preço/dia) — senão a taxa cresceria junto com os dias
+// e o valor mostrado aqui divergiria do checkout. Mostrada só pra
+// transparência: o campo `total` retornado por esta função (usado em
+// SolicitacoesVizin.criar) continua sendo o SUBTOTAL puro, sem a taxa —
+// é a Finalizar-pagamento quem soma a taxa por cima, então duplicar isso
+// aqui faria a pessoa ser cobrada a taxa duas vezes.
+const TAXA_SERVICO_PERCENTUAL = 0.10;
+ 
 function calcularPeriodo() {
     const retirada = inputRetirada.value;
     const devolucao = inputDevolucao.value;
  
     if (!retirada || !devolucao) {
         resumoDatas.style.display = "none";
+        esconderErroDatas();
         return null;
     }
  
@@ -359,18 +415,27 @@ function calcularPeriodo() {
     const dias = Math.round(diffMs / (1000 * 60 * 60 * 24));
  
     if (dias <= 0) {
-        resumoDatas.style.display = "none";
+        mostrarErroDatas("A devolução precisa ser depois da retirada.");
         return null;
     }
  
-    const total = dias * produto.preco_dia;
+    esconderErroDatas();
+ 
+    const subtotal = dias * produto.preco_dia;
+    const taxaServico = Math.round(produto.preco_dia * TAXA_SERVICO_PERCENTUAL * 100) / 100;
+    const totalComTaxa = subtotal + taxaServico;
  
     document.getElementById("resumo-periodo").textContent = `${dias} dia${dias > 1 ? "s" : ""}`;
     document.getElementById("resumo-preco-dia").textContent = formatarPreco(produto.preco_dia);
-    document.getElementById("resumo-total").textContent = formatarPreco(total);
+    document.getElementById("resumo-subtotal").textContent = formatarPreco(subtotal);
+    document.getElementById("resumo-taxa-servico").textContent = formatarPreco(taxaServico);
+    document.getElementById("resumo-total").textContent = formatarPreco(totalComTaxa);
     resumoDatas.style.display = "block";
  
-    return { dias, total, retirada, devolucao };
+    // `total` aqui = subtotal (sem taxa), de propósito — ver comentário
+    // acima. Quem quiser o valor com taxa incluída pra exibir em outro
+    // lugar deve calculá-lo (subtotal + 10% do preço/dia), não ler daqui.
+    return { dias, total: subtotal, retirada, devolucao };
 }
  
 [inputRetirada, inputDevolucao].forEach(input => {
@@ -389,18 +454,43 @@ function calcularPeriodo() {
 //      sem nenhuma locação em andamento.
 // A mensagem exibida deve refletir qual dos dois casos é o real, em vez de
 // sempre dizer "já está alugado".
+let objetoFoiRemovido = false;
+ 
+// Antes, se o dono excluísse o anúncio enquanto o locatário estivesse com a
+// aba aberta (preenchendo datas, ou até já com uma locação aprovada), essa
+// função simplesmente retornava sem fazer nada — a sidebar continuava
+// mostrando botões ("Solicitar Aluguel", "Finalizar Pagamento" etc.) pra um
+// objeto que não existe mais. Agora troca a sidebar inteira pelo aviso de
+// "anúncio não existe mais" (mesmo texto/estilo do card de objeto não
+// encontrado que já existia só pro caso de abrir uma URL inválida).
+function tratarObjetoRemovido() {
+    if (objetoFoiRemovido) return;
+    objetoFoiRemovido = true;
+ 
+    clearInterval(intervaloAcompanhamento);
+    mostrarEstado("objeto-removido");
+    btnSolicitar.disabled = true;
+}
+ 
 function atualizarDisponibilidade() {
     const atual = window.ObjetosVizin.obterPorId(produto.id);
-    if (!atual) return;
+    if (!atual) {
+        tratarObjetoRemovido();
+        return;
+    }
  
     const indisponivel = !atual.disponivel;
     const emLocacao = window.ObjetosVizin.temLocacaoAtiva(produto.id);
  
-    // Locatário com uma devolução em atraso em OUTRA locação fica impedido
-    // de solicitar novos aluguéis até devolver o que está pendente — ver
-    // SolicitacoesVizin.estaBloqueadoPorAtraso.
-    const bloqueadoPorAtraso = !!(usuarioLogado?.email && window.SolicitacoesVizin
-        && window.SolicitacoesVizin.estaBloqueadoPorAtraso(usuarioLogado.email));
+    // Locatário com uma devolução em atraso (ou multa em atraso pendente
+    // de pagamento) em OUTRA locação fica impedido de solicitar novos
+    // aluguéis até resolver isso — ver SolicitacoesVizin.detalhesBloqueio.
+    // Usamos os detalhes (não só o booleano) porque a mensagem certa pra
+    // mostrar aqui depende do motivo real do bloqueio.
+    const bloqueioDetalhes = (usuarioLogado?.email && window.SolicitacoesVizin?.detalhesBloqueio)
+        ? window.SolicitacoesVizin.detalhesBloqueio(usuarioLogado.email)
+        : null;
+    const bloqueadoPorAtraso = !!bloqueioDetalhes;
  
     btnSolicitar.disabled = indisponivel || bloqueadoPorAtraso;
  
@@ -421,7 +511,9 @@ function atualizarDisponibilidade() {
         }
         avisoIndisponivel.textContent = mensagem;
     } else if (bloqueadoPorAtraso) {
-        btnSolicitar.textContent = "Devolução Pendente";
+        btnSolicitar.textContent = bloqueioDetalhes.motivo === "multa_pendente"
+            ? "Multa Pendente"
+            : "Devolução Pendente";
  
         if (!avisoIndisponivel) {
             avisoIndisponivel = document.createElement("p");
@@ -430,15 +522,45 @@ function atualizarDisponibilidade() {
             avisoIndisponivel.style.color = "#dc2626";
             btnSolicitar.insertAdjacentElement("afterend", avisoIndisponivel);
         }
-        avisoIndisponivel.textContent = "Você tem um objeto com devolução em atraso. Devolva-o para poder solicitar novos aluguéis.";
+        avisoIndisponivel.innerHTML = bloqueioDetalhes.motivo === "multa_pendente"
+            ? `Você tem uma multa por atraso pendente de pagamento. <a href="../Historico/index.html">Pague ou conteste</a> para poder solicitar novos aluguéis.`
+            : "Você tem um objeto com devolução em atraso. Devolva-o para poder solicitar novos aluguéis.";
     } else {
         btnSolicitar.textContent = "Solicitar Aluguel";
         if (avisoIndisponivel) avisoIndisponivel.remove();
     }
 }
  
+// ================= SINCRONIZAR DADOS DO PRODUTO SE O DONO EDITAR =================
+// `produto` era lido do ObjetosVizin uma única vez no carregamento da
+// página, e todo o cálculo de `calcularPeriodo()` usava `produto.preco_dia`
+// direto dessa cópia congelada. Se o dono mudasse o preço (ou título etc.)
+// enquanto o locatário estivesse com a aba aberta preenchendo datas, o
+// resumo mostrado ficava desatualizado — e o valor que de fato seria
+// cobrado ao clicar em "Solicitar Aluguel" já seria outro, sem aviso.
+// `produto` continua `const`, mas é um objeto: dá pra atualizar os campos
+// nele mesmo (Object.assign) sem precisar reatribuir a variável, então
+// todo o resto do arquivo que lê `produto.xxx` já enxerga os dados novos
+// automaticamente.
+function sincronizarDadosProduto() {
+    const atual = window.ObjetosVizin.obterPorId(produto.id);
+    if (!atual) return; // exclusão é tratada em atualizarDisponibilidade/tratarObjetoRemovido
+ 
+    const precoAnterior = produto.preco_dia;
+    Object.assign(produto, atual);
+    preencherProduto(produto);
+ 
+    if (precoAnterior !== produto.preco_dia && resumoDatas.style.display !== "none") {
+        const periodoRecalculado = calcularPeriodo();
+        if (periodoRecalculado) {
+            mostrarToast("O proprietário atualizou o preço deste objeto. Total recalculado.", "erro");
+        }
+    }
+}
+ 
 atualizarDisponibilidade();
 document.addEventListener("objetosAtualizados", atualizarDisponibilidade);
+document.addEventListener("objetosAtualizados", sincronizarDadosProduto);
 document.addEventListener("solicitacoesAtualizadas", atualizarDisponibilidade);
  
 // ================= ESTADOS DA SIDEBAR =================
@@ -451,6 +573,7 @@ const cardPago = document.getElementById("card-pago");
 const cardEmUso = document.getElementById("card-em-uso");
 const cardAguardandoDevolucao = document.getElementById("card-aguardando-devolucao");
 const cardConcluido = document.getElementById("card-concluido");
+const cardObjetoRemovido = document.getElementById("card-objeto-removido");
  
 const TODOS_OS_CARDS = {
     dono: cardDono,
@@ -461,11 +584,13 @@ const TODOS_OS_CARDS = {
     pago: cardPago,
     "em-uso": cardEmUso,
     "aguardando-devolucao": cardAguardandoDevolucao,
-    concluido: cardConcluido
+    concluido: cardConcluido,
+    "objeto-removido": cardObjetoRemovido
 };
  
 function mostrarEstado(estado) {
     Object.entries(TODOS_OS_CARDS).forEach(([chave, el]) => {
+        if (!el) return;
         el.style.display = chave === estado ? "block" : "none";
     });
 }
@@ -477,6 +602,30 @@ if (souDono) {
     mostrarEstado("dono");
     document.getElementById("btn-gerenciar-objeto").href = "../Meus-objetos/index.html";
     document.getElementById("btn-ver-solicitacoes-dono").href = "../Historico/index.html?tab=solicitacoes";
+ 
+    // O dono também fica impedido de APROVAR solicitações recebidas
+    // enquanto tiver uma devolução em atraso como locatário em outro
+    // aluguel (ver estaBloqueadoPorAtraso em solicitacoes-shared.js). Isso
+    // já é checado ao tentar aprovar lá no Histórico, mas até agora
+    // ninguém avisava a pessoa disso ao visitar o próprio anúncio — ela só
+    // ia descobrir na hora de tentar aprovar.
+    function atualizarAvisoDonoBloqueado() {
+        const avisoDono = document.getElementById("aviso-dono-bloqueado");
+        if (!avisoDono || !usuarioLogado?.email || !window.SolicitacoesVizin?.detalhesBloqueio) return;
+ 
+        const detalhes = window.SolicitacoesVizin.detalhesBloqueio(usuarioLogado.email);
+        if (detalhes) {
+            avisoDono.innerHTML = detalhes.motivo === "multa_pendente"
+                ? `Você tem uma multa por atraso pendente de pagamento — não vai conseguir aprovar novas solicitações recebidas por este objeto até pagá-la (ou contestá-la). <a href="../Historico/index.html">Ver no Histórico</a>`
+                : `Você tem uma devolução em atraso em outra locação — não vai conseguir aprovar novas solicitações recebidas por este objeto até resolver isso. <a href="../Historico/index.html">Ver no Histórico</a>`;
+            avisoDono.style.display = "block";
+        } else {
+            avisoDono.style.display = "none";
+        }
+    }
+ 
+    atualizarAvisoDonoBloqueado();
+    document.addEventListener("solicitacoesAtualizadas", atualizarAvisoDonoBloqueado);
 }
  
 let dadosSolicitacao = null;
@@ -509,6 +658,13 @@ function configurarLinksPosPagamento(s) {
     document.getElementById("btn-ir-retirada").href = `../Retirada-objeto/index.html?${queryRetirada.toString()}`;
  
     document.getElementById("btn-ver-status-uso").href = `../Status-locacao/index.html?solicitacaoId=${s.id}`;
+
+    // Antes só o card "Em uso" (card-em-uso) linkava pro Status da Locação —
+    // pago e concluido deixavam essa tela inacessível por aqui, mesmo ela já
+    // tratando os dois estados. Mesmo padrão do link secundário adicionado
+    // no Histórico (ver botaoContextual em historico.js).
+    document.getElementById("btn-ver-status-pago").href = `../Status-locacao/index.html?solicitacaoId=${s.id}`;
+    document.getElementById("btn-ver-status-concluido").href = `../Status-locacao/index.html?solicitacaoId=${s.id}`;
  
     const queryDevolucao = new URLSearchParams({ produtoId: produto.id, solicitacaoId: s.id });
     document.getElementById("btn-ir-devolucao").href = `../Devolucao-objeto/index.html?${queryDevolucao.toString()}`;
@@ -582,7 +738,27 @@ btnSolicitar.addEventListener("click", async () => {
         console.error(err);
  
         if (err.message === "BLOQUEADO_POR_ATRASO") {
-            alert("Você tem um objeto com devolução em atraso. Devolva-o para poder solicitar novos aluguéis.");
+            const detalhes = window.SolicitacoesVizin?.detalhesBloqueio?.(usuarioLogado.email);
+            alert(detalhes?.motivo === "multa_pendente"
+                ? "Você tem uma multa por atraso pendente de pagamento. Pague ou conteste no Histórico para poder solicitar novos aluguéis."
+                : "Você tem um objeto com devolução em atraso. Devolva-o para poder solicitar novos aluguéis.");
+        } else if (err.message === "PEDIDO_JA_PENDENTE") {
+            // Já existe uma solicitação pendente sua pra este objeto — pode
+            // ter sido criada agora mesmo em outra aba, então não dá pra
+            // supor que `idSolicitacaoAtual` já aponta pra ela. Busca a
+            // pendente de verdade e já traz a pessoa pro card de
+            // acompanhamento, em vez de só avisar e deixar o formulário
+            // vazio ali parado.
+            alert("Você já tem uma solicitação pendente para este objeto. Acompanhe a resposta abaixo.");
+            btnSolicitar.disabled = false;
+            btnSolicitar.textContent = "Solicitar Aluguel";
+ 
+            const pendenteExistente = SolicitacoesVizin.obterDoSolicitante(usuarioLogado.email)
+                .filter(s => s.produtoId === produto.id && s.status === "pendente")
+                .sort((a, b) => b.id - a.id)[0];
+ 
+            if (pendenteExistente) aplicarEstadoDaSolicitacao(pendenteExistente);
+            return;
         } else {
             alert("Não foi possível enviar sua solicitação. Tente novamente.");
         }
@@ -599,15 +775,93 @@ function acompanharSolicitacao(id) {
         const atual = SolicitacoesVizin.obterPorId(id);
         if (!atual) return;
  
-        if (atual.status === "aprovado") {
+        // Delega pra aplicarEstadoDaSolicitacao em vez de duplicar aqui a
+        // lógica de "aprovado"/"rejeitado" — essa cópia local não conhecia
+        // o texto customizado de rejeição por concorrência
+        // (motivoRejeicao) nem chamava preencherIdAluguel, então duas
+        // pessoas solicitando o mesmo objeto podiam ver mensagens
+        // diferentes dependendo de qual caminho de código detectasse a
+        // mudança primeiro.
+        if (atual.status === "aprovado" || atual.status === "rejeitado") {
             clearInterval(intervaloAcompanhamento);
-            preencherIdAluguel(atual.id);
-            mostrarEstado("aprovado");
-        } else if (atual.status === "rejeitado") {
-            clearInterval(intervaloAcompanhamento);
-            mostrarEstado("rejeitado");
+            aplicarEstadoDaSolicitacao(atual);
         }
     }, 1000);
+}
+ 
+// Extraído de dentro da antiga IIFE `retomarEstadoSeExistir` pra poder ser
+// reaproveitado tanto no carregamento da página quanto sempre que o status
+// da solicitação em andamento mudar "por fora" (ver sincronizarEstadoAtual
+// logo abaixo) — sem isso, cada um teria sua própria cópia do switch e as
+// duas iam desalinhar com o tempo.
+function aplicarEstadoDaSolicitacao(solicitacao) {
+    switch (solicitacao.status) {
+        case "pendente":
+            idSolicitacaoAtual = solicitacao.id;
+            mostrarEstado("pendente");
+            acompanharSolicitacao(solicitacao.id);
+            break;
+ 
+        case "aprovado":
+            dadosSolicitacao = {
+                id: solicitacao.id,
+                dias: solicitacao.dias,
+                total: solicitacao.total,
+                retirada: solicitacao.dataRetirada,
+                devolucao: solicitacao.dataDevolucao
+            };
+            preencherIdAluguel(solicitacao.id);
+            mostrarEstado("aprovado");
+            break;
+ 
+        case "pago":
+            configurarLinksPosPagamento(solicitacao);
+            mostrarEstado("pago");
+            break;
+ 
+        case "retirado":
+            configurarLinksPosPagamento(solicitacao);
+            mostrarEstado("em-uso");
+            break;
+ 
+        case "aguardando_devolucao":
+            configurarLinksPosPagamento(solicitacao);
+            mostrarEstado("aguardando-devolucao");
+            break;
+ 
+        case "concluido":
+            if (window.AvaliacoesVizin && window.AvaliacoesVizin.jaAvaliou(solicitacao.id, "locatario")) {
+                mostrarEstado("solicitar");
+            } else {
+                configurarLinksPosPagamento(solicitacao);
+                mostrarEstado("concluido");
+            }
+            break;
+ 
+        case "rejeitado": {
+            // Sem preencherIdAluguel aqui, idSolicitacaoAtual ficava null
+            // pra quem teve o pedido recusado — e "Denunciar anúncio"
+            // (linha ~321) não conseguia pré-selecionar esse aluguel, mesmo
+            // tendo havido uma solicitação de verdade com esse dono pra
+            // esse objeto.
+            preencherIdAluguel(solicitacao.id);
+ 
+            // Distingue uma recusa manual do dono de uma rejeição
+            // automática porque o objeto foi alugado pra outra pessoa
+            // enquanto o pedido esperava resposta (ver
+            // rejeitarPendentesConcorrentes em solicitacoes-shared.js) —
+            // sem isso a pessoa lia "o proprietário recusou" quando na
+            // verdade ninguém tomou essa decisão, só perdeu a corrida.
+            const textoRejeitado = document.getElementById("rejeitado-texto");
+            if (textoRejeitado) {
+                textoRejeitado.textContent = solicitacao.motivoRejeicao === "objeto_alugado_para_outro"
+                    ? "Este objeto foi alugado para outra pessoa antes que seu pedido fosse respondido."
+                    : "O proprietário não aceitou seu pedido de aluguel desta vez.";
+            }
+            mostrarEstado("rejeitado");
+            break;
+        }
+    }
 }
  
 (function retomarEstadoSeExistir() {
@@ -621,54 +875,68 @@ function acompanharSolicitacao(id) {
  
     if (!maisRecente) return;
  
-    switch (maisRecente.status) {
-        case "pendente":
-            idSolicitacaoAtual = maisRecente.id;
-            mostrarEstado("pendente");
-            acompanharSolicitacao(maisRecente.id);
-            break;
- 
-        case "aprovado":
-            dadosSolicitacao = {
-                id: maisRecente.id,
-                dias: maisRecente.dias,
-                total: maisRecente.total,
-                retirada: maisRecente.dataRetirada,
-                devolucao: maisRecente.dataDevolucao
-            };
-            preencherIdAluguel(maisRecente.id);
-            mostrarEstado("aprovado");
-            break;
- 
-        case "pago":
-            configurarLinksPosPagamento(maisRecente);
-            mostrarEstado("pago");
-            break;
- 
-        case "retirado":
-            configurarLinksPosPagamento(maisRecente);
-            mostrarEstado("em-uso");
-            break;
- 
-        case "aguardando_devolucao":
-            configurarLinksPosPagamento(maisRecente);
-            mostrarEstado("aguardando-devolucao");
-            break;
- 
-        case "concluido":
-            if (window.AvaliacoesVizin && window.AvaliacoesVizin.jaAvaliou(maisRecente.id, "locatario")) {
-                mostrarEstado("solicitar");
-            } else {
-                configurarLinksPosPagamento(maisRecente);
-                mostrarEstado("concluido");
-            }
-            break;
- 
-        case "rejeitado":
-            mostrarEstado("rejeitado");
-            break;
-    }
+    aplicarEstadoDaSolicitacao(maisRecente);
 })();
+ 
+// ================= MANTER O CARD EM SINCRONIA COM O STATUS REAL =================
+// `solicitacoesAtualizadas` já era escutado, mas só por `atualizarDisponibilidade`
+// (que só mexe no botão do card "solicitar"). Se a locação em andamento
+// mudasse de status por fora — cancelamento automático por atraso de
+// pagamento/retirada (solicitacoes-shared.js), o dono cancelando pelo
+// Histórico, ou o próprio pedido perdendo a corrida por causa de
+// rejeitarPendentesConcorrentes — quem estivesse vendo o card "Aprovado" ou
+// "Pagamento confirmado" continuava vendo botões ativos pra uma locação que
+// já não existe mais daquele jeito.
+function sincronizarEstadoAtual() {
+    if (souDono || visaoSimulada === "terceiro") return;
+    if (!idSolicitacaoAtual || !window.SolicitacoesVizin) return;
+ 
+    const atual = window.SolicitacoesVizin.obterPorId(idSolicitacaoAtual);
+    if (!atual) return;
+ 
+    if (atual.status === "cancelado") {
+        clearInterval(intervaloAcompanhamento);
+        dadosSolicitacao = null;
+        idSolicitacaoAtual = null;
+ 
+        inputRetirada.value = "";
+        inputDevolucao.value = "";
+        resumoDatas.style.display = "none";
+        btnSolicitar.disabled = false;
+        btnSolicitar.textContent = "Solicitar Aluguel";
+ 
+        mostrarEstado("solicitar");
+        atualizarDisponibilidade();
+ 
+        mostrarToast(
+            atual.canceladoPor === "sistema"
+                ? "Esta locação foi cancelada automaticamente."
+                : "Esta locação foi cancelada.",
+            "erro"
+        );
+        return;
+    }
+ 
+    aplicarEstadoDaSolicitacao(atual);
+}
+ 
+document.addEventListener("solicitacoesAtualizadas", sincronizarEstadoAtual);
+ 
+// Rede de segurança extra: os eventos acima cobrem mudanças feitas na
+// própria aba e (com a ponte de "storage" adicionada em
+// solicitacoes-shared.js) mudanças feitas em OUTRAS abas — mas isso
+// depende de cada módulo (ex: um futuro objetos-shared.js) replicar a
+// mesma ponte. Como o localStorage em si é sempre compartilhado entre abas
+// independentemente de qualquer evento, uma checagem periódica leve (mesmo
+// padrão de polling já usado em acompanharSolicitacao e em
+// verificarPrazos/verificarSolicitacoesPendentes do solicitacoes-shared.js)
+// garante que o card nunca fique desatualizado por mais que alguns
+// segundos, mesmo se algum evento se perder.
+setInterval(() => {
+    atualizarDisponibilidade();
+    sincronizarDadosProduto();
+    sincronizarEstadoAtual();
+}, 5000);
  
 // ================= CANCELAR LOCAÇÃO (antes da retirada) =================
 // Disponível pro locatário enquanto a solicitação ainda não chegou na
@@ -677,16 +945,55 @@ function acompanharSolicitacao(id) {
 // solicitacoes-shared.js — a partir da retirada confirmada, o cancelamento
 // só deixa de existir por lá (ver Retirada-objeto/retirada-objeto.js).
 const modalCancelar = document.getElementById("modal-cancelar");
+const modalCancelarTitulo = document.getElementById("modal-cancelar-titulo");
+const modalCancelarTexto = document.getElementById("modal-cancelar-texto");
 const modalCancelarVoltar = document.getElementById("modal-cancelar-voltar");
 const modalCancelarConfirmar = document.getElementById("modal-cancelar-confirmar");
  
+// O mesmo modal (#modal-cancelar) atende três situações bem diferentes:
+// desistir de um pedido ainda pendente (nada foi cobrado), cancelar uma
+// aprovação sem pagamento ainda, e cancelar uma locação já paga (que
+// precisa ser estornada). O texto era fixo e sempre falava em "valor pago
+// será estornado", o que não faz sentido pra quem só está desistindo de um
+// pedido pendente. Mesmo padrão de texto dinâmico já usado no modal
+// equivalente de historico.js.
 function abrirModalCancelarSolicitacao() {
     if (!idSolicitacaoAtual || !window.SolicitacoesVizin) return;
+ 
+    const solicitacao = window.SolicitacoesVizin.obterPorId(idSolicitacaoAtual);
+    const status = solicitacao?.status;
+ 
+    if (status === "pendente") {
+        if (modalCancelarTitulo) modalCancelarTitulo.textContent = "Cancelar solicitação?";
+        if (modalCancelarTexto) modalCancelarTexto.textContent = "Tem certeza que deseja cancelar seu pedido de aluguel? Nada foi cobrado ainda.";
+    } else if (status === "pago") {
+        if (modalCancelarTitulo) modalCancelarTitulo.textContent = "Cancelar locação?";
+        if (modalCancelarTexto) modalCancelarTexto.textContent = "Tem certeza que deseja cancelar? O valor pago será estornado e o objeto voltará a ficar disponível.";
+    } else {
+        // "aprovado" (aceito, mas ainda sem pagamento)
+        if (modalCancelarTitulo) modalCancelarTitulo.textContent = "Cancelar locação?";
+        if (modalCancelarTexto) modalCancelarTexto.textContent = "Tem certeza que deseja cancelar? Nenhum valor foi pago ainda. O objeto voltará a ficar disponível.";
+    }
+ 
     modalCancelar.classList.add("show");
 }
  
 function fecharModalCancelarSolicitacao() {
     modalCancelar.classList.remove("show");
+}
+ 
+// Mesmo helper de historico.js — centraliza o toast genérico da página em
+// vez de montar o show/hide na mão toda vez que precisamos avisar algo.
+function mostrarToast(mensagem, tipo = "sucesso") {
+    const toast = document.getElementById("toast");
+    if (!toast) return;
+ 
+    toast.innerText = mensagem;
+    toast.className = `toast show ${tipo}`;
+ 
+    setTimeout(() => {
+        toast.classList.remove("show");
+    }, 2500);
 }
  
 function confirmarCancelamentoSolicitacao() {
@@ -709,12 +1016,7 @@ function confirmarCancelamentoSolicitacao() {
  
     fecharModalCancelarSolicitacao();
  
-    const toast = document.getElementById("toast");
-    if (toast) {
-        toast.textContent = "Locação cancelada";
-        toast.classList.add("show", "sucesso");
-        setTimeout(() => toast.classList.remove("show", "sucesso"), 2500);
-    }
+    mostrarToast("Locação cancelada");
 }
  
 document.getElementById("btn-cancelar-pendente")?.addEventListener("click", abrirModalCancelarSolicitacao);

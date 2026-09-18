@@ -6,6 +6,28 @@ if (!localStorage.getItem("token")) {
 // ================= USUÁRIO LOGADO =================
 const usuarioLogado = JSON.parse(localStorage.getItem("usuario") || "null");
 
+// Precisa existir já aqui em cima: se a página é recarregada com as fotos já
+// enviadas, o fluxo abaixo chama mostrarAguardando() -> acompanharOutraParte()
+// bem cedo (antes da seção "TROCA DE ESTADOS"), e essa função usa essa
+// variável. Declarada lá embaixo, o "let" ficava numa zona morta até aquele
+// ponto do arquivo ser executado, e o acesso antecipado quebrava o script
+// inteiro no meio — por isso o botão de simulação (registrado mais abaixo)
+// nunca chegava a ganhar seu listener.
+let intervaloAcompanhamento = null;
+
+// ================= TOAST (mesmo padrão do Histórico) =================
+function mostrarToast(mensagem, tipo = "sucesso") {
+    const toast = document.getElementById("toast");
+    if (!toast) return;
+
+    toast.innerText = mensagem;
+    toast.className = `toast show ${tipo}`;
+
+    setTimeout(() => {
+        toast.classList.remove("show");
+    }, 3000);
+}
+
 // ================= LER DADOS DA URL =================
 const params = new URLSearchParams(window.location.search);
 const produtoIdUrl = params.get("produtoId") || "1";
@@ -45,6 +67,17 @@ document.getElementById("produto-mini-nome").textContent = produto.titulo;
 document.getElementById("produto-mini-categoria").textContent = produto.categoria;
 document.getElementById("produto-mini-proprietario").textContent = produto.proprietario.nome;
 document.getElementById("btn-ver-status").href = `../Status-locacao/index.html?solicitacaoId=${aluguelId}`;
+ 
+// ================= SOLICITAÇÃO NÃO ENCONTRADA =================
+// Antes disso, um link com solicitacaoId inválido/expirado caía
+// silenciosamente no mock "Furadeira Profissional Bosch". Só cai nesse
+// estado quando um id foi passado na URL e não foi encontrado.
+const paginaEncontrada = !(solicitacaoIdParam && !solicitacao);
+if (!paginaEncontrada) {
+    document.getElementById("conteudo-devolucao").style.display = "none";
+    document.getElementById("sim-papel-toggle").style.display = "none";
+    document.getElementById("etapa-erro").style.display = "block";
+}
 
 // ================= DESCOBRIR O PAPEL DE QUEM ESTÁ LOGADO =================
 // ================= [SÓ PARA TESTES] TOGGLE DE PAPEL =================
@@ -85,6 +118,102 @@ togglePapelEls.forEach(btn => {
         location.reload();
     });
 });
+
+// ================= ACESSO NEGADO =================
+// Sem isso, qualquer usuário logado que abrisse o link de OUTRA pessoa
+// virava "locatário" automaticamente e conseguia enviar fotos como se
+// fizesse parte da locação. O toggle de simulação continua liberado.
+if (paginaEncontrada && solicitacao && !sessionStorage.getItem(CHAVE_SIM_PAPEL)) {
+    const souParteDaLocacao = usuarioLogado?.email === solicitacao.solicitanteEmail
+        || usuarioLogado?.email === solicitacao.proprietarioEmail;
+
+    if (!souParteDaLocacao) {
+        document.getElementById("conteudo-devolucao").style.display = "none";
+        document.getElementById("sim-papel-toggle").style.display = "none";
+        document.getElementById("etapa-acesso-negado").style.display = "block";
+    }
+}
+
+// ================= PRAZO / ATRASO DA DEVOLUÇÃO (visível na própria tela) =================
+// Antes disso a pessoa só descobria que estava atrasada olhando o card no
+// Histórico. Mesma lógica de parse de data usada em solicitacoes-shared.js.
+function parseDataISOLocal(dataStr) {
+    if (!dataStr) return null;
+    const partes = dataStr.split("-").map(Number);
+    if (partes.length !== 3 || partes.some(Number.isNaN)) return null;
+    const [ano, mes, dia] = partes;
+    return new Date(ano, mes - 1, dia);
+}
+
+(function mostrarPrazo() {
+    if (!solicitacao || !solicitacao.dataDevolucao) return;
+    if (!["retirado", "aguardando_devolucao"].includes(solicitacao.status)) return;
+
+    const dataDevolucao = parseDataISOLocal(solicitacao.dataDevolucao);
+    if (!dataDevolucao) return;
+
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const diffDias = Math.round((dataDevolucao - hoje) / (1000 * 60 * 60 * 24));
+    const dataFormatada = solicitacao.dataDevolucao.split("-").reverse().join("/");
+
+    const prazoCard = document.getElementById("prazo-card");
+    const prazoTexto = document.getElementById("prazo-texto");
+    if (!prazoCard || !prazoTexto) return;
+
+    let texto;
+    if (diffDias > 1) {
+        texto = `Faltam ${diffDias} dias para o prazo da devolução (${dataFormatada}).`;
+    } else if (diffDias === 1) {
+        texto = `A devolução precisa ser confirmada até amanhã (${dataFormatada}).`;
+    } else if (diffDias === 0) {
+        texto = "A devolução precisa ser confirmada hoje.";
+        prazoCard.classList.add("prazo-urgente");
+    } else {
+        const multa = window.SolicitacoesVizin?.calcularMulta
+            ? window.SolicitacoesVizin.calcularMulta(solicitacao)
+            : { diasAtraso: Math.abs(diffDias), valorTotal: null };
+        const valorFormatado = window.SolicitacoesVizin?.formatarReal && multa.valorTotal !== null
+            ? window.SolicitacoesVizin.formatarReal(multa.valorTotal)
+            : null;
+
+        const parteMulta = valorFormatado
+            ? ` Já acumulou ${valorFormatado} de multa (R$ 2,00/dia), cobrados quando a devolução for confirmada.`
+            : "";
+
+        texto = `Devolução em atraso há ${multa.diasAtraso} dia(s) (prazo era ${dataFormatada}). Enquanto o objeto não for devolvido, ${meuPapel === "locatario" ? "sua conta fica impedida de solicitar novos aluguéis ou aprovar locações" : "a conta de quem alugou fica restrita"}.${parteMulta}`;
+        prazoCard.classList.add("prazo-urgente");
+    }
+
+    prazoTexto.textContent = texto;
+    prazoCard.style.display = "flex";
+})();
+
+// ================= RESUMO DA MULTA ANTES DE CONFIRMAR =================
+// O card de prazo acima já avisa que existe atraso, mas o valor fica
+// "diluído" no meio do texto. Aqui repetimos o valor exato, perto do botão
+// de confirmar, com um resumo direto — pra ninguém confirmar a devolução
+// sem saber exatamente quanto vai ser cobrado (ou recebido) na hora.
+(function mostrarResumoMultaAntesConfirmar() {
+    const resumoEl = document.getElementById("resumo-multa-confirmar");
+    if (!resumoEl || !solicitacao || !window.SolicitacoesVizin) return;
+    if (!["retirado", "aguardando_devolucao"].includes(solicitacao.status)) return;
+
+    const multa = window.SolicitacoesVizin.calcularMulta(solicitacao);
+    if (multa.diasAtraso <= 0) return;
+
+    const formatar = window.SolicitacoesVizin.formatarReal;
+    const textoValor = meuPapel === "locatario"
+        ? `<strong>${formatar(multa.valorTotal)} será cobrado agora</strong> ao confirmar a devolução`
+        : `<strong>${formatar(multa.valorProprietario)} será creditado a você</strong> ao confirmar a devolução`;
+
+    resumoEl.innerHTML = `
+        <i class="bi bi-receipt"></i>
+        <span>${textoValor} — ${multa.diasAtraso} dia(s) de atraso (${formatar(window.SolicitacoesVizin.MULTA_POR_DIA_ATRASO)}/dia).</span>
+    `;
+    resumoEl.classList.add("prazo-urgente");
+    resumoEl.style.display = "flex";
+})();
 
 // ================= COMPRESSÃO DE FOTOS PRA BASE64 =================
 // PONTO DE INTEGRAÇÃO COM O BACK-END:
@@ -160,10 +289,22 @@ dropzone.addEventListener("drop", (e) => {
 function adicionarArquivos(arquivos) {
     const espacoRestante = MAX_FOTOS - minhasFotos.length;
 
+    if (arquivos.length > espacoRestante) {
+        mostrarToast(`Só cabem mais ${espacoRestante} foto(s). O restante foi ignorado.`, "erro");
+    }
+
+    let algumInvalido = false;
     arquivos.slice(0, espacoRestante).forEach(arquivo => {
-        if (!arquivo.type.startsWith("image/")) return;
+        if (!arquivo.type.startsWith("image/")) {
+            algumInvalido = true;
+            return;
+        }
         minhasFotos.push(arquivo);
     });
+
+    if (algumInvalido) {
+        mostrarToast("Só são aceitos arquivos de imagem (PNG, JPG ou JPEG).", "erro");
+    }
 
     renderizarFotos();
 }
@@ -177,6 +318,11 @@ function renderizarFotos() {
 
         const img = document.createElement("img");
         img.src = URL.createObjectURL(arquivo);
+        img.style.cursor = "zoom-in";
+        img.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            abrirZoomFoto(img.src);
+        });
         slot.appendChild(img);
 
         const removerBtn = document.createElement("button");
@@ -198,6 +344,29 @@ function renderizarFotos() {
     btnEnviar.disabled = minhasFotos.length === 0;
 }
 
+// ================= ZOOM DE FOTO =================
+const zoomOverlay = document.getElementById("foto-zoom-overlay");
+const zoomImg = document.getElementById("foto-zoom-img");
+ 
+function abrirZoomFoto(src) {
+    if (!zoomOverlay || !zoomImg) return;
+    zoomImg.src = src;
+    zoomOverlay.classList.add("show");
+}
+ 
+if (zoomOverlay) {
+    zoomOverlay.addEventListener("click", () => zoomOverlay.classList.remove("show"));
+}
+ 
+// ================= AVISO AO SAIR COM FOTOS NÃO ENVIADAS =================
+let fotosJaEnviadas = false;
+window.addEventListener("beforeunload", (e) => {
+    if (minhasFotos.length > 0 && !fotosJaEnviadas) {
+        e.preventDefault();
+        e.returnValue = "";
+    }
+});
+ 
 // ================= STATUS DA OUTRA PARTE =================
 function renderizarStatus() {
     const status = DevolucaoVizin.obterStatus(aluguelId);
@@ -260,6 +429,7 @@ btnEnviar.addEventListener("click", async () => {
         await new Promise(resolve => setTimeout(resolve, 1000)); // simula envio
 
         DevolucaoVizin.enviarFotos(aluguelId, meuPapel, minhasFotos.length, observacoes, fotosBase64);
+        fotosJaEnviadas = true;
 
         if (DevolucaoVizin.ambosConcluidos(aluguelId)) {
             finalizarDevolucao();
@@ -269,15 +439,16 @@ btnEnviar.addEventListener("click", async () => {
 
     } catch (err) {
         console.error(err);
-        alert("Não foi possível enviar suas fotos. Tente novamente.");
+        const mensagem = navigator.onLine === false
+            ? "Você está sem conexão com a internet. Verifique sua rede e tente novamente."
+            : "Não foi possível enviar suas fotos. Tente novamente.";
+        mostrarToast(mensagem, "erro");
         btnEnviar.disabled = false;
         btnEnviar.innerHTML = `<i class="bi bi-check-circle"></i> Confirmar Devolução`;
     }
 });
 
 // ================= TROCA DE ESTADOS =================
-let intervaloAcompanhamento = null;
-
 function mostrarAguardando() {
     document.getElementById("etapa-enviar").style.display = "none";
     document.getElementById("etapa-aguardando").style.display = "block";
@@ -286,24 +457,30 @@ function mostrarAguardando() {
     document.getElementById("aguardando-texto").textContent =
         `Aguardando o envio das fotos de ${nomesPapel[papelDaOutraParte].toLowerCase()}.`;
 
-    // Diferente da Retirada, aqui não existe botão de cancelar (a locação já
-    // está em andamento — o objeto está fisicamente com o locatário). Se a
-    // outra parte simplesmente não enviar as fotos dela, hoje não havia
-    // nenhuma saída visível pra quem está esperando — só esse link pro
-    // Suporte.
-    const linkSuporte = document.getElementById("link-suporte-aguardando");
-    if (linkSuporte) {
-        linkSuporte.href = `../Suporte/index.html?solicitacaoId=${aluguelId}`;
-    }
-
     acompanharOutraParte();
 }
 
 function finalizarDevolucao() {
     clearInterval(intervaloAcompanhamento);
 
+    let multa = { diasAtraso: 0, valorTotal: 0, valorPlataforma: 0, valorProprietario: 0 };
+
     if (solicitacao && window.SolicitacoesVizin && solicitacao.status !== "concluido") {
-        window.SolicitacoesVizin.atualizarStatus(solicitacao.id, "concluido");
+        // A multa é calculada AGORA (data de conclusão), não no dia em que a
+        // pessoa abriu a tela — assim o valor "congela" no momento da
+        // devolução, em vez de continuar crescendo depois de o objeto já
+        // ter voltado. `multaStatus: "pendente"` é o que torna o pagamento
+        // OBRIGATÓRIO antes de alugar de novo (ver detalhesBloqueio em
+        // solicitacoes-shared.js) — sem isso, o bloqueio por atraso sumia
+        // sozinho assim que o objeto era devolvido, mesmo com a multa em
+        // aberto.
+        multa = window.SolicitacoesVizin.calcularMulta(solicitacao);
+
+        window.SolicitacoesVizin.atualizarStatus(solicitacao.id, "concluido", {
+            multaAtraso: multa.diasAtraso > 0 ? multa : null,
+            multaStatus: multa.diasAtraso > 0 ? "pendente" : null,
+            multaCongeladaEm: multa.diasAtraso > 0 ? new Date().toISOString() : null
+        });
 
         // A locação terminou — o objeto volta a ficar disponível pra outras
         // pessoas solicitarem.
@@ -312,27 +489,119 @@ function finalizarDevolucao() {
         }
 
         if (window.NotificacoesVizin) {
+            const formatar = window.SolicitacoesVizin.formatarReal;
+
+            const textoMultaLocatario = multa.diasAtraso > 0
+                ? ` A devolução ficou ${multa.diasAtraso} dia(s) em atraso: foi cobrada uma multa de ${formatar(multa.valorTotal)}. Enquanto ela não for paga, você não vai conseguir solicitar novos aluguéis nem aprovar locações nos seus próprios objetos.`
+                : "";
+
             window.NotificacoesVizin.adicionarNotificacao({
                 tipo: "devolucao_confirmada",
                 titulo: "Devolução confirmada",
-                descricao: `A devolução de "${produto.titulo}" foi confirmada. O aluguel foi concluído.`,
+                descricao: `A devolução de "${produto.titulo}" foi confirmada. O aluguel foi concluído.${textoMultaLocatario}`,
                 data: new Date().toLocaleDateString("pt-BR"),
                 solicitacaoId: solicitacao.id
             }, solicitacao.solicitanteEmail);
 
+            const textoMultaProprietario = multa.diasAtraso > 0
+                ? ` A devolução ficou ${multa.diasAtraso} dia(s) em atraso: assim que ${solicitacao.solicitanteNome || "o locatário"} pagar, você vai receber ${formatar(multa.valorProprietario)} de multa (a plataforma retém ${formatar(multa.valorPlataforma)} do total de ${formatar(multa.valorTotal)}).`
+                : "";
+
             window.NotificacoesVizin.adicionarNotificacao({
                 tipo: "devolucao_confirmada",
                 titulo: "Objeto devolvido",
-                descricao: `${solicitacao.solicitanteNome || "O locatário"} devolveu "${produto.titulo}". Você já pode avaliar a transação.`,
+                descricao: `${solicitacao.solicitanteNome || "O locatário"} devolveu "${produto.titulo}". Você já pode avaliar a transação.${textoMultaProprietario}`,
                 data: new Date().toLocaleDateString("pt-BR"),
                 solicitacaoId: solicitacao.id
             }, solicitacao.proprietarioEmail);
         }
+    } else if (solicitacao?.multaAtraso) {
+        // Página recarregada depois que a devolução já tinha sido concluída
+        // — reaproveita o valor congelado, em vez de recalcular (o que
+        // daria zero, já que a data de referência seria "agora").
+        multa = solicitacao.multaAtraso;
     }
+
+    // Sempre busca a versão mais atual da solicitação — pode ter
+    // multaStatus recém-gravado logo acima, ou já ter sido paga/contestada
+    // numa visita anterior a esta mesma tela (o comprovante fica salvo, não
+    // é algo que "some" como uma notificação depois de lida).
+    const atual = (solicitacao && window.SolicitacoesVizin)
+        ? window.SolicitacoesVizin.obterPorId(solicitacao.id)
+        : solicitacao;
+
+    // Mostra o valor da multa também na própria tela, pra quem acabou de
+    // confirmar a devolução não descobrir isso só pela notificação — mesmo
+    // resumo claro ("R$ X será cobrado agora") que já aparecia antes de
+    // confirmar, repetido aqui pra confirmar o que de fato aconteceu.
+    const notaMulta = document.getElementById("confirmada-multa-nota");
+    if (notaMulta) {
+        if (multa.diasAtraso > 0 && window.SolicitacoesVizin) {
+            const formatar = window.SolicitacoesVizin.formatarReal;
+            notaMulta.textContent = meuPapel === "locatario"
+                ? `${formatar(multa.valorTotal)} cobrado agora por ${multa.diasAtraso} dia(s) de atraso na devolução.`
+                : `A devolução ficou ${multa.diasAtraso} dia(s) em atraso: você vai receber ${formatar(multa.valorProprietario)} de multa (a plataforma retém ${formatar(multa.valorPlataforma)}).`;
+            notaMulta.classList.remove("hidden");
+        } else {
+            notaMulta.classList.add("hidden");
+        }
+    }
+
+    atualizarAcaoMulta(atual, multa);
 
     document.getElementById("etapa-enviar").style.display = "none";
     document.getElementById("etapa-aguardando").style.display = "none";
     document.getElementById("etapa-confirmada").style.display = "block";
+}
+
+// ================= PAGAR A MULTA =================
+// Mostra (só pro locatário) o botão de pagar a multa obrigatória — junto
+// com o comprovante permanente que fica salvo no Histórico (ver
+// montarComprovanteMulta em historico.js), essa é a saída pra sair do
+// bloqueio "duro" descrito em solicitacoes-shared.js sem precisar devolver
+// mais nada (o objeto já voltou). O pagamento em si acontece na página
+// dedicada de Pagamento da Multa (../Pagamento-multa/index.html).
+function atualizarAcaoMulta(solic, multa) {
+    const acaoCard = document.getElementById("confirmada-multa-acao");
+    const textoAcao = document.getElementById("confirmada-multa-acao-texto");
+    const btnPagar = document.getElementById("btn-pagar-multa");
+    if (!acaoCard) return;
+
+    if (meuPapel !== "locatario" || !multa || multa.diasAtraso <= 0 || !window.SolicitacoesVizin) {
+        acaoCard.classList.add("hidden");
+        return;
+    }
+
+    const status = solic?.multaStatus || "pendente";
+    acaoCard.classList.remove("hidden", "multa-acao-ok", "multa-acao-suspensa");
+
+    if (status === "paga") {
+        textoAcao.textContent = "Multa paga. Sua conta está liberada para novas locações.";
+        if (btnPagar) btnPagar.style.display = "none";
+        acaoCard.classList.add("multa-acao-ok");
+        return;
+    }
+
+    if (status === "contestada") {
+        textoAcao.textContent = "Multa contestada. A cobrança fica suspensa até o Suporte analisar seu relato.";
+        if (btnPagar) btnPagar.style.display = "none";
+        acaoCard.classList.add("multa-acao-suspensa");
+        return;
+    }
+
+    textoAcao.textContent = "Enquanto essa multa não for paga, você não pode solicitar novos aluguéis nem aprovar locações nos seus próprios objetos.";
+    if (btnPagar) btnPagar.style.display = "";
+}
+
+const btnPagarMulta = document.getElementById("btn-pagar-multa");
+if (btnPagarMulta) {
+    btnPagarMulta.addEventListener("click", () => {
+        if (!solicitacao) return;
+
+        // Leva o usuário para a página dedicada de pagamento da multa, que
+        // já cuida de PIX/cartão e do POST /api/multas/:solicitacaoId/pagar.
+        window.location.href = `../Pagamento-multa/index.html?solicitacaoId=${solicitacao.id}`;
+    });
 }
 // PONTO DE INTEGRAÇÃO COM O BACK-END:
 // Trocar por WebSocket, ou por um GET periódico em /api/devolucoes/:aluguelId/status.
@@ -346,8 +615,6 @@ function acompanharOutraParte() {
         }
     }, 1000);
 }
-
-// ================= [SÓ PARA TESTES] SIMULAR A OUTRA PARTE =================
 // TODO: remover este bloco inteiro quando integrar com o back-end real.
 // Mesmo motivo do retirada-objeto.js: testando sozinho com mocks em
 // localStorage, as duas "pessoas" precisariam estar em sessões/navegadores

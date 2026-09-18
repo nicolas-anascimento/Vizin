@@ -31,6 +31,28 @@
         document.dispatchEvent(new CustomEvent("solicitacoesAtualizadas"));
     }
 
+    // ================= PONTE CROSS-TAB =================
+    // "solicitacoesAtualizadas" é um CustomEvent — só é ouvido dentro do
+    // MESMO document que o disparou. Isso é suficiente pra reações dentro
+    // da própria aba (ex: o polling de verificarPrazos/verificarSolicitacoesPendentes,
+    // que roda em qualquer aba que tenha este script carregado), mas NÃO
+    // avisa outras abas/janelas quando uma solicitação muda por uma ação
+    // explícita nelas — ex: o dono aprova um pedido na aba do Histórico
+    // enquanto o locatário está com a página de Produto aberta em outra
+    // aba. O locatário só ficaria sabendo ao recarregar a página.
+    // O evento nativo "storage", por outro lado, SÓ dispara nas OUTRAS
+    // abas do mesmo site (nunca na aba que fez a alteração) — por isso
+    // usamos os dois em conjunto: reemitimos "solicitacoesAtualizadas"
+    // localmente sempre que a chave "solicitacoes" mudar vinda de fora,
+    // fazendo toda a reatividade que já existia (historico.js, notificacoes.js
+    // e agora produto.js) funcionar também entre abas, sem precisar mudar
+    // nenhum desses outros arquivos.
+    window.addEventListener("storage", (e) => {
+        if (e.key === CHAVE_STORAGE) {
+            document.dispatchEvent(new CustomEvent("solicitacoesAtualizadas"));
+        }
+    });
+
     function obterPorId(id) {
         return obterTodas().find(s => s.id === id) || null;
     }
@@ -73,9 +95,25 @@
     // solicitante estiver com uma devolução em atraso em outra locação —
     // ver estaBloqueadoPorAtraso mais abaixo. Quem chama (produto.js) já
     // trata isso com um try/catch e mostra a mensagem certa pro usuário.
+    //
+    // Também barra um segundo pedido "pendente" do MESMO solicitante pro
+    // MESMO objeto — sem isso, abrir a página de Produto em duas abas (ou
+    // clicar duas vezes rápido antes do botão desabilitar) gerava duas
+    // solicitações pendentes idênticas, e só a mais recente ficava visível
+    // pro locatário acompanhar (ver "maisRecente" em produto.js), deixando
+    // a outra órfã, pendente pra sempre do ponto de vista do dono.
     function criar(dados) {
         if (estaBloqueadoPorAtraso(dados.solicitanteEmail)) {
             throw new Error("BLOQUEADO_POR_ATRASO");
+        }
+
+        const jaTemPendente = obterTodas().some(s =>
+            s.produtoId === dados.produtoId &&
+            s.solicitanteEmail === dados.solicitanteEmail &&
+            s.status === "pendente"
+        );
+        if (jaTemPendente) {
+            throw new Error("PEDIDO_JA_PENDENTE");
         }
 
         const lista = obterTodas();
@@ -86,8 +124,10 @@
     }
 
     // status = "aprovado" | "rejeitado"
-    function atualizarStatus(id, status) {
-        const lista = obterTodas().map(s => s.id === id ? { ...s, status } : s);
+    // extras: campos adicionais opcionais pra registrar junto (ex: motivo
+    // de uma rejeição automática do sistema).
+    function atualizarStatus(id, status, extras = {}) {
+        const lista = obterTodas().map(s => s.id === id ? { ...s, status, ...extras } : s);
         salvarTodas(lista);
         return obterPorId(id);
     }
@@ -143,7 +183,45 @@
             );
         }
 
+        // Ao aprovar UM pedido, qualquer OUTRO pedido ainda "pendente" pro
+        // mesmo objeto (de outros interessados que pediram no mesmo período
+        // de indecisão do dono) deixa de fazer sentido: o objeto já foi pra
+        // outra pessoa. Sem isso, esses outros pedidos ficavam pendentes
+        // pra sempre — o solicitante ficava preso no card "Aguardando
+        // aprovação" (o polling em produto.js nunca resolvia) e o dono
+        // ainda via um botão "Aprovar" ativo pra um objeto que ele já
+        // alugou, podendo aprovar os dois por engano (double-booking).
+        if (novoStatus === "aprovado") {
+            rejeitarPendentesConcorrentes(solicitacao);
+        }
+
         return solicitacao;
+    }
+
+    function rejeitarPendentesConcorrentes(solicitacaoAprovada) {
+        const concorrentes = obterTodas().filter(s =>
+            s.produtoId === solicitacaoAprovada.produtoId &&
+            s.status === "pendente" &&
+            s.id !== solicitacaoAprovada.id
+        );
+
+        concorrentes.forEach(s => {
+            atualizarStatus(s.id, "rejeitado", { canceladoPor: "sistema", motivoRejeicao: "objeto_alugado_para_outro" });
+            limparNotificacaoSolicitacaoPendente({ ...s, status: "rejeitado" });
+
+            if (window.NotificacoesVizin) {
+                window.NotificacoesVizin.adicionarNotificacao(
+                    {
+                        tipo: "aluguel_rejeitado",
+                        titulo: "Solicitação recusada",
+                        descricao: `"${s.produtoTitulo}" foi alugado para outra pessoa antes que seu pedido fosse respondido.`,
+                        data: new Date().toLocaleDateString("pt-BR"),
+                        solicitacaoId: s.id
+                    },
+                    s.solicitanteEmail
+                );
+            }
+        });
     }
 
     // Quantas solicitações estão aguardando decisão de um proprietário —
@@ -268,20 +346,72 @@
         return new Date(ano, mes - 1, dia);
     }
 
+    // ================= MULTA POR ATRASO NA DEVOLUÇÃO =================
+    // R$ 2,00 por dia de atraso, sempre a partir de solicitacao.dataDevolucao.
+    // A plataforma retém 10% desse valor (custo de operação/mediação); os
+    // outros 90% são repassados ao proprietário, como compensação por ficar
+    // sem o objeto além do combinado.
+    //
+    // PONTO DE INTEGRAÇÃO COM O BACK-END:
+    // O valor e o percentual devem virar configuração no servidor (não
+    // hardcoded no front), e a cobrança de verdade (débito no locatário +
+    // repasse ao proprietário) deve acontecer via gateway de pagamento,
+    // não só como um número guardado no registro da solicitação.
+    const MULTA_POR_DIA_ATRASO = 2; // R$
+    const PERCENTUAL_PLATAFORMA_MULTA = 0.10; // 10% pra a plataforma, 90% pro proprietário
+
+    function formatarReal(valor) {
+        return `R$ ${valor.toFixed(2).replace(".", ",")}`;
+    }
+
+    // dataReferencia = até quando contar o atraso (por padrão, hoje). No
+    // momento em que a devolução é de fato confirmada, quem chama passa a
+    // data da confirmação, pra "congelar" o valor — depois de devolvido, o
+    // atraso não pode continuar contando.
+    function calcularDiasAtraso(solicitacao, dataReferencia = new Date()) {
+        if (!solicitacao || !solicitacao.dataDevolucao) return 0;
+
+        const dataDevolucao = parseDataISO(solicitacao.dataDevolucao);
+        if (!dataDevolucao) return 0;
+
+        const ref = new Date(dataReferencia);
+        ref.setHours(0, 0, 0, 0);
+
+        const diffDias = Math.round((ref - dataDevolucao) / (1000 * 60 * 60 * 24));
+        return diffDias > 0 ? diffDias : 0;
+    }
+
+    // Retorna { diasAtraso, valorTotal, valorPlataforma, valorProprietario }
+    // (valores em número, já arredondados em 2 casas — usar formatarReal
+    // pra exibir).
+    function calcularMulta(solicitacao, dataReferencia = new Date()) {
+        const diasAtraso = calcularDiasAtraso(solicitacao, dataReferencia);
+        const valorTotal = Number((diasAtraso * MULTA_POR_DIA_ATRASO).toFixed(2));
+        const valorPlataforma = Number((valorTotal * PERCENTUAL_PLATAFORMA_MULTA).toFixed(2));
+        const valorProprietario = Number((valorTotal - valorPlataforma).toFixed(2));
+
+        return { diasAtraso, valorTotal, valorPlataforma, valorProprietario };
+    }
+
     function mesmoDia(a, b) {
         return a.getFullYear() === b.getFullYear()
             && a.getMonth() === b.getMonth()
             && a.getDate() === b.getDate();
     }
 
-    function enviarLembrete(solicitacao, chaveBase, tituloEvento, quandoTexto) {
+    // `avisoMultaLocatario` (opcional) é um texto extra, mostrado só pro
+    // LOCATÁRIO, avisando do risco de multa antes do prazo vencer — usado no
+    // lembrete de devolução do dia anterior (ver verificarLembretes abaixo).
+    // A ideia é reduzir o atraso proativamente, avisando ENQUANTO ainda dá
+    // tempo de evitar a multa, em vez de só cobrar depois que ela já
+    // aconteceu (ver avisarDevolucaoAtrasada, que dispara só depois do
+    // prazo já ter passado).
+    function enviarLembrete(solicitacao, chaveBase, tituloEvento, quandoTexto, avisoMultaLocatario) {
         if (!window.NotificacoesVizin) return;
 
         const descricao = `${tituloEvento} de "${solicitacao.produtoTitulo}" está marcada para ${quandoTexto}.`;
-        const destinatarios = [solicitacao.solicitanteEmail, solicitacao.proprietarioEmail];
 
-        destinatarios.forEach(email => {
-            if (!email) return;
+        if (solicitacao.proprietarioEmail) {
             window.NotificacoesVizin.adicionarNotificacao(
                 {
                     tipo: "lembrete",
@@ -290,9 +420,22 @@
                     data: new Date().toLocaleDateString("pt-BR"),
                     solicitacaoId: solicitacao.id
                 },
-                email
+                solicitacao.proprietarioEmail
             );
-        });
+        }
+
+        if (solicitacao.solicitanteEmail) {
+            window.NotificacoesVizin.adicionarNotificacao(
+                {
+                    tipo: "lembrete",
+                    titulo: `Lembrete de ${tituloEvento}`,
+                    descricao: descricao + (avisoMultaLocatario || ""),
+                    data: new Date().toLocaleDateString("pt-BR"),
+                    solicitacaoId: solicitacao.id
+                },
+                solicitacao.solicitanteEmail
+            );
+        }
 
         marcarLembreteEnviado(chaveBase);
     }
@@ -330,10 +473,16 @@
                     const chaveAntes = `${solicitacao.id}_devolucao_antes`;
                     const chaveDia = `${solicitacao.id}_devolucao_dia`;
 
+                    // No aviso do dia ANTERIOR, avisa também do risco de
+                    // multa — é o momento em que ainda dá pra evitar o
+                    // atraso, então vale mostrar o valor por dia pra deixar
+                    // o custo concreto (não só "não esqueça").
+                    const avisoMulta = ` Devolva até lá para evitar multa de ${formatarReal(MULTA_POR_DIA_ATRASO)} por dia de atraso.`;
+
                     if (mesmoDia(dataDevolucao, amanha) && !jaEnviouLembrete(chaveAntes)) {
-                        enviarLembrete(solicitacao, chaveAntes, "Devolução", `amanhã (${solicitacao.dataDevolucao})`);
+                        enviarLembrete(solicitacao, chaveAntes, "Devolução", `amanhã (${solicitacao.dataDevolucao})`, avisoMulta);
                     } else if (mesmoDia(dataDevolucao, hoje) && !jaEnviouLembrete(chaveDia)) {
-                        enviarLembrete(solicitacao, chaveDia, "Devolução", `hoje (${solicitacao.dataDevolucao})`);
+                        enviarLembrete(solicitacao, chaveDia, "Devolução", `hoje (${solicitacao.dataDevolucao})`, ` Devolva hoje para evitar multa de ${formatarReal(MULTA_POR_DIA_ATRASO)} por dia de atraso.`);
                     }
                 }
             }
@@ -392,26 +541,154 @@
     }
 
     // Calculado na hora, não é um campo salvo: um e-mail está "bloqueado"
-    // se ele for locatário (solicitante) em QUALQUER locação já retirada
-    // ("retirado" ou "aguardando_devolucao") cuja data de devolução já
-    // passou. Assim que essa locação for concluída (ver
-    // sincronizarStatusComProcessos em historico.js, que muda o status pra
-    // "concluido" quando as duas partes confirmam a devolução), ela para de
-    // entrar nessa checagem e o bloqueio cai sozinho — sem precisar
-    // "desligar" nada manualmente em lugar nenhum.
+    // por um de DOIS motivos possíveis — ver detalhesBloqueio logo abaixo,
+    // que é a fonte de verdade. Mantido como função separada (retornando só
+    // true/false) porque é assim que o resto do código já consome isso
+    // (criar/responder acima, produto.js, historico.js) — trocar pra
+    // detalhesBloqueio exigiria mudar todos esses chamadores sem ganho real
+    // pra eles, que só precisam saber "pode ou não pode".
     function estaBloqueadoPorAtraso(email) {
-        if (!email) return false;
+        return !!detalhesBloqueio(email);
+    }
+
+    // Retorna { motivo, solicitacao } explicando POR QUE um e-mail está
+    // bloqueado de solicitar novos aluguéis / aprovar locações nos próprios
+    // objetos, ou null se não houver bloqueio nenhum. A restrição em si é a
+    // MESMA nos dois casos (ver "leve" vs "duro" no comentário de
+    // criar/responder acima — a distinção é sobre QUAL ação cada papel tem
+    // barrada, não sobre o motivo do bloqueio), mas o motivo muda o que faz
+    // sentido mostrar na tela:
+    //
+    //   "devolucao_pendente" -> a pessoa ainda está com o objeto de outra
+    //                           locação e o prazo de devolução já passou.
+    //                           Some sozinho assim que ela devolver (ver
+    //                           sincronizarStatusComProcessos em historico.js).
+    //
+    //   "multa_pendente"     -> a pessoa já devolveu o objeto, mas ficou
+    //                           devendo uma multa por atraso que ainda não
+    //                           foi paga. Diferente do motivo acima, este
+    //                           NÃO desaparece sozinho — só some quando a
+    //                           multa é paga (pagarMulta). É essa checagem
+    //                           que torna o pagamento da multa obrigatório
+    //                           pra voltar a alugar, e não só "a devolução
+    //                           em si".
+    function detalhesBloqueio(email) {
+        if (!email) return null;
 
         const hoje = new Date();
         hoje.setHours(0, 0, 0, 0);
 
-        return obterTodas().some(s => {
+        const emDevolucao = obterTodas().find(s => {
             if (s.solicitanteEmail !== email) return false;
             if (s.status !== "retirado" && s.status !== "aguardando_devolucao") return false;
 
             const dataDevolucao = parseDataISO(s.dataDevolucao);
             return !!dataDevolucao && dataDevolucao < hoje;
         });
+        if (emDevolucao) return { motivo: "devolucao_pendente", solicitacao: emDevolucao };
+
+        const comMultaPendente = obterTodas().find(s =>
+            s.solicitanteEmail === email &&
+            s.status === "concluido" &&
+            s.multaAtraso && s.multaAtraso.diasAtraso > 0 &&
+            s.multaStatus === "pendente"
+        );
+        if (comMultaPendente) return { motivo: "multa_pendente", solicitacao: comMultaPendente };
+
+        return null;
+    }
+
+    // ================= PAGAMENTO DA MULTA =================
+    // A multa fica registrada em `solicitacao.multaAtraso` — valor já
+    // CONGELADO no momento em que a devolução é confirmada (ver
+    // finalizarDevolucao em devolucao-objeto.js), e nunca recalculado depois
+    // disso, pra não "crescer" enquanto o pagamento está em processamento.
+    // O ciclo de vida dela é controlado por `solicitacao.multaStatus`:
+    //   "pendente"    -> existe multa e ela ainda não foi paga (é esse
+    //                    estado que aciona detalhesBloqueio acima).
+    //   "paga"        -> o locatário já quitou o valor.
+    // Locações sem atraso na devolução nunca ganham `multaStatus`.
+    //
+    // PONTO DE INTEGRAÇÃO COM O BACK-END:
+    // POST /api/multas/:solicitacaoId/pagar, disparado pela página de
+    // Pagamento-multa (mesmo padrão de Finalizar-pagamento) — dispara a
+    // cobrança de verdade no gateway de pagamento.
+    function pagarMulta(id) {
+        const solicitacao = obterPorId(id);
+        if (!solicitacao || !solicitacao.multaAtraso || solicitacao.multaAtraso.diasAtraso <= 0) return solicitacao;
+        if (solicitacao.multaStatus === "paga") return solicitacao;
+
+        const lista = obterTodas().map(s => s.id === id
+            ? { ...s, multaStatus: "paga", multaPagaEm: new Date().toISOString() }
+            : s);
+        salvarTodas(lista);
+
+        if (window.NotificacoesVizin) {
+            window.NotificacoesVizin.adicionarNotificacao(
+                {
+                    tipo: "multa_paga",
+                    titulo: "Multa paga",
+                    descricao: `A multa de ${formatarReal(solicitacao.multaAtraso.valorTotal)} referente à devolução de "${solicitacao.produtoTitulo}" foi paga. Sua conta já está liberada para novas locações.`,
+                    data: new Date().toLocaleDateString("pt-BR"),
+                    solicitacaoId: id
+                },
+                solicitacao.solicitanteEmail
+            );
+
+            window.NotificacoesVizin.adicionarNotificacao(
+                {
+                    tipo: "multa_paga",
+                    titulo: "Multa recebida",
+                    descricao: `${solicitacao.solicitanteNome || "O locatário"} pagou a multa por atraso de "${solicitacao.produtoTitulo}". Você vai receber ${formatarReal(solicitacao.multaAtraso.valorProprietario)}.`,
+                    data: new Date().toLocaleDateString("pt-BR"),
+                    solicitacaoId: id
+                },
+                solicitacao.proprietarioEmail
+            );
+        }
+
+        return obterPorId(id);
+    }
+
+    // `relato` é o objeto retornado por DisputasVizin.abrirRelato (opcional,
+    // só pra guardar a referência de qual relato suspendeu esta cobrança).
+    function contestarMulta(id, relato) {
+        const solicitacao = obterPorId(id);
+        if (!solicitacao || !solicitacao.multaAtraso || solicitacao.multaAtraso.diasAtraso <= 0) return solicitacao;
+        if (solicitacao.multaStatus === "paga") return solicitacao;
+
+        const lista = obterTodas().map(s => s.id === id
+            ? { ...s, multaStatus: "contestada", multaContestadaEm: new Date().toISOString(), multaRelatoId: relato?.id || null }
+            : s);
+        salvarTodas(lista);
+
+        if (window.NotificacoesVizin) {
+            window.NotificacoesVizin.adicionarNotificacao(
+                {
+                    tipo: "multa_contestada",
+                    titulo: "Multa contestada",
+                    descricao: `${solicitacao.solicitanteNome || "O locatário"} contestou a multa de ${formatarReal(solicitacao.multaAtraso.valorTotal)} da devolução de "${solicitacao.produtoTitulo}". A cobrança fica suspensa até o Suporte analisar.`,
+                    data: new Date().toLocaleDateString("pt-BR"),
+                    solicitacaoId: id
+                },
+                solicitacao.proprietarioEmail
+            );
+        }
+
+        return obterPorId(id);
+    }
+
+    // Lista as locações concluídas em que este e-mail é o LOCATÁRIO e ainda
+    // tem multa pendente de pagamento (não conta as já pagas nem as
+    // contestadas) — usado pra montar avisos/comprovantes agregados.
+    function obterMultasPendentes(email) {
+        if (!email) return [];
+        return obterTodas().filter(s =>
+            s.solicitanteEmail === email &&
+            s.status === "concluido" &&
+            s.multaAtraso && s.multaAtraso.diasAtraso > 0 &&
+            s.multaStatus === "pendente"
+        );
     }
 
     // Se a solicitação está "aprovada" mas o pagamento nunca foi feito até a
@@ -499,11 +776,16 @@
     function avisarDevolucaoAtrasada(solicitacao) {
         if (!window.NotificacoesVizin) return;
 
+        const multa = calcularMulta(solicitacao);
+        const textoMulta = multa.diasAtraso > 0
+            ? ` Já foram acumulados ${formatarReal(multa.valorTotal)} de multa (${formatarReal(MULTA_POR_DIA_ATRASO)}/dia), que serão cobrados na conclusão da devolução.`
+            : "";
+
         window.NotificacoesVizin.adicionarNotificacao(
             {
                 tipo: "bloqueio_conta",
                 titulo: "Devolução em atraso",
-                descricao: `Você não devolveu "${solicitacao.produtoTitulo}" até ${solicitacao.dataDevolucao}. Enquanto o objeto não for devolvido, você não pode solicitar novos aluguéis nem aprovar locações nos seus próprios objetos.`,
+                descricao: `Você não devolveu "${solicitacao.produtoTitulo}" até ${solicitacao.dataDevolucao}. Enquanto o objeto não for devolvido, você não pode solicitar novos aluguéis nem aprovar locações nos seus próprios objetos.${textoMulta}`,
                 data: new Date().toLocaleDateString("pt-BR"),
                 solicitacaoId: solicitacao.id
             },
@@ -513,11 +795,15 @@
         // O proprietário também é avisado — ele está esperando o objeto de
         // volta e a locação dele continua "presa" nesse estado até a
         // devolução acontecer de verdade.
+        const textoMultaProprietario = multa.diasAtraso > 0
+            ? ` Já foram acumulados ${formatarReal(multa.valorTotal)} de multa por atraso, dos quais ${formatarReal(multa.valorProprietario)} são seus (a plataforma retém ${formatarReal(multa.valorPlataforma)}).`
+            : "";
+
         window.NotificacoesVizin.adicionarNotificacao(
             {
                 tipo: "lembrete",
                 titulo: "Devolução em atraso",
-                descricao: `${solicitacao.solicitanteNome || "O locatário"} ainda não devolveu "${solicitacao.produtoTitulo}" (devolução estava marcada para ${solicitacao.dataDevolucao}).`,
+                descricao: `${solicitacao.solicitanteNome || "O locatário"} ainda não devolveu "${solicitacao.produtoTitulo}" (devolução estava marcada para ${solicitacao.dataDevolucao}).${textoMultaProprietario}`,
                 data: new Date().toLocaleDateString("pt-BR"),
                 solicitacaoId: solicitacao.id
             },
@@ -656,6 +942,14 @@
         podeCancelar,
         cancelar,
         estaBloqueadoPorAtraso,
+        detalhesBloqueio,
+        calcularDiasAtraso,
+        calcularMulta,
+        pagarMulta,
+        obterMultasPendentes,
+        formatarReal,
+        MULTA_POR_DIA_ATRASO,
+        PERCENTUAL_PLATAFORMA_MULTA,
         verificarLembretes,          // exposto pra debug/testes no console
         verificarPrazos,             // exposto pra debug/testes no console
         verificarSolicitacoesPendentes // exposto pra debug/testes no console

@@ -543,8 +543,17 @@ document.getElementById("modal-excluir-confirmar").addEventListener("click", asy
         renderizarMeusObjetos();
         mostrarToast("Objeto excluído com sucesso");
     } catch (err) {
-        console.error(err);
-        mostrarToast("Não foi possível excluir o objeto", "erro");
+        if (err.message === "OBJETO_EM_LOCACAO") {
+            mostrarToast("Este objeto entrou em locação enquanto a confirmação estava aberta — não é mais possível excluí-lo agora.", "erro");
+        } else if (err.message === "OBJETO_COM_SOLICITACAO_PENDENTE") {
+            mostrarToast("Chegou uma nova solicitação para este objeto — responda antes de excluir.", "erro");
+        } else {
+            console.error(err);
+            mostrarToast("Não foi possível excluir o objeto", "erro");
+        }
+        // O card ainda mostrava o estado de antes de abrir o modal — atualiza
+        // pra refletir o motivo do bloqueio (ex: toggle agora travado).
+        renderizarMeusObjetos();
     } finally {
         btnConfirmar.disabled = false;
         btnConfirmar.textContent = "Excluir";

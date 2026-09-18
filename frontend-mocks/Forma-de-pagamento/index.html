@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="../header/header.css">
     <link rel="stylesheet" href="../footer/footer.css">
     <link rel="stylesheet" href="../Minha-conta/conta-shared.css">
-    <link rel="stylesheet" href="pagamento.css">
+    <link rel="stylesheet" href="pagamento.css?v=14">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
     <title>Forma de pagamento</title>
 </head>
@@ -28,10 +28,16 @@
         </div>
  
         <div class="card">
-            <h2>Cartões salvos</h2>
+            <div class="card-flex">
+                <div>
+                    <h2>Cartões salvos</h2>
+                </div>
+                <div>
+                    <button type="button" class="btn-mostrar-mais" id="btn-adicionar-cartao" style="margin-top:14px;">+ Adicionar cartão</button>
+                </div>
+            </div>
             <div id="lista-cartoes"></div>
             <p id="cartoes-vazio" style="font-size:13.5px; color:var(--texto-suave,#555); display:none;">Nenhum cartão cadastrado ainda.</p>
-            <button type="button" class="btn-mostrar-mais" id="btn-adicionar-cartao" style="margin-top:14px;">+ Adicionar cartão</button>
         </div>
  
     </div>

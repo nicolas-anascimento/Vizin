@@ -320,10 +320,6 @@
   color: var(--laranja);
 }
  
-.resumo-taxa {
-  color: var(--verde) !important;
-}
- 
 @media (max-width: 800px) {
   .pagamento-grid {
     grid-template-columns: 1fr;

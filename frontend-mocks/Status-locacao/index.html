@@ -29,6 +29,16 @@
             <button type="button" class="sim-papel-btn" data-papel="proprietario">Proprietário</button>
         </div>
         
+        <!-- ================= ESTADO: ACESSO NEGADO ================= -->
+        <div class="card status-card" id="etapa-acesso-negado" style="display:none;">
+            <div class="status-icone status-erro"><i class="bi bi-shield-lock"></i></div>
+            <h2 class="status-titulo">Esta locação não é sua</h2>
+            <p class="status-texto">Você está logado com uma conta que não faz parte desta locação, então não pode ver os detalhes por aqui.</p>
+            <a class="btn btn-primary btn-block" href="../Historico/index.html" style="margin-top:14px;">Ver meu Histórico</a>
+        </div>
+
+        <div id="conteudo-status">
+
         <div class="card status-header-card">
             <div class="status-header-icone"><i class="bi bi-box-seam"></i></div>
             <div>
@@ -45,6 +55,22 @@
             </div>
             <span class="status-pill" id="badge-status-geral"></span>
         </div>
+
+        <!-- Prazo / urgência (retirada, devolução ou atraso, conforme o status) -->
+        <div class="card prazo-card" id="prazo-card" style="display:none;">
+            <i class="bi bi-hourglass-split"></i>
+            <span id="prazo-texto"></span>
+        </div>
+
+        <!-- ================= ESTADO: LOCAÇÃO CANCELADA ================= -->
+        <div class="card status-card" id="etapa-cancelada" style="display:none;">
+            <div class="status-icone status-erro"><i class="bi bi-x-circle"></i></div>
+            <h2 class="status-titulo">Locação cancelada</h2>
+            <p class="status-texto">Esta locação foi cancelada e o valor pago foi estornado.</p>
+            <a class="btn btn-primary btn-block" href="../Historico/index.html" style="margin-top:14px;">Ver meu Histórico</a>
+        </div>
+
+        <div id="detalhes-status">
 
         <div class="card">
             <h2>Progresso da Locação</h2>
@@ -86,6 +112,21 @@
             </div>
         </div>
 
+        <!-- Comprovante da multa por atraso na devolução (Pagar/Contestar), só aparece quando há multa -->
+        <div id="multa-card-container"></div>
+
+        <!-- CTA: Iniciar/Continuar Retirada (aparece pras duas partes quando status === "pago") -->
+        <div class="cta-devolucao cta-retirada" id="cta-retirada" style="display:none;">
+            <div class="cta-devolucao-icone"><i class="bi bi-camera"></i></div>
+            <div class="cta-devolucao-texto">
+                <h3>Hora de registrar a retirada</h3>
+                <p id="cta-retirada-texto"></p>
+                <button type="button" class="btn btn-primary" id="btn-ir-retirada">
+                    <i class="bi bi-camera"></i> Iniciar Retirada
+                </button>
+            </div>
+        </div>
+
         <!-- CTA: Iniciar Devolução (só aparece pro locatário, quando o objeto está em posse dele) -->
         <div class="cta-devolucao" id="cta-devolucao" style="display:none;">
             <div class="cta-devolucao-icone"><i class="bi bi-arrow-counterclockwise"></i></div>
@@ -119,10 +160,14 @@
             <button type="button" class="btn btn-secondary" id="btn-contato">
                 <i class="bi bi-chat-dots"></i> Entrar em contato
             </button>
-            <button type="button" class="btn btn-primary" id="btn-ver-detalhes">
-                <i class="bi bi-file-earmark-text"></i> Ver detalhes da locação
+            <button type="button" class="btn btn-primary" id="btn-avaliar" style="display:none;">
+                <i class="bi bi-star"></i> Avaliar Locação
             </button>
         </div>
+
+        </div><!-- /#detalhes-status -->
+
+        </div><!-- /#conteudo-status -->
 
     </div>
 
@@ -137,6 +182,10 @@
     <script src="../Notificacoes/notificacoes-shared.js"></script>
 
     <script src="../Notificacoes/solicitacoes-shared.js"></script>
+
+    <script src="../Avaliacao/avaliacoes-shared.js"></script>
+
+    <script src="../Retirada-objeto/retirada-shared.js"></script>
 
     <script src="status-locacao.js"></script>
 </body>

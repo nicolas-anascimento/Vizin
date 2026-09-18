@@ -68,4 +68,40 @@
 .cartao-acao-link.remover {
   color: #c0392b;
 }
+
+.card-flex{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.btn-mostrar-mais{
+    position: relative;
+    width: 150px;
+    height: 40px;
+    background: transparent;
+    border-radius: 30px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    border: 2px solid #F27C38;
+    overflow: hidden;
+    z-index: 1;
+    color: #F2F2F2;
+}
  
+.btn-mostrar-mais::before{
+    content: "";
+    position: absolute;
+    height: 300%;
+    width: 100%;
+    background: linear-gradient(#381D73, #F27C38, #381D73, #F27C38);
+    top: -100%;
+    left: 0;
+    z-index: -1;
+    transition: .5s;
+}
+ 
+.btn-mostrar-mais:hover:before{
+    top: 0;
+}

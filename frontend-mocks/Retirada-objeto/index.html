@@ -26,12 +26,36 @@
             <button type="button" class="sim-papel-btn" data-papel="proprietario">Proprietário</button>
         </div>
  
+        <!-- ================= ESTADO: SOLICITAÇÃO NÃO ENCONTRADA ================= -->
+        <div class="card status-card" id="etapa-erro" style="display:none;">
+            <div class="status-icone status-erro"><i class="bi bi-exclamation-triangle"></i></div>
+            <h2 class="status-titulo">Não encontramos essa locação</h2>
+            <p class="status-texto">O link que você acessou pode estar incorreto ou a solicitação já não existe mais.</p>
+            <a class="btn btn-primary btn-block" href="../Historico/index.html" style="margin-top:14px;">Ver meu Histórico</a>
+        </div>
+ 
+        <!-- ================= ESTADO: ACESSO NEGADO ================= -->
+        <div class="card status-card" id="etapa-acesso-negado" style="display:none;">
+            <div class="status-icone status-erro"><i class="bi bi-shield-lock"></i></div>
+            <h2 class="status-titulo">Esta locação não é sua</h2>
+            <p class="status-texto">Você está logado com uma conta que não faz parte desta locação, então não pode enviar fotos por aqui.</p>
+            <a class="btn btn-primary btn-block" href="../Historico/index.html" style="margin-top:14px;">Ver meu Histórico</a>
+        </div>
+ 
+        <div id="conteudo-retirada">
+ 
         <div class="card retirada-header-card">
             <div class="retirada-icone"><i class="bi bi-camera"></i></div>
             <div>
                 <h1 class="retirada-titulo">Retirada do Objeto</h1>
                 <p class="retirada-subtitulo" id="retirada-subtitulo">Registre suas fotos no momento da retirada</p>
             </div>
+        </div>
+ 
+        <!-- Prazo da retirada -->
+        <div class="card prazo-card" id="prazo-card" style="display:none;">
+            <i class="bi bi-hourglass-split"></i>
+            <span id="prazo-texto"></span>
         </div>
  
         <div class="card produto-mini-card">
@@ -118,15 +142,6 @@
                 <i class="bi bi-x-circle"></i> Cancelar Locação
             </button>
  
-            <!-- Se a outra parte simplesmente não enviar as fotos dela, o
-                 cancelamento acima já resolve. Mas cancelar nem sempre é o
-                 que a pessoa quer (ex: já combinou tudo por fora e só falta
-                 a outra parte confirmar aqui) — esse link dá uma saída sem
-                 precisar desistir da locação. -->
-            <p class="retirada-rodape" style="margin-top:14px;">
-                Está demorando muito? <a href="#" id="link-suporte-aguardando">Fale com o Suporte</a>
-            </p>
- 
             <!-- TODO: remover este botão quando integrar com o back-end real.
                  Serve só pra testar o fluxo completo sozinho, sem precisar logar
                  como as duas partes em sessões separadas. -->
@@ -147,6 +162,8 @@
  
         <p class="retirada-rodape">As fotos ficarão registradas no sistema para consulta em caso de disputa.</p>
  
+        </div><!-- /#conteudo-retirada -->
+ 
     </div>
  
     <!-- Modal de Confirmação de Cancelamento -->
@@ -162,6 +179,11 @@
         </div>
     </div>
  
+    <!-- Overlay de zoom de foto -->
+    <div class="foto-zoom-overlay" id="foto-zoom-overlay">
+        <img id="foto-zoom-img" src="" alt="Foto ampliada">
+    </div>
+ 
     <div id="footer"></div>
  
     <div id="toast" class="toast">Copiado ✔</div>
@@ -173,6 +195,8 @@
     <script src="../Notificacoes/notificacoes-shared.js"></script>
  
     <script src="../Notificacoes/solicitacoes-shared.js"></script>
+ 
+    <script src="../Devolucao-objeto/disputas-shared.js"></script>
  
     <script src="retirada-shared.js"></script>
  

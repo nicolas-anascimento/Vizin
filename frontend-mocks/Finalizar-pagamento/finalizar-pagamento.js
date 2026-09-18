@@ -245,10 +245,24 @@ function calcularDias(retirada, devolucao) {
 // preenchido solicitacaoAtual, se existir). Até lá ficam com o fallback
 // baseado nos parâmetros da URL/mock, só pra não quebrar nada que os
 // referencie antes da inicialização.
+// PONTO DE INTEGRAÇÃO COM O BACK-END:
+// A taxa de serviço é a comissão da plataforma sobre o aluguel — 10% do
+// preço da diária, um valor FIXO que não muda conforme a quantidade de
+// dias alugados (diferente do subtotal, que é dias * preço/dia). Somada
+// ao subtotal, compõe o total que o locatário paga. O proprietário
+// continua recebendo o subtotal cheio; a comissão é retida pela Vizin.
+// Esse cálculo hoje é client-side (mock); o ideal é o back-end devolver
+// subtotal/taxa/total prontos na própria solicitação, pra evitar qualquer
+// divergência com o valor cobrado de fato.
+const TAXA_SERVICO_PERCENTUAL = 0.10;
+ 
 let dias = calcularDias(dataRetirada, dataDevolucao);
-let total = dias * produto.preco_dia;
-let subtotal = total; // taxa de serviço = R$0 por enquanto
+let subtotal = dias * produto.preco_dia;
+let taxaServico = Math.round(produto.preco_dia * TAXA_SERVICO_PERCENTUAL * 100) / 100;
+let total = subtotal + taxaServico;
 let tituloProduto = produto.titulo;
+let categoriaProduto = produto.categoria;
+let imagemProduto = produto.imagem;
 let retiradaExibida = dataRetirada;
 let devolucaoExibida = dataDevolucao;
  
@@ -258,22 +272,33 @@ let devolucaoExibida = dataDevolucao;
 function resolverDadosDoPedido() {
     if (!solicitacaoAtual) return;
     dias = solicitacaoAtual.dias || dias;
-    total = solicitacaoAtual.total ?? total;
-    subtotal = total;
+    // solicitacaoAtual.total foi calculado na Página de Produto como
+    // dias * preço/dia, ou seja, é o subtotal (sem a taxa de serviço).
+    subtotal = solicitacaoAtual.total ?? subtotal;
+    // Preço da diária = subtotal / dias (mesmo valor usado no card do
+    // produto) — a taxa é 10% fixo sobre ELE, não sobre o subtotal, então
+    // não pode ser recalculada em cima de "subtotal * 10%" aqui.
+    const precoDia = subtotal / dias;
+    taxaServico = Math.round(precoDia * TAXA_SERVICO_PERCENTUAL * 100) / 100;
+    total = subtotal + taxaServico;
     tituloProduto = solicitacaoAtual.produtoTitulo || tituloProduto;
+    categoriaProduto = solicitacaoAtual.categoriaProduto || categoriaProduto;
+    imagemProduto = solicitacaoAtual.imagemProduto || imagemProduto;
     retiradaExibida = solicitacaoAtual.dataRetirada || retiradaExibida;
     devolucaoExibida = solicitacaoAtual.dataDevolucao || devolucaoExibida;
 }
  
 function preencherResumo() {
-    document.getElementById("resumo-imagem").src = produto.imagem;
+    document.getElementById("resumo-imagem").src = imagemProduto;
+    document.getElementById("resumo-imagem").alt = tituloProduto;
     document.getElementById("resumo-produto-nome").textContent = tituloProduto;
-    document.getElementById("resumo-produto-categoria").textContent = produto.categoria;
+    document.getElementById("resumo-produto-categoria").textContent = categoriaProduto;
     document.getElementById("resumo-periodo").textContent = `${dias} dia${dias > 1 ? "s" : ""}`;
     document.getElementById("resumo-retirada").textContent = formatarData(retiradaExibida);
     document.getElementById("resumo-devolucao").textContent = formatarData(devolucaoExibida);
-    document.getElementById("resumo-preco-dia").textContent = formatarPreco(total / dias);
+    document.getElementById("resumo-preco-dia").textContent = formatarPreco(subtotal / dias);
     document.getElementById("resumo-subtotal").textContent = formatarPreco(subtotal);
+    document.getElementById("resumo-taxa-servico").textContent = formatarPreco(taxaServico);
     document.getElementById("resumo-total").textContent = formatarPreco(total);
     document.getElementById("pix-valor").textContent = formatarPreco(total);
     document.getElementById("btn-pagar-cartao").textContent = `Pagar ${formatarPreco(total)}`;
@@ -736,4 +761,3 @@ function mostrarToast(mensagem, tipo = "sucesso") {
     iniciarPrazoPagamento();
     renderizarCartoesSalvos();
 })();
- 

@@ -631,10 +631,31 @@ form.addEventListener("submit", async (e) => {
  
   } catch (err) {
     console.error(err);
-    // Mesmo tratamento específico de cota do localStorage já usado no
-    // Cadastro — trocar fotos por outras maiores tem o mesmo risco de
-    // estourar a cota.
-    if (err && (err.name === "QuotaExceededError" || err.code === 22)) {
+ 
+    // ObjetosVizin.atualizar agora recusa a escrita (mesma trava de
+    // corrida que excluir() já tinha) se o objeto entrou em locação ou
+    // recebeu uma solicitação pendente entre a tela carregar destravada e
+    // este clique em "Salvar" — normalmente reavaliarBloqueio() já pega
+    // isso ao vivo via evento, mas o redimensionamento de fotos (await
+    // acima) abre uma janela onde o evento pode chegar sem o handler de
+    // submit reconferir formBloqueado antes de chamar atualizar(). Sem
+    // tratar esses dois códigos aqui, a pessoa via só "Não foi possível
+    // salvar as alterações. Tente novamente." — sem saber que tentar de
+    // novo vai falhar do mesmo jeito até a causa (locação/pendente) mudar.
+    if (err && err.message === "OBJETO_EM_LOCACAO") {
+      formBloqueado = true;
+      motivoBloqueio = "locacao";
+      aplicarBloqueioFormulario("locacao");
+      statusMsg.textContent = "Este objeto entrou em locação enquanto você editava. As alterações não foram salvas.";
+    } else if (err && err.message === "OBJETO_COM_SOLICITACAO_PENDENTE") {
+      formBloqueado = true;
+      motivoBloqueio = "pendente";
+      aplicarBloqueioFormulario("pendente");
+      statusMsg.textContent = "Este objeto recebeu uma solicitação pendente enquanto você editava. As alterações não foram salvas — responda a solicitação antes.";
+    } else if (err && (err.name === "QuotaExceededError" || err.code === 22)) {
+      // Mesmo tratamento específico de cota do localStorage já usado no
+      // Cadastro — trocar fotos por outras maiores tem o mesmo risco de
+      // estourar a cota.
       statusMsg.textContent = "As fotos são muito grandes para salvar. Tente usar menos fotos ou fotos menores.";
     } else {
       statusMsg.textContent = "Não foi possível salvar as alterações. Tente novamente.";
@@ -763,7 +784,29 @@ modalExcluirConfirmar.addEventListener("click", () => {
   } catch (err) {
     console.error(err);
     fecharModalExcluir();
-    statusMsg.textContent = "Não foi possível excluir o objeto.";
+ 
+    // abrirModalExcluir() já barra os dois casos ANTES de abrir o modal,
+    // mas isso só olha o estado no instante em que o modal abre — entre
+    // abrir e a pessoa efetivamente clicar em "Excluir" (modal fica aberto
+    // esperando confirmação) uma solicitação nova pode chegar ou uma
+    // pendente pode ser aprovada em outra aba. excluir() protege a fonte
+    // da verdade contra isso (mesmo raciocínio do comentário dela em
+    // objetos-shared.js) — aqui só precisamos mostrar o motivo certo em
+    // vez do genérico, e travar o resto do formulário já que agora
+    // sabemos, de fato, que o objeto está bloqueado.
+    if (err && err.message === "OBJETO_EM_LOCACAO") {
+      formBloqueado = true;
+      motivoBloqueio = "locacao";
+      aplicarBloqueioFormulario("locacao");
+      statusMsg.textContent = "Este objeto entrou em locação antes da exclusão ser confirmada. A exclusão foi cancelada.";
+    } else if (err && err.message === "OBJETO_COM_SOLICITACAO_PENDENTE") {
+      formBloqueado = true;
+      motivoBloqueio = "pendente";
+      aplicarBloqueioFormulario("pendente");
+      statusMsg.textContent = "Este objeto recebeu uma solicitação pendente antes da exclusão ser confirmada — responda a solicitação antes de excluir.";
+    } else {
+      statusMsg.textContent = "Não foi possível excluir o objeto.";
+    }
     statusMsg.className = "status-msg error";
   } finally {
     modalExcluirConfirmar.disabled = false;

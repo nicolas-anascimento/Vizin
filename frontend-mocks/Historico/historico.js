@@ -261,6 +261,13 @@ function montarHistorico() {
                 atrasado: estaComDevolucaoAtrasada(s, statusAtual),
                 fotosRetirada: (statusRetirada && window.RetiradaVizin.ambosConcluidos(s.id)) ? statusRetirada : null,
                 fotosDevolucao: (statusDevolucao && window.DevolucaoVizin.ambosConcluidos(s.id)) ? statusDevolucao : null,
+                // Comprovante da multa: fica salvo no próprio registro da
+                // solicitação (não "some" como a notificação de devolução
+                // some assim que é lida) — ver montarComprovanteMulta abaixo.
+                multaAtraso: s.multaAtraso || null,
+                multaStatus: s.multaStatus || null,
+                multaCongeladaEm: s.multaCongeladaEm || null,
+                multaPagaEm: s.multaPagaEm || null,
                 _raw: s
             };
         })
@@ -290,12 +297,13 @@ function atualizarBadgeAbaSolicitacoes() {
 // Mesmo padrão do "aviso-indisponivel" criado dinamicamente em produto.js:
 // só existe no DOM enquanto for necessário.
 function atualizarAvisoBloqueio() {
-    const bloqueado = !!(usuarioLogado?.email && window.SolicitacoesVizin
-        && window.SolicitacoesVizin.estaBloqueadoPorAtraso(usuarioLogado.email));
+    const detalhes = (usuarioLogado?.email && window.SolicitacoesVizin && window.SolicitacoesVizin.detalhesBloqueio)
+        ? window.SolicitacoesVizin.detalhesBloqueio(usuarioLogado.email)
+        : null;
  
     let aviso = document.getElementById("aviso-bloqueio-atraso");
  
-    if (!bloqueado) {
+    if (!detalhes) {
         if (aviso) aviso.remove();
         return;
     }
@@ -306,16 +314,26 @@ function atualizarAvisoBloqueio() {
         aviso.className = "card-aluguel-dica";
         aviso.style.background = "#fdeaea";
         aviso.style.marginBottom = "20px";
-        aviso.innerHTML = `
-            <i class="bi bi-exclamation-triangle" style="color:#dc2626;"></i>
-            <span>
-                <strong>Você tem uma devolução em atraso.</strong>
-                Enquanto o objeto não for devolvido, você não pode solicitar novos aluguéis
-                nem aprovar locações nos seus próprios objetos.
-            </span>
-        `;
         document.querySelector(".historico-tabs").insertAdjacentElement("beforebegin", aviso);
     }
+
+    // Duas mensagens diferentes pro mesmo tipo de restrição (não pode
+    // solicitar novos aluguéis nem aprovar locações nos próprios objetos —
+    // ver detalhesBloqueio em solicitacoes-shared.js), porque o motivo real
+    // é diferente: um caso ainda depende de devolver o objeto, o outro já
+    // foi devolvido e só falta pagar a multa.
+    const mensagem = detalhes.motivo === "multa_pendente"
+        ? `<strong>Você tem uma multa por atraso pendente de pagamento.</strong>
+           Enquanto ela não for paga, você não pode solicitar novos aluguéis
+           nem aprovar locações nos seus próprios objetos. Veja o comprovante no card do aluguel abaixo.`
+        : `<strong>Você tem uma devolução em atraso.</strong>
+           Enquanto o objeto não for devolvido, você não pode solicitar novos aluguéis
+           nem aprovar locações nos seus próprios objetos.`;
+
+    aviso.innerHTML = `
+        <i class="bi bi-exclamation-triangle" style="color:#dc2626;"></i>
+        <span>${mensagem}</span>
+    `;
 }
  
 // ================= RENDER DOS CARDS =================
@@ -402,6 +420,7 @@ function renderizarHistorico() {
                     </div>
  
                     ${dicaSolicitacao}
+                    ${montarComprovanteMulta(item)}
  
                     <div class="card-aluguel-actions">
                         <button type="button" class="btn-historico ver-objeto" data-produto-id="${item.produtoId}">
@@ -503,6 +522,62 @@ function montarSecaoFotos(item) {
 // cancelar, enquanto o status ainda permitir (ver STATUS_CANCELAVEIS). Numa
 // solicitação pendente em que o usuário logado é o dono, a decisão dele já
 // é Aprovar/Recusar, então não repetimos a ação aqui.
+// ================= COMPROVANTE DA MULTA =================
+// Diferente da notificação de devolução (que some da lista assim que é
+// lida), este bloco fica fixo no card do aluguel enquanto ele existir no
+// Histórico — funciona como o "recibo" da multa: quanto foi, referente a
+// quantos dias, quando foi congelada, e se já foi paga/contestada. Só entra
+// no card quando a locação teve atraso de verdade (multaAtraso != null).
+function montarComprovanteMulta(item) {
+    if (!item.multaAtraso || item.multaAtraso.diasAtraso <= 0 || !window.SolicitacoesVizin) return "";
+
+    const formatar = window.SolicitacoesVizin.formatarReal;
+    const status = item.multaStatus || "pendente";
+    const souLocatario = item.papel === "alugado";
+
+    const STATUS_INFO = {
+        pendente: { label: "Pendente", cor: "#dc2626", fundo: "#fdeaea" },
+        paga: { label: "Paga", cor: "#1f8b4c", fundo: "#e6f6ec" }
+    };
+    const infoStatus = STATUS_INFO[status] || STATUS_INFO.pendente;
+
+    const quando = status === "paga" && item.multaPagaEm
+        ? `Paga em ${formatarDataHora(item.multaPagaEm)}`
+        : `Congelada em ${formatarDataHora(item.multaCongeladaEm)}`;
+
+    const valorParaMim = souLocatario ? item.multaAtraso.valorTotal : item.multaAtraso.valorProprietario;
+    const rotuloValor = souLocatario ? "Valor cobrado" : "Seu valor (após taxa da plataforma)";
+
+    // Pagar Multa não paga na hora mais — leva pra página de pagamento
+    // dedicada (Pagamento-multa), igual ao checkout normal do aluguel.
+    const acoes = (souLocatario && status === "pendente")
+        ? `<div style="display:flex; gap:10px; margin-top:10px;">
+                <a class="btn-historico preenchido" href="../Pagamento-multa/index.html?solicitacaoId=${item.id}">
+                    <i class="bi bi-credit-card"></i> Pagar Multa
+                </a>
+           </div>`
+        : "";
+
+    return `
+        <div class="card-aluguel-multa" style="margin-top:14px; padding:12px 14px; border-radius:12px; background:${infoStatus.fundo};">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                <span style="font-size:13px; font-weight:700; color:var(--texto);">
+                    <i class="bi bi-receipt"></i> Multa por atraso na devolução
+                </span>
+                <span style="font-size:11px; font-weight:700; padding:3px 10px; border-radius:999px; background:${infoStatus.cor}; color:#fff;">
+                    ${infoStatus.label}
+                </span>
+            </div>
+            <div style="font-size:12.5px; color:var(--texto-suave); margin-top:8px; display:flex; flex-direction:column; gap:3px;">
+                <span>${item.multaAtraso.diasAtraso} dia(s) de atraso · ${formatar(window.SolicitacoesVizin.MULTA_POR_DIA_ATRASO)}/dia</span>
+                <span>${rotuloValor}: <strong style="color:var(--texto);">${formatar(valorParaMim)}</strong></span>
+                <span>${quando}</span>
+            </div>
+            ${acoes}
+        </div>
+    `;
+}
+
 function botaoCancelar(item) {
     if (item.status === "pendente" && item.papel === "alugado-para-outros") return "";
     if (!STATUS_CANCELAVEIS.has(item.status)) return "";
@@ -542,16 +617,31 @@ function botaoContextual(item) {
         `;
     }
  
+    // Link secundário pro "hub" de Status da Locação — antes só existia
+    // para retirado/aguardando_devolucao (via "Acompanhar Locação" abaixo).
+    // pago, concluido e cancelado deixavam o Status inacessível por aqui,
+    // mesmo a tela já tratando esses três estados. Fica junto do botão de
+    // ação principal (Registrar Retirada / Avaliar), sem substituí-lo.
+    const linkVerStatus = `<a class="btn-historico" href="../Status-locacao/index.html?solicitacaoId=${item.id}">
+                <i class="bi bi-box-seam"></i> Ver Status da Locação
+            </a>`;
+ 
+    if (item.status === "cancelado") {
+        return linkVerStatus;
+    }
+ 
     if (item.status === "concluido") {
         if (window.AvaliacoesVizin && window.AvaliacoesVizin.jaAvaliou(item.id, item.papel === "alugado" ? "locatario" : "proprietario")) {
             return `<button type="button" class="btn-historico" disabled style="opacity:.6; cursor:default;">
                         <i class="bi bi-check-circle"></i> Avaliação enviada
-                    </button>`;
+                    </button>
+                    ${linkVerStatus}`;
         }
  
         return `<a class="btn-historico preenchido" href="../Avaliacao/index.html?solicitacaoId=${item.id}">
                     <i class="bi bi-star-fill"></i> Avaliar
-                </a>`;
+                </a>
+                ${linkVerStatus}`;
     }
  
     if (item.status === "retirado" || item.status === "aguardando_devolucao") {
@@ -578,7 +668,8 @@ function botaoContextual(item) {
  
         return `<a class="btn-historico preenchido" href="../Retirada-objeto/index.html?${query.toString()}">
                     <i class="bi bi-box-arrow-in-down"></i> ${jaEnviei ? "Ver Status da Retirada" : "Registrar Retirada"}
-                </a>`;
+                </a>
+                ${linkVerStatus}`;
     }
  
     if (item.status === "aprovado" && item.papel === "alugado") {
@@ -689,7 +780,7 @@ listaContainer.addEventListener("click", (e) => {
         window.location.href = `../Produto/index.html?id=${btnVer.dataset.produtoId}`;
         return;
     }
- 
+
     if (btnAvaliar) {
         // PONTO DE INTEGRAÇÃO COM O BACK-END:
         // Abrir modal/página de avaliação, ou POST /api/alugueis/:id/avaliacao

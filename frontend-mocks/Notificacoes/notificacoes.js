@@ -22,7 +22,7 @@ const DESTINO_EM_ANDAMENTO = (id) => `../Status-locacao/index.html?solicitacaoId
 const DESTINO_HISTORICO = () => `../Historico/index.html`;
 const DESTINO_MENSAGENS = () => `../Mensagens/index.html`;
  
-const TIPOS_EM_ANDAMENTO = new Set(["aluguel_aprovado", "retirada_confirmada", "bloqueio_conta", "lembrete"]);
+const TIPOS_EM_ANDAMENTO = new Set(["aluguel_aprovado", "retirada_confirmada", "bloqueio_conta", "lembrete", "problema_reportado"]);
 const TIPOS_HISTORICO = new Set(["aluguel_rejeitado", "aluguel_cancelado", "devolucao_confirmada", "pagamento_liberado"]);
  
 // "avaliacao_recebida" não entra em nenhum dos dois grupos acima porque não

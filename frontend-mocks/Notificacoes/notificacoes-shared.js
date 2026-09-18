@@ -103,24 +103,89 @@
         salvarTodas(lista, usuarioId);
     }
  
+    // ================= PREFERÊNCIAS DE NOTIFICAÇÃO =================
+    // Cada usuário tem as PRÓPRIAS preferências, do mesmo jeito que cada um
+    // tem sua própria caixa de notificações (chaveStorage acima). Antes,
+    // preferencias.js guardava tudo numa chave única e global no
+    // localStorage — o que, além de nunca ser lida por ninguém (essa era a
+    // causa dos toggles não funcionarem de fato), também vazaria
+    // preferências de uma conta pra outra usada no mesmo navegador.
+    function chavePreferencias(usuarioId) {
+        return `vizin_notif_prefs_${usuarioId}`;
+    }
+
+    // Todos ligados por padrão — a pessoa desliga o que não quiser, em vez
+    // de começar tudo desligado e "perder" notificações importantes sem
+    // perceber.
+    const PREFERENCIAS_PADRAO = {
+        solicitacao_recebida: true,
+        solicitacao_respondida: true,
+        lembretes_aluguel: true,
+        avaliacao_recebida: true,
+        mensagens: true,
+        novidades: false
+    };
+
+    function obterPreferencias(usuarioId = usuarioAtual()) {
+        const salvas = JSON.parse(localStorage.getItem(chavePreferencias(usuarioId)) || "null");
+        return { ...PREFERENCIAS_PADRAO, ...(salvas || {}) };
+    }
+
+    function salvarPreferencias(prefs, usuarioId = usuarioAtual()) {
+        // PONTO DE INTEGRAÇÃO COM O BACK-END:
+        // PUT /api/usuarios/preferencias-notificacao
+        localStorage.setItem(chavePreferencias(usuarioId), JSON.stringify(prefs));
+    }
+
+    // Mapeia cada TIPO de notificação pra qual preferência controla ele.
+    // Tipos que não aparecem aqui (ex: bloqueio_conta, pagamento_liberado,
+    // multa_paga, multa_contestada, problema_reportado, retirada_confirmada,
+    // devolucao_confirmada, aluguel_cancelado, resposta_email) sempre
+    // notificam, com o mesmo critério do toggle "Segurança da conta" (que
+    // fica sempre ligado e desabilitado na tela): são avisos sobre dinheiro,
+    // restrição de conta ou disputa aberta — a pessoa precisa ver de
+    // qualquer jeito, não é uma questão de gosto.
+    const TIPO_PARA_PREFERENCIA = {
+        solicitacao_aluguel: "solicitacao_recebida",
+        aluguel_aprovado: "solicitacao_respondida",
+        aluguel_rejeitado: "solicitacao_respondida",
+        lembrete: "lembretes_aluguel",
+        avaliacao_recebida: "avaliacao_recebida",
+        mensagem: "mensagens",
+        novidades: "novidades"
+    };
+
+    function notificacaoPermitida(tipo, usuarioId) {
+        const chavePref = TIPO_PARA_PREFERENCIA[tipo];
+        if (!chavePref) return true; // tipo sem toggle correspondente -> sempre permitido
+        return !!obterPreferencias(usuarioId)[chavePref];
+    }
+
     // usuarioId aqui é o DESTINATÁRIO da notificação — por padrão o próprio
     // usuário logado (self-notify, como a simulação lá embaixo), mas
     // páginas como produto.js, app.js (Mensagens) e suporte.js podem passar
     // o id de OUTRA pessoa (ex: o dono do objeto, ou quem recebeu a
     // mensagem) como segundo argumento.
     function adicionarNotificacao(notificacao, usuarioId = usuarioAtual()) {
+        // Se o DESTINATÁRIO desligou esse tipo de notificação, ela nem
+        // chega a ser criada — diferente de só não mostrar o toast, isso
+        // também evita que ela apareça depois na lista/badge.
+        if (!notificacaoPermitida(notificacao.tipo, usuarioId)) {
+            return null;
+        }
+
         const lista = obterTodas(usuarioId);
         const nova = { id: Date.now(), lida: false, ...notificacao };
         lista.unshift(nova);
         salvarTodas(lista, usuarioId);
- 
+
         // Só mostra o toast/som na hora se o destinatário for quem está
         // usando esta aba agora. Se for outra pessoa, ela só vai ver a
         // notificação quando abrir/atualizar a própria sessão.
         if (usuarioId === usuarioAtual()) {
             mostrarToastNotificacao(nova);
         }
- 
+
         return nova;
     }
  
@@ -141,6 +206,9 @@
             case "mensagem": return "bi-chat-dots-fill";
             case "resposta_email": return "bi-envelope-check-fill";
             case "bloqueio_conta": return "bi-slash-circle";
+            case "problema_reportado": return "bi-flag-fill";
+            case "multa_paga": return "bi-receipt";
+            case "multa_contestada": return "bi-shield-exclamation";
             default: return "bi-bell";
         }
     }
@@ -332,7 +400,10 @@
         iconePorTipo,
         mostrarToastNotificacao,
         tocarSom,
-        usuarioAtual   // exposto pra debug/testes no console
+        usuarioAtual,   // exposto pra debug/testes no console
+        obterPreferencias,
+        salvarPreferencias,
+        PREFERENCIAS_PADRAO
     };
  
     // Atalho global simples, pra scripts de outras páginas (ex: script.js da
@@ -341,4 +412,3 @@
     window.tocarSomVizin = tocarSom;
  
 })();
- 

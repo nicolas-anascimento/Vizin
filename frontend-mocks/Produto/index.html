@@ -77,7 +77,7 @@
                             </button>
                         </div>
                     </div>
-                    <div class="dica-box">
+                    <div class="dica-box" id="dica-conversar-proprietario">
                         <i class="bi bi-chat-dots"></i>
                         <strong>Antes de solicitar o aluguel</strong>, vale a pena conversar com o proprietário: combinem o local de retirada e aproveitem pra tirar qualquer dúvida sobre o objeto. Isso evita imprevistos e deixa a locação mais tranquila pra vocês dois.
                     </div>
@@ -112,6 +112,10 @@
                     <h2 class="status-titulo">Este é o seu objeto</h2>
                     <p class="status-texto">Você não pode solicitar o aluguel do seu próprio anúncio.</p>
                     <p class="status-subtexto">Gerencie fotos, preço e disponibilidade, ou acompanhe as solicitações que você recebeu por ele.</p>
+                    <!-- Preenchido via JS (ver aviso-dono-bloqueado em produto.js) quando o
+                         dono tem uma devolução em atraso em outra locação e por isso não
+                         consegue aprovar novos pedidos recebidos por este objeto. -->
+                    <p class="status-subtexto aviso-bloqueio" id="aviso-dono-bloqueado" style="display:none;"></p>
                     <a class="btn btn-primary btn-block" id="btn-gerenciar-objeto" style="margin-top:14px;">Gerenciar Objeto</a>
                     <a class="btn btn-secondary btn-block" id="btn-ver-solicitacoes-dono" style="margin-top:10px;">Ver Solicitações Recebidas</a>
                 </div>
@@ -130,6 +134,9 @@
                         <input type="date" id="data-devolucao">
                     </div>
  
+                    <!-- Erro inline de datas inválidas (ver calcularPeriodo em produto.js) -->
+                    <p class="field-error" id="erro-datas" style="display:none;"></p>
+ 
                     <div class="resumo-datas" id="resumo-datas" style="display:none;">
                         <div class="resumo-linha">
                             <span>Período:</span>
@@ -138,6 +145,14 @@
                         <div class="resumo-linha">
                             <span>Preço/dia:</span>
                             <span id="resumo-preco-dia"></span>
+                        </div>
+                        <div class="resumo-linha">
+                            <span>Subtotal:</span>
+                            <span id="resumo-subtotal"></span>
+                        </div>
+                        <div class="resumo-linha">
+                            <span>Taxa de serviço:</span>
+                            <span id="resumo-taxa-servico"></span>
                         </div>
                         <div class="resumo-linha resumo-total">
                             <span>Total:</span>
@@ -185,7 +200,7 @@
                         <i class="bi bi-x-lg"></i>
                     </div>
                     <h2 class="status-titulo">Solicitação recusada</h2>
-                    <p class="status-texto">O proprietário não aceitou seu pedido de aluguel desta vez.</p>
+                    <p class="status-texto" id="rejeitado-texto">O proprietário não aceitou seu pedido de aluguel desta vez.</p>
                     <button type="button" class="btn btn-secondary btn-block" id="btn-tentar-novamente">Tentar outras datas</button>
                 </div>
  
@@ -197,6 +212,9 @@
                     <h2 class="status-titulo">Pagamento confirmado</h2>
                     <p class="status-texto">Aguardando a retirada do objeto para iniciar a locação.</p>
                     <a class="btn btn-primary btn-block" id="btn-ir-retirada">Registrar Retirada</a>
+                    <a class="btn btn-secondary btn-block" id="btn-ver-status-pago" style="margin-top:10px;">
+                        <i class="bi bi-box-seam"></i> Ver Status da Locação
+                    </a>
                     <button type="button" class="btn btn-secondary btn-block" id="btn-cancelar-pago" style="margin-top:10px;">
                         <i class="bi bi-x-circle"></i> Cancelar Locação
                     </button>
@@ -230,6 +248,19 @@
                     <h2 class="status-titulo">Locação concluída</h2>
                     <p class="status-texto">Obrigado por alugar com a Vizin!</p>
                     <a class="btn btn-primary btn-block" id="btn-avaliar-locacao">Avaliar Locação</a>
+                    <a class="btn btn-secondary btn-block" id="btn-ver-status-concluido" style="margin-top:10px;">
+                        <i class="bi bi-box-seam"></i> Ver Status da Locação
+                    </a>
+                </div>
+ 
+                <!-- ESTADO 9: OBJETO NÃO ENCONTRADO (excluído pelo dono no meio do fluxo) -->
+                <div class="card sidebar-card status-card" id="card-objeto-removido" style="display:none;">
+                    <div class="status-icone status-rejeitado">
+                        <i class="bi bi-exclamation-triangle"></i>
+                    </div>
+                    <h2 class="status-titulo">Este anúncio não existe mais</h2>
+                    <p class="status-texto">O proprietário removeu este objeto enquanto você estava na página.</p>
+                    <a class="btn btn-secondary btn-block" href="../Inicio/index.html">Ver outros objetos</a>
                 </div>
  
             </div>
@@ -242,8 +273,8 @@
     <div class="modal-overlay" id="modal-cancelar">
         <div class="modal-box modal-confirm">
             <i class="bi bi-exclamation-triangle"></i>
-            <h2>Cancelar locação?</h2>
-            <p>Tem certeza que deseja cancelar? O valor pago (se houver) será estornado e o objeto voltará a ficar disponível.</p>
+            <h2 id="modal-cancelar-titulo">Cancelar locação?</h2>
+            <p id="modal-cancelar-texto">Tem certeza que deseja cancelar? O valor pago (se houver) será estornado e o objeto voltará a ficar disponível.</p>
             <div class="modal-confirm-actions">
                 <button type="button" class="btn btn-secondary" id="modal-cancelar-voltar">Voltar</button>
                 <button type="button" class="btn btn-danger" id="modal-cancelar-confirmar">Cancelar Locação</button>
@@ -262,7 +293,6 @@
     <script src="../Notificacoes/solicitacoes-shared.js"></script>
     <script src="../Meus-objetos/objetos-shared.js"></script>
     <script src="../Avaliacao/avaliacoes-shared.js"></script>
-    <script src="produto.js?v=12"></script>
+    <script src="produto.js?v=18"></script>
 </body>
 </html>
- 

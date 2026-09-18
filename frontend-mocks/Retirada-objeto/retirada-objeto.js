@@ -6,6 +6,28 @@ if (!localStorage.getItem("token")) {
 // ================= USUÁRIO LOGADO =================
 const usuarioLogado = JSON.parse(localStorage.getItem("usuario") || "null");
  
+// Precisa existir já aqui em cima: se a página é recarregada com as fotos já
+// enviadas, o fluxo abaixo chama mostrarAguardando() -> acompanharOutraParte()
+// bem cedo (antes da seção "TROCA DE ESTADOS"), e essa função usa essa
+// variável. Declarada lá embaixo, o "let" ficava numa zona morta até aquele
+// ponto do arquivo ser executado, e o acesso antecipado quebrava o script
+// inteiro no meio — por isso o botão de simulação (registrado mais abaixo)
+// nunca chegava a ganhar seu listener.
+let intervaloAcompanhamento = null;
+ 
+// ================= TOAST (mesmo padrão do Histórico) =================
+function mostrarToast(mensagem, tipo = "sucesso") {
+    const toast = document.getElementById("toast");
+    if (!toast) return;
+ 
+    toast.innerText = mensagem;
+    toast.className = `toast show ${tipo}`;
+ 
+    setTimeout(() => {
+        toast.classList.remove("show");
+    }, 3000);
+}
+ 
 // ================= LER DADOS DA URL =================
 const params = new URLSearchParams(window.location.search);
 const produtoIdUrl = params.get("produtoId") || "1";
@@ -98,6 +120,19 @@ document.getElementById("produto-mini-nome").textContent = produto.titulo;
 document.getElementById("produto-mini-categoria").textContent = produto.categoria;
 document.getElementById("produto-mini-proprietario").textContent = produto.proprietario.nome;
  
+// ================= SOLICITAÇÃO NÃO ENCONTRADA =================
+// Antes disso, um link com solicitacaoId inválido/expirado caía
+// silenciosamente no mock "Furadeira Profissional Bosch" — a pessoa achava
+// que estava vendo uma locação real. Só cai nesse estado quando um id foi
+// passado na URL e não foi encontrado (acesso direto de teste, sem id
+// nenhum, continua caindo no mock normalmente).
+const paginaEncontrada = !(solicitacaoIdParam && !solicitacao);
+if (!paginaEncontrada) {
+    document.getElementById("conteudo-retirada").style.display = "none";
+    document.getElementById("sim-papel-toggle").style.display = "none";
+    document.getElementById("etapa-erro").style.display = "block";
+}
+ 
 // ================= REAGIR A CANCELAMENTO AUTOMÁTICO (PRAZO DE RETIRADA) =================
 // solicitacoes-shared.js cancela sozinho (verificarPrazos, a cada 60s)
 // qualquer locação "paga" cuja data de retirada já passou — inclusive
@@ -161,6 +196,65 @@ togglePapelEls.forEach(btn => {
         location.reload();
     });
 });
+ 
+// ================= ACESSO NEGADO =================
+// Sem isso, qualquer usuário logado que abrisse o link de OUTRA pessoa
+// virava "locatário" automaticamente (ver papelReal acima) e conseguia
+// enviar fotos como se fizesse parte da locação. O toggle de simulação
+// (só pra testes) continua funcionando normalmente por cima disso.
+if (paginaEncontrada && solicitacao && !sessionStorage.getItem(CHAVE_SIM_PAPEL)) {
+    const souParteDaLocacao = usuarioLogado?.email === solicitacao.solicitanteEmail
+        || usuarioLogado?.email === solicitacao.proprietarioEmail;
+ 
+    if (!souParteDaLocacao) {
+        document.getElementById("conteudo-retirada").style.display = "none";
+        document.getElementById("sim-papel-toggle").style.display = "none";
+        document.getElementById("etapa-acesso-negado").style.display = "block";
+    }
+}
+ 
+// ================= PRAZO DA RETIRADA (visível na própria tela) =================
+// Antes disso a pessoa só descobria que o prazo estava apertado olhando o
+// card no Histórico. Mesma lógica de parse de data usada em
+// solicitacoes-shared.js (evita o "puxa um dia pra trás" do fuso horário).
+function parseDataISOLocal(dataStr) {
+    if (!dataStr) return null;
+    const partes = dataStr.split("-").map(Number);
+    if (partes.length !== 3 || partes.some(Number.isNaN)) return null;
+    const [ano, mes, dia] = partes;
+    return new Date(ano, mes - 1, dia);
+}
+ 
+(function mostrarPrazo() {
+    if (!solicitacao || !solicitacao.dataRetirada) return;
+    if (solicitacao.status !== "pago") return; // já retirado/cancelado: prazo não se aplica mais
+ 
+    const dataRetirada = parseDataISOLocal(solicitacao.dataRetirada);
+    if (!dataRetirada) return;
+ 
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const diffDias = Math.round((dataRetirada - hoje) / (1000 * 60 * 60 * 24));
+ 
+    const prazoCard = document.getElementById("prazo-card");
+    const prazoTexto = document.getElementById("prazo-texto");
+    if (!prazoCard || !prazoTexto) return;
+ 
+    let texto;
+    if (diffDias > 1) {
+        texto = `Faltam ${diffDias} dias para o prazo da retirada (${solicitacao.dataRetirada.split("-").reverse().join("/")}).`;
+    } else if (diffDias === 1) {
+        texto = `A retirada precisa ser confirmada até amanhã (${solicitacao.dataRetirada.split("-").reverse().join("/")}).`;
+    } else if (diffDias === 0) {
+        texto = "A retirada precisa ser confirmada hoje, ou o aluguel será cancelado automaticamente.";
+        prazoCard.classList.add("prazo-urgente");
+    } else {
+        return; // já passou — verificarSeFoiCanceladaAutomaticamente cuida disso
+    }
+ 
+    prazoTexto.textContent = texto;
+    prazoCard.style.display = "flex";
+})();
  
 // ================= COMPRESSÃO DE FOTOS PRA BASE64 =================
 // PONTO DE INTEGRAÇÃO COM O BACK-END:
@@ -239,10 +333,22 @@ dropzone.addEventListener("drop", (e) => {
 function adicionarArquivos(arquivos) {
     const espacoRestante = MAX_FOTOS - minhasFotos.length;
  
+    if (arquivos.length > espacoRestante) {
+        mostrarToast(`Só cabem mais ${espacoRestante} foto(s). O restante foi ignorado.`, "erro");
+    }
+ 
+    let algumInvalido = false;
     arquivos.slice(0, espacoRestante).forEach(arquivo => {
-        if (!arquivo.type.startsWith("image/")) return;
+        if (!arquivo.type.startsWith("image/")) {
+            algumInvalido = true;
+            return;
+        }
         minhasFotos.push(arquivo);
     });
+ 
+    if (algumInvalido) {
+        mostrarToast("Só são aceitos arquivos de imagem (PNG, JPG ou JPEG).", "erro");
+    }
  
     renderizarFotos();
 }
@@ -256,6 +362,11 @@ function renderizarFotos() {
  
         const img = document.createElement("img");
         img.src = URL.createObjectURL(arquivo);
+        img.style.cursor = "zoom-in";
+        img.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            abrirZoomFoto(img.src);
+        });
         slot.appendChild(img);
  
         const removerBtn = document.createElement("button");
@@ -276,6 +387,31 @@ function renderizarFotos() {
     dropzone.style.display = minhasFotos.length >= MAX_FOTOS ? "none" : "flex";
     btnEnviar.disabled = minhasFotos.length === 0;
 }
+ 
+// ================= ZOOM DE FOTO =================
+const zoomOverlay = document.getElementById("foto-zoom-overlay");
+const zoomImg = document.getElementById("foto-zoom-img");
+ 
+function abrirZoomFoto(src) {
+    if (!zoomOverlay || !zoomImg) return;
+    zoomImg.src = src;
+    zoomOverlay.classList.add("show");
+}
+ 
+if (zoomOverlay) {
+    zoomOverlay.addEventListener("click", () => zoomOverlay.classList.remove("show"));
+}
+ 
+// ================= AVISO AO SAIR COM FOTOS NÃO ENVIADAS =================
+// Sem isso, tirar 3 fotos e fechar a aba/voltar sem clicar em "Enviar"
+// perdia tudo silenciosamente.
+let fotosJaEnviadas = false;
+window.addEventListener("beforeunload", (e) => {
+    if (minhasFotos.length > 0 && !fotosJaEnviadas) {
+        e.preventDefault();
+        e.returnValue = "";
+    }
+});
  
 // ================= STATUS DA OUTRA PARTE =================
 function renderizarStatus() {
@@ -356,6 +492,7 @@ btnEnviar.addEventListener("click", async () => {
         await new Promise(resolve => setTimeout(resolve, 1000)); // simula envio
  
         RetiradaVizin.enviarFotos(aluguelId, meuPapel, minhasFotos.length, observacoes, fotosBase64);
+        fotosJaEnviadas = true;
  
         if (RetiradaVizin.ambosConcluidos(aluguelId)) {
             finalizarRetirada();
@@ -365,15 +502,16 @@ btnEnviar.addEventListener("click", async () => {
  
     } catch (err) {
         console.error(err);
-        alert("Não foi possível enviar suas fotos. Tente novamente.");
+        const mensagem = navigator.onLine === false
+            ? "Você está sem conexão com a internet. Verifique sua rede e tente novamente."
+            : "Não foi possível enviar suas fotos. Tente novamente.";
+        mostrarToast(mensagem, "erro");
         btnEnviar.disabled = false;
         btnEnviar.innerHTML = `<i class="bi bi-check-circle"></i> Enviar Minhas Fotos`;
     }
 });
  
 // ================= TROCA DE ESTADOS =================
-let intervaloAcompanhamento = null;
- 
 function mostrarAguardando() {
     document.getElementById("etapa-enviar").style.display = "none";
     document.getElementById("etapa-aguardando").style.display = "block";
@@ -381,11 +519,6 @@ function mostrarAguardando() {
  
     document.getElementById("aguardando-texto").textContent =
         `Aguardando o envio das fotos de ${nomesPapel[papelDaOutraParte].toLowerCase()}.`;
- 
-    const linkSuporte = document.getElementById("link-suporte-aguardando");
-    if (linkSuporte) {
-        linkSuporte.href = `../Suporte/index.html?solicitacaoId=${aluguelId}`;
-    }
  
     acompanharOutraParte();
 }

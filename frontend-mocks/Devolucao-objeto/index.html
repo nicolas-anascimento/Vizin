@@ -26,12 +26,36 @@
             <button type="button" class="sim-papel-btn" data-papel="proprietario">Proprietário</button>
         </div>
  
+        <!-- ================= ESTADO: SOLICITAÇÃO NÃO ENCONTRADA ================= -->
+        <div class="card status-card" id="etapa-erro" style="display:none;">
+            <div class="status-icone status-erro"><i class="bi bi-exclamation-triangle"></i></div>
+            <h2 class="status-titulo">Não encontramos essa locação</h2>
+            <p class="status-texto">O link que você acessou pode estar incorreto ou a solicitação já não existe mais.</p>
+            <a class="btn btn-primary btn-block" href="../Historico/index.html" style="margin-top:14px;">Ver meu Histórico</a>
+        </div>
+ 
+        <!-- ================= ESTADO: ACESSO NEGADO ================= -->
+        <div class="card status-card" id="etapa-acesso-negado" style="display:none;">
+            <div class="status-icone status-erro"><i class="bi bi-shield-lock"></i></div>
+            <h2 class="status-titulo">Esta locação não é sua</h2>
+            <p class="status-texto">Você está logado com uma conta que não faz parte desta locação, então não pode enviar fotos por aqui.</p>
+            <a class="btn btn-primary btn-block" href="../Historico/index.html" style="margin-top:14px;">Ver meu Histórico</a>
+        </div>
+ 
+        <div id="conteudo-devolucao">
+ 
         <div class="card devolucao-header-card">
             <div class="devolucao-icone"><i class="bi bi-camera"></i></div>
             <div>
                 <h1 class="devolucao-titulo">Devolução do Objeto</h1>
                 <p class="devolucao-subtitulo" id="devolucao-subtitulo">Registre suas fotos no momento da devolução</p>
             </div>
+        </div>
+ 
+        <!-- Prazo / atraso da devolução -->
+        <div class="card prazo-card" id="prazo-card" style="display:none;">
+            <i class="bi bi-hourglass-split"></i>
+            <span id="prazo-texto"></span>
         </div>
  
         <div class="card produto-mini-card">
@@ -90,6 +114,11 @@
                 <div class="status-outra-parte" id="status-lista"></div>
             </div>
  
+            <!-- Resumo da multa PROJETADA, mostrado antes de confirmar (não só
+                 depois) quando a devolução já está em atraso — ver
+                 mostrarResumoMultaAntesConfirmar em devolucao-objeto.js. -->
+            <div class="card prazo-card resumo-multa-projetada" id="resumo-multa-confirmar" style="display:none;"></div>
+ 
             <div class="devolucao-actions">
                 <button type="button" class="btn btn-secondary" id="btn-cancelar">Cancelar</button>
                 <button type="button" class="btn btn-primary" id="btn-enviar-minhas-fotos" disabled>
@@ -110,12 +139,7 @@
             <!-- Diferente da Retirada, aqui NÃO existe botão de cancelar a
                  locação (o objeto já está fisicamente com o locatário, então
                  cancelar não faz sentido nesse ponto — ver STATUS_CANCELAVEIS
-                 em solicitacoes-shared.js). Sem esse link, se a outra parte
-                 simplesmente não enviasse as fotos dela, não havia NENHUMA
-                 saída visível na tela pra quem está esperando. -->
-            <p class="devolucao-rodape" style="margin-top:14px;">
-                Está demorando muito? <a href="#" id="link-suporte-aguardando">Fale com o Suporte</a>
-            </p>
+                 em solicitacoes-shared.js). -->
  
             <!-- TODO: remover este botão quando integrar com o back-end real.
                  Serve só pra testar o fluxo completo sozinho, sem precisar logar
@@ -131,14 +155,33 @@
             <h2 class="status-titulo">Devolução confirmada!</h2>
             <p class="status-texto">As fotos de ambas as partes foram registradas com sucesso.</p>
             <p class="status-subtexto">O aluguel foi concluído. Já é possível avaliar a transação.</p>
+            <p class="status-subtexto multa-nota hidden" id="confirmada-multa-nota"></p>
+ 
+            <!-- Card de ação da multa: pagar, só aparece pro
+                 locatário enquanto houver multa em aberto — ver
+                 atualizarAcaoMulta em devolucao-objeto.js. -->
+            <div class="multa-acao-card hidden" id="confirmada-multa-acao">
+                <p class="multa-acao-texto" id="confirmada-multa-acao-texto"></p>
+                <div class="multa-acao-botoes">
+                    <button type="button" class="btn btn-primary" id="btn-pagar-multa"><i class="bi bi-credit-card"></i> Pagar Multa Agora</button>
+                </div>
+            </div>
+ 
             <a class="btn btn-primary btn-block" id="btn-ver-status" style="margin-top:14px;">Ver Status da Locação</a>
         </div>
+ 
+        </div><!-- /#conteudo-devolucao -->
  
     </div>
  
     <div id="footer"></div>
  
     <div id="toast" class="toast">Copiado ✔</div>
+ 
+    <!-- Overlay de zoom de foto -->
+    <div class="foto-zoom-overlay" id="foto-zoom-overlay">
+        <img id="foto-zoom-img" src="" alt="Foto ampliada">
+    </div>
  
     <script src="../header/frame.js"></script>
  
@@ -150,9 +193,10 @@
  
     <script src="../Meus-objetos/objetos-shared.js"></script>
  
+    <script src="disputas-shared.js"></script>
+ 
     <script src="devolucao-shared.js"></script>
  
-    <script src="devolucao-objeto.js"></script>
+    <script src="devolucao-objeto.js?v=10"></script>
 </body>
 </html>
- 

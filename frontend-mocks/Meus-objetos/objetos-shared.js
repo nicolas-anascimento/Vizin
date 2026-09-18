@@ -72,6 +72,25 @@
         localStorage.setItem(CHAVE_STORAGE, JSON.stringify(lista));
         document.dispatchEvent(new CustomEvent("objetosAtualizados"));
     }
+
+    // ================= PONTE CROSS-TAB =================
+    // Mesmo problema (e mesma solução) já aplicada em solicitacoes-shared.js:
+    // "objetosAtualizados" é um CustomEvent, só ouvido dentro do MESMO
+    // document que o disparou — não avisa outras abas quando o objeto muda
+    // por uma ação feita nelas (ex: editar o preço em Editar-objeto, ou
+    // excluir em Meus Objetos, enquanto a página de Produto do mesmo objeto
+    // está aberta em outra aba). O evento nativo "storage" resolve isso:
+    // dispara nas OUTRAS abas quando a chave muda, então reemitimos o
+    // CustomEvent local a partir dele — toda a reatividade que já existia
+    // (meus-objetos.js, produto.js) passa a funcionar entre abas de graça,
+    // sem precisar duplicar esse listener em cada página consumidora.
+    // (meus-objetos.js já tinha seu próprio listener de "storage" pra isso —
+    // com esta ponte central ele fica redundante, mas inofensivo.)
+    window.addEventListener("storage", (e) => {
+        if (e.key === CHAVE_STORAGE) {
+            document.dispatchEvent(new CustomEvent("objetosAtualizados"));
+        }
+    });
  
     function obterPorId(id) {
         return obterTodos().find(o => String(o.id) === String(id)) || null;
@@ -99,13 +118,55 @@
         return novo;
     }
  
-    function atualizar(id, dados) {
+    // `opcoes.ignorarBloqueio` existe pra quem PRECISA escrever exatamente
+    // no instante em que o objeto entra/sai de locação — hoje só
+    // marcarDisponibilidade() (chamada por solicitacoes-shared.js ao
+    // aprovar um pedido, quando temLocacaoAtiva(id) já é true por
+    // definição nesse exato momento). Qualquer outro chamador — acima de
+    // tudo o form completo de Editar Objeto — passa por aqui sem esse
+    // escape e sofre a mesma trava de corrida que excluir() já tem: sem
+    // ela, uma solicitação podia ser aprovada (ou chegar uma pendente)
+    // bem entre a tela carregar destravada e o dono clicar em "Salvar", e
+    // a edição sobrescrevia preço/fotos/descrição de um objeto que virou
+    // uma locação em andamento por baixo do editor — a mesma classe de
+    // órfão/inconsistência que a trava em excluir() já evita do lado da
+    // exclusão.
+    function atualizar(id, dados, opcoes = {}) {
+        const { ignorarBloqueio = false } = opcoes;
+
+        if (!ignorarBloqueio) {
+            if (temLocacaoAtiva(id)) {
+                throw new Error("OBJETO_EM_LOCACAO");
+            }
+            if (temSolicitacaoPendente(id)) {
+                throw new Error("OBJETO_COM_SOLICITACAO_PENDENTE");
+            }
+        }
+
         const lista = obterTodos().map(o => String(o.id) === String(id) ? { ...o, ...normalizarImagens(dados) } : o);
         salvarTodos(lista);
         return obterPorId(id);
     }
  
+    // A UI (meus-objetos.js) já verifica temLocacaoAtiva/temSolicitacaoPendente
+    // antes de sequer abrir o modal de confirmação — mas isso só checa o
+    // estado no momento em que o modal ABRE. Entre abrir o modal e a pessoa
+    // clicar em "Excluir" pode passar tempo suficiente pra uma solicitação
+    // nova chegar ou uma pendente ser aprovada em outra aba, e sem checar de
+    // novo AQUI (na função que de fato apaga o dado), a exclusão passava
+    // batido — apagando um objeto que virou uma locação ativa e deixando
+    // essa locação órfã, apontando pra um produtoId inexistente. Lançar
+    // erro aqui, na fonte da verdade, protege qualquer chamador (não só o
+    // modal atual, mas qualquer tela futura que venha a chamar excluir()
+    // direto) — mesmo padrão de validação na fonte já usado em
+    // solicitacoes-shared.js (criar/responder).
     function excluir(id) {
+        if (temLocacaoAtiva(id)) {
+            throw new Error("OBJETO_EM_LOCACAO");
+        }
+        if (temSolicitacaoPendente(id)) {
+            throw new Error("OBJETO_COM_SOLICITACAO_PENDENTE");
+        }
         salvarTodos(obterTodos().filter(o => String(o.id) !== String(id)));
     }
  
@@ -114,7 +175,15 @@
     // (disponível de novo), e também pelo toggle manual do dono em
     // "Meus Objetos" / "Editar Objeto".
     function marcarDisponibilidade(id, disponivel) {
-        return atualizar(id, { disponivel });
+        // ignorarBloqueio: true — este é o próprio mecanismo que FAZ a
+        // transição de/para locação ativa (aprovar um pedido chama isso
+        // com o status já "aprovado" em disco, ou seja, temLocacaoAtiva(id)
+        // já é true neste exato instante). Bloquear aqui travaria a
+        // aprovação de qualquer solicitação. O toggle manual do dono em
+        // "Meus Objetos" também passa por aqui e continua protegido do
+        // jeito de sempre: o próprio switch fica disabled na UI quando
+        // temLocacaoAtiva(id).
+        return atualizar(id, { disponivel }, { ignorarBloqueio: true });
     }
  
     // ================= LOCAÇÃO ATIVA (TRAVA DE VERDADE) =================
