@@ -1,6 +1,10 @@
 import { HttpError } from "../utils/httpError.ts";
+// Estados ainda relevantes para o fluxo de locação; rejeição e cancelamento encerram o pedido.
 export const activeStatuses = ["pendente", "aprovado", "pago", "retirado", "devolvido"];
+// Aceita nomes legados de status usados por clientes anteriores.
 export function normalizeRentalStatus(value: string): string { return ({ rejeitado: "recusado", concluido: "finalizado" } as Record<string, string>)[value] ?? value; }
+// Valida se o usuário participa do aluguel e se o papel e o estado atual permitem a transição.
+// Retirada e devolução passam pelo registro de fotos de ambas as partes, não por esta rota.
 export function authorizeTransition(rental: { status: string | null; locador_id: string; locatario_id: string }, user: { id: string; tipo: string }, status: string): void {
  const party = [rental.locador_id, rental.locatario_id].includes(user.id);
  if (!party && user.tipo !== "admin") throw new HttpError(403, "Acesso negado");

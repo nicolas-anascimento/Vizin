@@ -1,3 +1,4 @@
+// Expõe leitura e envio de mensagens apenas para usuários autenticados.
 import { Router } from "express";
 import { listMessages, sendMessage } from "../controllers/messagesController.ts";
 import { requireAuth } from "../middlewares/auth.ts";

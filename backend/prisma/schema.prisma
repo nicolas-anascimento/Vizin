@@ -1,3 +1,4 @@
+// Modelo persistente de usuários, anúncios, locações, pagamentos e demais recursos da API.
 generator client {
   provider        = "prisma-client"
   output          = "../src/generated/prisma"
@@ -8,6 +9,7 @@ datasource db {
   provider = "postgresql"
 }
 
+/// Solicitações e contratos de locação: período, preço congelado, participantes e estado.
 model alugueis {
   id                                       String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   item_id                                  String            @db.Uuid
@@ -16,6 +18,7 @@ model alugueis {
   data_inicio                              DateTime          @db.Date
   data_fim                                 DateTime          @db.Date
   valor_total                              Decimal           @db.Decimal(10, 2)
+  preco_dia_contratado Decimal? @db.Decimal(10, 2)
   taxa_plataforma                          Decimal           @default(0.00) @db.Decimal(10, 2)
   ganho_locador                            Decimal           @default(0.00) @db.Decimal(10, 2)
   status                                   String?           @default("pendente") @db.VarChar(30)
@@ -34,6 +37,8 @@ model alugueis {
   expira_em                                DateTime?
   pagamento_ate                            DateTime?
   atraso_notificado                        String?
+  cancelado_por                             String?           @db.VarChar(60)
+  multa                                     multas_aluguel?
   retiradas                                retiradas[]
 
   @@index([item_id, data_inicio, data_fim])
@@ -41,6 +46,7 @@ model alugueis {
   @@index([locatario_id, status])
 }
 
+/// Vínculo do usuário com um plano durante um período.
 model assinaturas {
   id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   usuario_id String    @db.Uuid
@@ -53,6 +59,7 @@ model assinaturas {
   usuarios   usuarios  @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
+/// Nota e comentário de um participante após a locação; a chave única evita avaliação duplicada.
 model avaliacoes {
   contexto                                   String    @default("usuario")
   item_id                                    String?   @db.Uuid
@@ -72,6 +79,7 @@ model avaliacoes {
   @@index([item_id, contexto])
 }
 
+/// Categorias disponíveis para classificação dos anúncios.
 model categorias {
   id    String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   nome  String  @unique @db.VarChar(80)
@@ -79,6 +87,7 @@ model categorias {
   itens itens[]
 }
 
+/// Endereços do usuário e localização geográfica usada na busca por distância.
 model enderecos {
   id          String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   usuario_id  String                    @unique(map: "uq_endereco_principal", where: raw("(principal = true)")) @db.Uuid
@@ -99,6 +108,7 @@ model enderecos {
   @@index([localizacao], map: "idx_enderecos_localizacao", type: Gist)
 }
 
+/// Lançamentos históricos da carteira.
 model extrato_carteira {
   id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   usuario_id    String    @db.Uuid
@@ -110,6 +120,7 @@ model extrato_carteira {
   usuarios      usuarios  @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
+/// Imagens públicas dos anúncios, incluindo a indicação da foto principal.
 model fotos_item {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   item_id   String   @db.Uuid
@@ -121,6 +132,7 @@ model fotos_item {
   @@index([item_id])
 }
 
+/// Saldo registrado para o fundo de reserva.
 model fundo_reserva {
   id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   valor         Decimal   @db.Decimal(10, 2)
@@ -130,6 +142,7 @@ model fundo_reserva {
   criado_em     DateTime? @default(now()) @db.Timestamp(6)
 }
 
+/// Anúncios: proprietário, categoria, preço diário, endereço e disponibilidade.
 model itens {
   id                String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   usuario_id        String       @db.Uuid
@@ -160,6 +173,7 @@ model itens {
   @@index([disponivel, arquivado])
 }
 
+/// Mensagens trocadas entre usuários, com remetente, destinatário e leitura.
 model mensagens {
   id                                           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   conversa_id                                  String?    @db.Uuid
@@ -182,6 +196,7 @@ model mensagens {
   @@index([remetente_id], map: "idx_mensagens_remetente")
 }
 
+/// Avisos entregues ao usuário, com contexto e indicador de leitura.
 model notificacoes {
   id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   usuario_id String    @db.Uuid
@@ -191,11 +206,13 @@ model notificacoes {
   lida       Boolean?  @default(false)
   criado_em  DateTime? @default(now()) @db.Timestamp(6)
   contexto   Json      @default("{}")
+  chave      String?   @unique
   usuarios   usuarios  @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([usuario_id, lida])
 }
 
+/// Cobranças de aluguel ou multa e seus estados no gateway.
 model pagamentos {
   id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   aluguel_id   String    @db.Uuid
@@ -203,19 +220,29 @@ model pagamentos {
   metodo       String?   @db.VarChar(50)
   status       String?   @default("pendente") @db.VarChar(30)
   pago_em      DateTime? @db.Timestamp(6)
+  status_em    DateTime @default(now())
   referencia   String?   @unique
   idempotencia String?   @unique
+  tipo         String    @default("aluguel")
   gateway      String    @default("real")
+  cartao_id    String?
   dados        Json      @default("{}")
   criado_em    DateTime  @default(now())
+  conciliacao_tentativas Int @default(0)
+  conciliacao_proxima_em DateTime?
+  conciliacao_lease_ate DateTime?
+  operacoes operacoes_pagamento[]
   conciliacoes conciliacoes_pagamento[]
   alugueis     alugueis  @relation(fields: [aluguel_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@unique([aluguel_id], map: "pagamentos_uma_cobranca_ativa", where: raw("status IN ('pendente','pago','cancelamento_pendente','estorno_pendente')"))
-  @@unique([aluguel_id], map: "pagamentos_um_pago_por_aluguel", where: raw("((status)::text = 'pago'::text)"))
+  @@unique([aluguel_id, tipo], map: "pagamentos_uma_cobranca_ativa", where: raw("status IN ('pendente','pago','cancelamento_pendente','estorno_pendente')"))
+  @@unique([aluguel_id, tipo], map: "pagamentos_um_pago_por_aluguel", where: raw("((status)::text = 'pago'::text)"))
   @@index([aluguel_id])
+  @@index([cartao_id, status])
+  @@index([gateway, metodo, status, conciliacao_proxima_em])
 }
 
+/// Definição dos planos associados a assinaturas.
 model planos {
   id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   nome        String        @db.VarChar(80)
@@ -225,6 +252,7 @@ model planos {
   assinaturas assinaturas[]
 }
 
+/// Registros de ocorrência relacionados a uma locação.
 model sinistros {
   id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   aluguel_id       String    @db.Uuid
@@ -234,12 +262,14 @@ model sinistros {
   valor_solicitado Decimal?  @db.Decimal(10, 2)
   valor_aprovado   Decimal?  @db.Decimal(10, 2)
   notas_analise    String?
+  resposta_usuario String?
   criado_em        DateTime? @default(now()) @db.Timestamp(6)
   atualizado_em    DateTime? @default(now()) @db.Timestamp(6)
   alugueis         alugueis  @relation(fields: [aluguel_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   usuarios         usuarios  @relation(fields: [reportador_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
+/// Confirmação de retirada feita por cada participante.
 model retiradas {
   id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   aluguel_id  String           @db.Uuid
@@ -255,6 +285,7 @@ model retiradas {
   @@index([aluguel_id])
 }
 
+/// Fotos anexadas à confirmação de retirada.
 model fotos_retirada {
   id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   retirada_id String    @db.Uuid
@@ -262,6 +293,7 @@ model fotos_retirada {
   retiradas   retiradas @relation(fields: [retirada_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
+/// Metadados espaciais exigidos pela extensão geográfica do PostgreSQL.
 model spatial_ref_sys {
   srid      Int     @id
   auth_name String? @db.VarChar(256)
@@ -270,8 +302,11 @@ model spatial_ref_sys {
   proj4text String? @db.VarChar(2048)
 }
 
+/// Contas, credenciais, permissões, preferências e versão de sessão.
 model usuarios {
   id                                            String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  mercado_pago_customer_id String? @unique
+  cartoes cartoes[]
   nome                                          String                    @db.VarChar(100)
   email                                         String                    @unique @db.VarChar(150)
   tipo                                          Tipos                     @default(usuario)
@@ -314,8 +349,10 @@ model usuarios {
   bloqueado                                     bloqueios[]               @relation("bloqueado")
   emails_pendentes                              emails_pendentes[]
   retiradas                                     retiradas[]
+  admin_auditoria admin_auditoria[]
 }
 
+/// Documentos privados e decisão sobre a verificação da conta.
 model verificacoes_identidade {
   id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   usuario_id   String    @db.Uuid
@@ -331,6 +368,7 @@ model verificacoes_identidade {
   usuarios     usuarios  @relation("titular_verificacao", fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
+/// Tokens e prazo das solicitações de redefinição de senha.
 model Resetar_Senha {
   id        String   @id @default(uuid(7))
   userId    String   @db.Uuid
@@ -344,6 +382,7 @@ enum Tipos {
   usuario
 }
 
+/// Histórico de transições da solicitação para rastrear seu ciclo.
 model eventos_aluguel {
   id         String    @id @default(uuid()) @db.Uuid
   aluguel_id String    @db.Uuid
@@ -357,6 +396,7 @@ model eventos_aluguel {
   @@index([aluguel_id, criado_em])
 }
 
+/// Fotos e confirmação de devolução enviadas por cada participante.
 model devolucoes {
   id          String   @id @default(uuid()) @db.Uuid
   aluguel_id  String   @db.Uuid
@@ -372,6 +412,7 @@ model devolucoes {
   @@unique([aluguel_id, usuario_id])
 }
 
+/// Pedidos de ajuda e acompanhamento de suporte.
 model suportes {
   id            String   @id @default(uuid()) @db.Uuid
   usuario_id    String   @db.Uuid
@@ -387,6 +428,7 @@ model suportes {
   @@index([status, criado_em])
 }
 
+/// Relatos e contestações ligados a usuários, objetos ou locações.
 model denuncias {
   objeto        itens?     @relation(fields: [objeto_id], references: [id])
   aluguel       alugueis?  @relation(fields: [aluguel_id], references: [id])
@@ -404,6 +446,9 @@ model denuncias {
   status        String     @default("aberta")
   protocolo     String     @unique
   notas         String?
+  resposta_usuario String?
+  etapa         String?     @db.VarChar(20)
+  relato_chave  String?     @unique
   criado_em     DateTime   @default(now())
   atualizado_em DateTime   @updatedAt
   usuario       usuarios   @relation("autor_denuncia", fields: [usuario_id], references: [id])
@@ -412,6 +457,23 @@ model denuncias {
   @@index([status, criado_em])
 }
 
+/// Valor congelado da multa, dias de atraso, divisão e estado de pagamento ou contestação.
+model multas_aluguel {
+  aluguel_id          String   @id @db.Uuid
+  dias_atraso         Int
+  valor_dia           Decimal  @db.Decimal(10, 2)
+  valor_total         Decimal  @db.Decimal(10, 2)
+  valor_plataforma    Decimal  @db.Decimal(10, 2)
+  valor_proprietario  Decimal  @db.Decimal(10, 2)
+  status              String   @default("pendente") @db.VarChar(30)
+  calculado_em        DateTime @default(now())
+  atualizado_em       DateTime @updatedAt
+  aluguel             alugueis @relation(fields: [aluguel_id], references: [id], onDelete: Cascade)
+
+  @@index([status])
+}
+
+/// Identidade e estado das conversas entre usuários.
 model conversas {
   objeto        itens?                   @relation(fields: [objeto_id], references: [id])
   denuncias     denuncias[]
@@ -424,6 +486,7 @@ model conversas {
   mensagens     mensagens[]
 }
 
+/// Participação individual e preferências de cada pessoa na conversa.
 model participantes_conversa {
   conversa_id String    @db.Uuid
   usuario_id  String    @db.Uuid
@@ -436,6 +499,7 @@ model participantes_conversa {
   @@index([usuario_id, arquivada])
 }
 
+/// Metadados de arquivos privados enviados no chat.
 model anexos {
   id         String     @id @default(uuid()) @db.Uuid
   usuario_id String     @db.Uuid
@@ -448,6 +512,7 @@ model anexos {
   mensagem   mensagens?
 }
 
+/// Relações de bloqueio que impedem contato entre usuários.
 model bloqueios {
   usuario_id   String   @db.Uuid
   bloqueado_id String   @db.Uuid
@@ -458,6 +523,7 @@ model bloqueios {
   @@id([usuario_id, bloqueado_id])
 }
 
+/// Mudanças de email aguardando confirmação por token temporário.
 model emails_pendentes {
   id         String   @id @default(uuid()) @db.Uuid
   usuario_id String   @unique @db.Uuid
@@ -467,14 +533,20 @@ model emails_pendentes {
   usuario    usuarios @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
 }
 
+/// Eventos financeiros recebidos, processamento, lease e próximas tentativas.
 model webhook_eventos {
   id        String   @id
   criado_em DateTime @default(now())
   payload   Json?
   processado_em DateTime?
+  tentativas Int @default(0)
+  proxima_tentativa_em DateTime?
+  lease_ate DateTime?
   @@index([processado_em, criado_em])
+  @@index([processado_em, proxima_tentativa_em, lease_ate])
 }
 
+/// Divergências que exigem recuperação automática ou análise administrativa.
 model conciliacoes_pagamento {
   id String @id @default(uuid()) @db.Uuid
   pagamento_id String @db.Uuid
@@ -483,6 +555,78 @@ model conciliacoes_pagamento {
   status String @default("aberta")
   dados Json @default("{}")
   criado_em DateTime @default(now())
+  ignorada_em DateTime?
+  motivo_ignorar String?
+  admin_responsavel_id String? @db.Uuid
   pagamento pagamentos @relation(fields: [pagamento_id], references: [id], onDelete: Restrict)
   @@index([status, criado_em])
+}
+
+/// Referências de cartões salvos no provedor; não armazena número completo nem CVV.
+model cartoes {
+ id String @id
+ usuario_id String @db.Uuid
+ customer_id String
+ gateway String
+ payment_method_id String
+ bandeira String
+ ultimos_digitos String @db.Char(4)
+ validade String @db.VarChar(5)
+ padrao Boolean @default(false)
+ exclusao_pendente Boolean @default(false)
+ criado_em DateTime @default(now())
+ usuario usuarios @relation(fields:[usuario_id],references:[id],onDelete:Cascade)
+ @@index([usuario_id])
+ @@unique([usuario_id],map:"cartoes_um_padrao",where:raw("(padrao = true)"))
+}
+
+/// Intenções idempotentes de criação, cancelamento e estorno.
+model operacoes_pagamento {
+ chave String @id
+ pagamento_id String @db.Uuid
+ metodo String
+ fingerprint String?
+ tipo_operacao String @default("criar")
+ estado String @default("pendente")
+ lease_ate DateTime?
+ tentativas Int @default(0)
+ atualizado_em DateTime @default(now()) @updatedAt
+ pagamento pagamentos @relation(fields:[pagamento_id],references:[id],onDelete:Restrict)
+
+ @@index([estado, lease_ate])
+}
+
+/// Controle de operações externas e leases contra chamadas concorrentes.
+model operacoes_gateway {
+ chave String @id
+ tipo String
+ usuario_id String? @db.Uuid
+ fingerprint String
+ estado String @default("pendente")
+ referencia String?
+ lease_ate DateTime?
+ tentativas Int @default(0)
+ proxima_tentativa_em DateTime?
+ dados Json @default("{}")
+ criado_em DateTime @default(now())
+ atualizado_em DateTime @default(now()) @updatedAt
+
+ @@index([estado, lease_ate])
+ @@index([tipo, estado, proxima_tentativa_em])
+ @@index([usuario_id, tipo])
+}
+
+/// Trilha das alterações realizadas por administradores.
+model admin_auditoria {
+  id String @id @default(uuid()) @db.Uuid
+  admin_id String @db.Uuid
+  admin usuarios @relation(fields: [admin_id], references: [id], onDelete: Restrict)
+  acao String @db.VarChar(80)
+  entidade String @db.VarChar(60)
+  entidade_id String @db.Uuid
+  metadata Json @default("{}")
+  criado_em DateTime @default(now())
+  @@index([admin_id])
+  @@index([entidade, entidade_id])
+  @@index([criado_em])
 }

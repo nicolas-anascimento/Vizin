@@ -3,6 +3,7 @@ import type { RequestHandler } from "express";
 type Entry = { count: number; resetAt: number };
 const buckets = new Map<string, Entry>();
 
+// Limita tentativas por IP e rota em janela configurável, retornando cabeçalhos para o cliente.
 export function rateLimit(options: { windowMs: number; max: number; message?: string }): RequestHandler {
   return (req, res, next) => {
     const now = Date.now();
@@ -15,7 +16,7 @@ export function rateLimit(options: { windowMs: number; max: number; message?: st
     res.setHeader("RateLimit-Remaining", String(Math.max(0, options.max - entry.count)));
     res.setHeader("RateLimit-Reset", String(Math.ceil(entry.resetAt / 1000)));
     if (entry.count > options.max) {
-      res.status(429).json({ success: false, message: options.message ?? "Muitas tentativas. Tente novamente mais tarde." });
+      res.status(429).json({ success: false, codigo: "limite_requisicoes", message: options.message ?? "Muitas tentativas. Tente novamente mais tarde.", mensagem: options.message ?? "Muitas tentativas. Tente novamente mais tarde." });
       return;
     }
     if (buckets.size > 10_000) {

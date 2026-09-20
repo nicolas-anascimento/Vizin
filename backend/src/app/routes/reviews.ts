@@ -1,3 +1,4 @@
+// Expõe criação de avaliação somente após autenticação.
 import { Router } from "express";
 import { createReview } from "../controllers/reviewsController.ts";
 import { requireAuth } from "../middlewares/auth.ts";

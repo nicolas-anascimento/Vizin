@@ -1,3 +1,4 @@
+// Associa URLs de páginas aos mocks estáticos e aplica autenticação nas telas privadas.
 import { Router, type RequestHandler } from "express";
 import { requireAdminPage, requireAuthPage } from "../middlewares/auth.ts";
 

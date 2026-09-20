@@ -1,3 +1,4 @@
+// Popula categorias iniciais e cria ou ativa o administrador quando suas credenciais estão configuradas.
 import "dotenv/config";
 import { cpf, slug } from "./app/utils/validation.ts";
 import bcrypt from "bcrypt";

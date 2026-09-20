@@ -1,21 +1,23 @@
+// Percorre a API com banco real, cobrindo cadastro, anúncios, aluguel, comunicação e segurança.
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { AddressInfo } from "node:net";
 import crypto from "node:crypto";
 const database=process.env.TEST_DATABASE_URL;
-if(database) { if(!new URL(database).pathname.startsWith("/vizin_contract_test_")) throw new Error("Use banco isolado vizin_contract_test_* para testes");process.env.DATABASE_URL=database;process.env.VIZIN_NO_LISTEN="true";process.env.NODE_ENV="dev";process.env.PAYMENT_MODE="demo";process.env.JWT_KEY="vizin-test-secret-with-at-least-32-characters"; }
+if(!database)throw new Error("TEST_DATABASE_URL é obrigatório para test:integration");
+if(!new URL(database).pathname.startsWith("/vizin_contract_test_")) throw new Error("Use banco isolado vizin_contract_test_* para testes");process.env.DATABASE_URL=database;process.env.VIZIN_NO_LISTEN="true";process.env.NODE_ENV="dev";process.env.PAYMENT_MODE="demo";process.env.JWT_KEY="vizin-test-secret-with-at-least-32-characters";
 function makeCpf() {
  let s=String(crypto.randomInt(100000000,999999999));
  for(const n of [9,10]) {const sum=[...s].reduce((a,d,i)=>a+Number(d)*(n+1-i),0);s+=String((sum*10%11)%10);}return s;
 }
 const png=Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=","base64");
 function photos(fields:Record<string,string>={},names=["fotos"]) {const form=new FormData();for(const[k,v]of Object.entries(fields))form.append(k,v);for(const name of names)form.append(name,new Blob([png],{type:"image/png"}),"foto.png");return form;}
-test("API → PostgreSQL/PostGIS: contratos e fluxos críticos",{skip:!database},async t=>{
+test("API → PostgreSQL/PostGIS: contratos e fluxos críticos",async t=>{
  const {default:app}=await import("../../app.ts");const {default:prisma}=await import("../../app/config/database.ts");
  const server=app.listen(0,"127.0.0.1");await new Promise<void>(resolve=>server.once("listening",resolve));const base=`http://127.0.0.1:${(server.address() as AddressInfo).port}/api`;
  t.after(async()=>{await new Promise<void>((resolve,reject)=>server.close(e=>e?reject(e):resolve()));await prisma.$disconnect();});
  async function api(path:string,method="GET",body?:unknown,cookie?:string,extraHeaders:Record<string,string>={}) {
-  const headers:Record<string,string>={...extraHeaders};if(cookie)headers.Cookie=cookie;
+  const headers:Record<string,string>={Origin:"http://localhost:8080",...extraHeaders};if(cookie)headers.Cookie=cookie;
   if(body && !(body instanceof FormData))headers["Content-Type"]="application/json";
   const r=await fetch(base+path,{method,headers,...(body?{body:body instanceof FormData?body:JSON.stringify(body)}:{})});
   const data=await r.json() as any;return{status:r.status,data,cookie:r.headers.get("set-cookie")?.split(";")[0]??""};
@@ -57,12 +59,72 @@ test("API → PostgreSQL/PostGIS: contratos e fluxos críticos",{skip:!database}
   assert.equal((await api(`/objetos/${legacy.id}`,"PATCH",{disponivel:false},ownerCookie)).status,200);
   assert.equal((await api(`/objetos/${legacy.id}`,"DELETE",undefined,ownerCookie)).status,200);
  });
+ await t.test("objetos: multipart, limites, aliases, fotos, filtros e privacidade",async()=>{
+  const fields={nome:"Contrato de objetos",descricao:"Descrição",categoria:"eletronicos",preco:"25",localizacao_texto:"São Paulo",proprietarioId:renterId,usuario_id:renterId,email:renter.email};
+  assert.equal((await api("/objetos","POST",fields,ownerCookie)).status,422);
+  assert.equal((await api("/objetos","POST",photos(fields,[]),ownerCookie)).status,422);
+  assert.equal((await api("/objetos","POST",photos(fields,Array(6).fill("fotos")),ownerCookie)).status,422);
+  for(const [bytes,mime] of [[Buffer.alloc(5*1024*1024+1),"image/png"],[Buffer.from("invalid"),"image/png"],[png.subarray(0,png.length-5),"image/png"],[png,"text/plain"]] as const) {
+   const form=photos(fields,[]);form.append("fotos",new Blob([bytes],{type:mime}),"foto.png");
+   assert.equal((await api("/objetos","POST",form,ownerCookie)).status,422);
+  }
+  const created=await api("/objetos","POST",photos(fields,Array(5).fill("fotos")),ownerCookie);
+  assert.equal(created.status,201,JSON.stringify(created.data));assert.equal(created.data.fotos.length,5);
+  const id=created.data.id,path=`/objetos/${id}`,original=created.data.fotos;
+  assert.equal(created.data.proprietario.id,ownerId);assert.equal(created.data.categoria.slug,"eletronicos");
+  for(const method of ["PATCH","PUT","DELETE"])assert.equal((await api(path,method,method==="DELETE"?undefined:{titulo:"Roubo",usuario_id:renterId},renterCookie)).status,403);
+  for(const method of ["PATCH","PUT","DELETE"])assert.equal((await api(path,method,method==="DELETE"?undefined:{disponivel:false})).status,401);
+  const partial=await api(path,"PATCH",{disponivel:false},ownerCookie);assert.equal(partial.status,200);assert.deepEqual(partial.data.fotos,original);
+  assert.equal((await api(`/objetos?proprietarioId=${ownerId}`,"GET",undefined,ownerCookie)).data.some((i:any)=>i.id===id),true);
+  assert.equal((await api(`/objetos?proprietarioId=${renterId}`)).data.some((i:any)=>i.id===id),false);
+  assert.equal((await api("/objetos?disponivel=true")).data.some((i:any)=>i.id===id),false);
+  assert.equal((await api("/objetos/meus","GET",undefined,ownerCookie)).data.some((i:any)=>i.id===id),true);
+  assert.equal((await api(path,"PUT",{disponivel:true},ownerCookie)).status,200);
+  const publicItem=(await api(path)).data;assert.equal(publicItem.proprietario.id,ownerId);
+  function checkPrivate(value:any):void {if(value && typeof value==="object")for(const[k,v]of Object.entries(value)){assert.ok(!["cpf","email","telefone","whatsapp","rua","numero","complemento","cep","enderecos"].includes(k),k);checkPrivate(v);}}
+  checkPrivate(publicItem);
+  assert.equal((await api(path,"PATCH",{fotos_mantidas:[]},ownerCookie)).status,422);
+  assert.equal((await api(path,"PATCH",{fotos_mantidas:[crypto.randomUUID()]},ownerCookie)).status,422);
+  assert.equal((await api(path,"PATCH",photos({},["fotos_novas"]),ownerCookie)).status,422);
+  const kept=[original[2].id,original[0].id];
+  const edited=await api(path,"PATCH",photos({fotos_mantidas:JSON.stringify(kept),foto_principal_index:"2"},["fotos_novas"]),ownerCookie);
+  assert.equal(edited.status,200);assert.equal(edited.data.fotos.length,3);for(const id of kept)assert.ok(edited.data.fotos.some((p:any)=>p.id===id));
+  assert.equal(edited.data.fotos.filter((p:any)=>p.principal).length,1);assert.ok(!kept.includes(edited.data.fotos[0].id));
+  const preserved=await api(path,"PATCH",{descricao:"Atualizada"},ownerCookie);assert.deepEqual(preserved.data.fotos,edited.data.fotos);
+  const categories=(await api("/categorias")).data;assert.deepEqual((await api("/objetos/categorias")).data,categories);
+  const casa=await api(path,"PATCH",{categoria:"  CASA E JÁRDIM  "},ownerCookie);assert.equal(casa.status,200);assert.equal(casa.data.categoria.slug,"casajardim");
+  assert.equal((await api(path,"PATCH",{categoria_id:casa.data.categoria.id},ownerCookie)).data.categoria.id,casa.data.categoria.id);
+  assert.equal((await api(path,"DELETE",undefined,ownerCookie)).status,200);assert.equal((await api(path)).status,404);
+ });
+ await t.test("objetos: aluguel ativo e pendência retornam conflitos programáticos",async()=>{
+  const created=await api("/objetos","POST",photos({titulo:"Bloqueios",descricao:"Teste",categoria:"ferramentas",preco:"25",localizacao:"São Paulo"}),ownerCookie);
+  assert.equal(created.status,201);const id=created.data.id,path=`/objetos/${id}`;
+  const rental=await prisma.alugueis.create({data:{item_id:id,locador_id:ownerId,locatario_id:renterId,data_inicio:new Date(today),data_fim:new Date(today),valor_total:25,status:"pendente"}});
+  async function conflict(method:string,body:unknown,codigo:string,message:string) {
+   const r=await api(path,method,body,ownerCookie);assert.equal(r.status,409);assert.deepEqual(r.data,{success:false,message,mensagem:message,codigo});
+  }
+  await conflict("DELETE",undefined,"OBJETO_COM_SOLICITACAO_PENDENTE","O objeto possui uma solicitação pendente.");
+  for(const body of [{disponivel:false},{disponivel_imediato:false}])await conflict("PATCH",body,"OBJETO_COM_SOLICITACAO_PENDENTE","O objeto possui uma solicitação pendente.");
+  assert.equal((await api(path,"PATCH",{disponivel:true,preco:30},ownerCookie)).status,200);
+  assert.equal((await prisma.alugueis.findUniqueOrThrow({where:{id:rental.id}})).valor_total.toString(),"25");
+  for(const status of ["aprovado","pago","retirado","devolvido"]) {
+   await prisma.alugueis.update({where:{id:rental.id},data:{status}});
+   for(const body of [{titulo:"Mudança"},{descricao:"Mudança"},{preco:40},{categoria:"camping"},{disponivel:false},{disponivel_imediato:false},{foto_principal_index:0},photos({},["fotos_novas"])])await conflict("PATCH",body,"OBJETO_EM_LOCACAO","O objeto possui uma locação ativa.");
+   await conflict("PUT",{disponivel:false},"OBJETO_EM_LOCACAO","O objeto possui uma locação ativa.");
+   await conflict("DELETE",undefined,"OBJETO_EM_LOCACAO","O objeto possui uma locação ativa.");
+  }
+  assert.deepEqual((await api(path)).data.fotos,created.data.fotos);
+  await prisma.alugueis.update({where:{id:rental.id},data:{status:"finalizado"}});
+  assert.equal((await api(path,"PATCH",{disponivel:false},ownerCookie)).status,200);
+  const deleted=await api(path,"DELETE",undefined,ownerCookie);assert.equal(deleted.status,200);assert.equal(deleted.data.arquivado,true);
+ });
  await t.test("datas, cálculo servidor, conflito e IDOR",async()=>{
   assert.equal((await api("/solicitacoes","POST",{objeto_id:itemId,data_retirada:"2020-01-01",data_devolucao:today},renterCookie)).status,422);
-  const r=await api("/solicitacoes","POST",{objeto_id:itemId,data_retirada:today,data_devolucao:today,total:1,proprietarioId:renterId},renterCookie);assert.equal(r.status,201,JSON.stringify(r.data));rentalId=r.data.id;assert.equal(r.data.total,12);
-  assert.equal((await api("/solicitacoes","POST",{objeto_id:itemId,data_retirada:today,data_devolucao:today},strangerCookie)).status,409);
+  const r=await api("/solicitacoes","POST",{objeto_id:itemId,data_retirada:today,data_devolucao:today,total:1,proprietarioId:renterId},renterCookie);assert.equal(r.status,201,JSON.stringify(r.data));rentalId=r.data.id;assert.equal(r.data.total,13.2);assert.equal(r.data.subtotal,12);
+  assert.equal((await api("/solicitacoes","POST",{objeto_id:itemId,data_retirada:today,data_devolucao:today},strangerCookie)).status,201);
   assert.equal((await api(`/solicitacoes/${rentalId}`,"GET",undefined,strangerCookie)).status,403);
-  assert.equal((await api(`/objetos/${itemId}`,"PATCH",{preco:20},ownerCookie)).status,409);
+  assert.equal((await api(`/objetos/${itemId}`,"PATCH",{preco:20},ownerCookie)).status,200);
+  assert.equal((await api(`/solicitacoes/${rentalId}`,"GET",undefined,renterCookie)).data.total,13.2);
   assert.equal((await api("/usuarios/me","DELETE",{senha:renter.senha},renterCookie)).status,409);
  });
  await t.test("aceitar, impedir status arbitrário e pagar PIX",async()=>{
@@ -81,9 +143,22 @@ test("API → PostgreSQL/PostGIS: contratos e fluxos críticos",{skip:!database}
   assert.equal((await api(`/retiradas/${rentalId}/fotos`,"POST",photos(),renterCookie)).status,409);
   r=await api(`/retiradas/${rentalId}/fotos`,"POST",photos(),ownerCookie);assert.equal(r.status,201);assert.equal(r.data.status,"retirado");assert.ok(r.data.concluidoEm);
   const url=r.data.locatario.fotos[0];
+  const host=base.slice(0,-4);
+  for(const variant of [url,url.replace("/withdrawals/","//withdrawals/"),url.replace("/withdrawals/","/%2Fwithdrawals/"),url.replace("/withdrawals/","/withdrawals%2F"),url.replace("/withdrawals/","/withdrawals/../withdrawals/"),url.replace("/withdrawals/","/%5cwithdrawals/"),url.replace("/withdrawals/","/%252Fwithdrawals/")]) {
+   const response=await fetch(host+variant);
+   assert.notEqual(response.status,200,variant);
+   assert.notEqual(response.headers.get("content-type"),"image/png",variant);
+  }
   assert.equal((await fetch(base.replace(/\/api$/,"")+url)).status,401);
   assert.equal((await fetch(base.replace(/\/api$/,"")+url,{headers:{Cookie:strangerCookie}})).status,404);
   assert.equal((await fetch(base.replace(/\/api$/,"")+url,{headers:{Cookie:renterCookie}})).status,200);
+ });
+ await t.test("foto de retirada aceita admin alheio ao aluguel",async()=>{
+  const photo=await prisma.fotos_retirada.findFirstOrThrow({where:{retiradas:{aluguel_id:rentalId}}});
+  const admin=await prisma.usuarios.create({data:{nome:"Admin fotos",cpf:makeCpf(),email:`photo-admin-${crypto.randomUUID()}@test.local`,senha_hash:"x",tipo:"admin"}});
+  const {default:jwt}=await import("jsonwebtoken");const {default:env}=await import("../../app/config/env.ts");
+  const token=jwt.sign({id:admin.id,email:admin.email,tipo:admin.tipo,tokenVersion:admin.token_version},env.JWT_KEY);
+  assert.equal((await fetch(base.slice(0,-4)+photo.url,{headers:{Authorization:`Bearer ${token}`}})).status,200);
  });
  await t.test("devolução, finalização, avaliação e histórico",async()=>{
   assert.equal((await api(`/alugueis/${rentalId}/avaliacao`,"POST",{nota:5},renterCookie)).status,409);
@@ -147,16 +222,18 @@ test("API → PostgreSQL/PostGIS: contratos e fluxos críticos",{skip:!database}
   const future=new Date(Date.now()+2*86400000).toISOString().slice(0,10);
   const body={objeto_id:itemId,data_retirada:future,data_devolucao:future};
   const attempts=await Promise.all([api("/solicitacoes","POST",body,renterCookie),api("/solicitacoes","POST",body,strangerCookie)]);
-  assert.deepEqual(attempts.map(a=>a.status).sort(),[201,409]);
-  const r=attempts.find(a=>a.status===201)!;
+  assert.deepEqual(attempts.map(a=>a.status).sort(),[201,201]);
+  const r=attempts[0]!;
   const payer=r.data.solicitanteId===renterId?renterCookie:strangerCookie;
   assert.equal((await api(`/solicitacoes/${r.data.id}`,"PATCH",{status:"aprovado"},adminCookie)).status,200);
+  assert.equal((await prisma.alugueis.findUniqueOrThrow({where:{id:attempts[1]!.data.id}})).status,"recusado");
   const p=await api("/pagamentos/cartao","POST",{aluguel_id:r.data.id,tokenCartao:"token_simulado"},payer);assert.equal(p.status,200);assert.equal(p.data.status,"pago");
   assert.equal((await api(`/pagamentos/${p.data.id}/estornar`,"POST",{},payer)).data.status,"estornado");
   assert.equal((await api(`/pagamentos/${p.data.id}/estornar`,"POST",{},payer)).status,200);
   assert.equal((await api(`/solicitacoes/${r.data.id}`,"GET",undefined,payer)).data.status,"cancelado");
  });
 
+ // Prova que eventos financeiros exigem assinatura, valor coerente e processamento único.
  await t.test("webhook autenticado confirma, valida valor e deduplica eventos",async()=>{
   const future=new Date(Date.now()+4*86400000).toISOString().slice(0,10);
   const r=await api("/solicitacoes","POST",{objeto_id:itemId,data_retirada:future,data_devolucao:future},renterCookie);assert.equal(r.status,201);
@@ -179,7 +256,7 @@ test("API → PostgreSQL/PostGIS: contratos e fluxos críticos",{skip:!database}
   async function approved(){return prisma.alugueis.create({data:{item_id:item.id,locador_id:ownerId,locatario_id:renterId,data_inicio:new Date(today),data_fim:new Date(today),valor_total:12,status:"aprovado",pagamento_ate:new Date(Date.now()+60000)}});}
   const r=await approved();
   const pix=await api("/pagamentos/pix/gerar","POST",{aluguel_id:r.id},renterCookie,{"Idempotency-Key":"same-pix"});assert.equal(pix.status,200);
-  assert.equal((await api("/pagamentos/pix/gerar","POST",{aluguel_id:r.id},renterCookie,{"Idempotency-Key":"same-pix"})).data.id,pix.data.id);
+  const repeatedPix=await api("/pagamentos/pix/gerar","POST",{aluguel_id:r.id},renterCookie,{"Idempotency-Key":"same-pix"});assert.equal(repeatedPix.data.id,pix.data.id,JSON.stringify(repeatedPix));
   assert.equal((await api("/pagamentos/cartao","POST",{aluguel_id:r.id,tokenCartao:"demo"},renterCookie,{"Idempotency-Key":"same-pix"})).status,409);
   assert.equal((await prisma.pagamentos.findUniqueOrThrow({where:{id:pix.data.id}})).status,"pendente");
   const card=await api("/pagamentos/cartao","POST",{aluguel_id:r.id,tokenCartao:"demo"},renterCookie,{"Idempotency-Key":"switch-card"});assert.equal(card.status,200);assert.equal(card.data.metodo,"cartao");assert.notEqual(card.data.id,pix.data.id);
@@ -216,7 +293,7 @@ test("API → PostgreSQL/PostGIS: contratos e fluxos críticos",{skip:!database}
    assert.equal((await api(`/pagamentos/${paid.id}/estornar`,"POST",{},renterCookie)).status,202);
    await applyPayment(paid.id,"estornado");await applyPayment(paid.id,"estornado");
    assert.equal(await prisma.eventos_aluguel.count({where:{aluguel_id:realRental.id,motivo:"Pagamento estornado"}}),1);
-   const expiredRental=await approved();await prisma.alugueis.update({where:{id:expiredRental.id},data:{pagamento_ate:new Date(0)}});
+   const expiredRental=await approved();const expiredDay=new Date(new Date(Date.now()-2*86400000).toISOString().slice(0,10));await prisma.alugueis.update({where:{id:expiredRental.id},data:{data_inicio:expiredDay,data_fim:expiredDay,pagamento_ate:new Date(0)}});
    const expiredPayment=await prisma.pagamentos.create({data:{aluguel_id:expiredRental.id,valor:12,metodo:"pix",gateway:"real",referencia:crypto.randomUUID()}});
    let cancellations=0;
    globalThis.fetch=async(input,init)=>{if(String(input).startsWith("https://provider.test")){cancellations++;assert.equal((init?.headers as Record<string,string>)["Idempotency-Key"],`cancel:${expiredPayment.id}`);return new Response(JSON.stringify({referencia:expiredPayment.referencia,status:"cancelado"}),{status:200});}return originalFetch(input,init);};
@@ -282,7 +359,7 @@ test("API → PostgreSQL/PostGIS: contratos e fluxos críticos",{skip:!database}
   const current=await prisma.alugueis.create({data:{item_id:item.id,locador_id:ownerId,locatario_id:renterId,data_inicio:new Date(today),data_fim:new Date(today),valor_total:1,status:"retirado"}});
   const future=new Date(Date.now()+10*86400000).toISOString().slice(0,10);
   const request={objeto_id:item.id,data_retirada:future,data_devolucao:future};
-  const next=await api("/solicitacoes","POST",request,strangerCookie);assert.equal(next.status,201);
+  const next=await api("/solicitacoes","POST",request,strangerCookie);assert.equal(next.status,201,JSON.stringify(next));
   assert.equal((await api("/solicitacoes","POST",request,strangerCookie)).status,409);
   await api(`/solicitacoes/${next.data.id}`,"PATCH",{status:"cancelado"},strangerCookie);
   const past=new Date(Date.now()-2*86400000);await prisma.alugueis.update({where:{id:current.id},data:{data_inicio:past,data_fim:past}});
@@ -298,7 +375,7 @@ test("API → PostgreSQL/PostGIS: contratos e fluxos críticos",{skip:!database}
   const ids=rentals.map(r=>r.id);const {maintainRentals}=await import("../../app/services/rentalMaintenance.ts");
   await maintainRentals();await maintainRentals();await maintainRentals();
   assert.equal(await prisma.alugueis.count({where:{id:{in:ids},atraso_notificado:"devolucao"}}),121);
-  const notices=await prisma.notificacoes.findMany({where:{tipo:"atraso"}});assert.equal(notices.filter(n=>ids.includes((n.contexto as any).aluguelId)).length,242);
+  const notices=await prisma.notificacoes.findMany({where:{tipo:"bloqueio_conta"}});assert.equal(notices.filter(n=>ids.includes((n.contexto as any).aluguelId)).length,242);
   await prisma.alugueis.updateMany({where:{id:{in:ids}},data:{status:"devolvido"}});
  });
  await t.test("Permissions-Policy permite geo nas origens configuradas e mantém câmera bloqueada",async()=>{
@@ -334,6 +411,17 @@ test("API → PostgreSQL/PostGIS: contratos e fluxos críticos",{skip:!database}
   const {default:env}=await import("../../app/config/env.ts");const previous=env.PAYMENT_MODE;
   try{env.PAYMENT_MODE="gateway";assert.equal((await api("/pagamentos/pix/confirmar","POST",{aluguel_id:rentalId},renterCookie)).status,403);}
   finally{env.PAYMENT_MODE=previous;}
+ });
+ await t.test("coleções pessoais permitem navegar além de 100 registros",async()=>{
+  await prisma.notificacoes.createMany({data:Array.from({length:105},(_,i)=>({usuario_id:renterId,tipo:"teste",titulo:`Notificação ${i}`,mensagem:"Teste"}))});
+  const conv=Array.from({length:105},()=>({id:crypto.randomUUID(),chave:`page:${crypto.randomUUID()}`}));await prisma.conversas.createMany({data:conv});
+  await prisma.participantes_conversa.createMany({data:conv.flatMap(row=>[{conversa_id:row.id,usuario_id:ownerId},{conversa_id:row.id,usuario_id:renterId}])});
+  await prisma.suportes.createMany({data:Array.from({length:105},(_,i)=>({usuario_id:renterId,assunto:`Paginado ${i}`,mensagem:"Teste",protocolo:`PAGE-${crypto.randomUUID()}`}))});
+  const read=async(path:string,cookie:string)=>{const response=await fetch(base+path,{headers:{Cookie:cookie}});return {status:response.status,total:Number(response.headers.get("x-total-count")),data:await response.json() as any};};
+  for(const path of ["/notificacoes","/conversations"]){const first=await read(`${path}?page=1&limit=100`,renterCookie),second=await read(`${path}?page=2&limit=100`,renterCookie);assert.equal(first.status,200);assert.equal(first.data.length,100);assert.ok(second.data.length>=5);assert.ok(first.total>=105);assert.notEqual(first.data[0].id,second.data[0].id);}
+  const own=await read("/objetos/meus?page=2&limit=100",adminCookie);assert.ok(own.total>100);assert.ok(own.data.length>0);
+  const history=await read("/alugueis/historico?page=2&limit=100",adminCookie);assert.ok(history.total>100);assert.ok(history.data.length>0);
+  const support=await read("/suporte/me?page=2&limit=100",renterCookie);assert.ok(support.data.paginacao.totais.suporte>=105);assert.ok(support.data.suporte.length>=5);
  });
  await t.test("exclusão autentica senha e revoga acesso",async()=>{
   assert.equal((await api("/usuarios/me","DELETE",{senha:"incorreta"},strangerCookie)).status,401);

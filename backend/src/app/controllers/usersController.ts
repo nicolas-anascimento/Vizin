@@ -6,6 +6,7 @@ import { HttpError } from "../utils/httpError.ts";
 import { publicUploadUrl, removeUploadByUrl } from "../utils/files.ts";
 import { serializeProfile } from "../utils/serializers.ts";
 
+// Relações usadas para avaliações, histórico e contadores exibidos no perfil.
 const profileInclude = {
   avaliacoes_avaliacoes_avaliado_idTousuarios: {
     orderBy: { criado_em: "desc" as const },
@@ -16,12 +17,14 @@ const profileInclude = {
   itens: { where: { arquivado: false }, select: { id: true } },
 };
 
+// Entrega o perfil completo do usuário autenticado, incluindo os campos privados permitidos.
 export const ownProfile: RequestHandler = async (req, res) => {
   const user = await prisma.usuarios.findUnique({ where: { id: req.user!.id }, include: profileInclude });
   if (!user) throw new HttpError(404, "Usuário não encontrado");
   res.json(serializeProfile(user,true));
 };
 
+// Respeita atividade e privacidade da conta antes de remover campos sensíveis do DTO público.
 export const publicProfile: RequestHandler = async (req, res) => {
   const user = await prisma.usuarios.findUnique({ where: { id: uuid(req.params.id) }, include: profileInclude });
   if (!user || !user.ativo || (user.privacidade as { perfilPublico?: boolean })?.perfilPublico === false) throw new HttpError(404, "Usuário não encontrado");
@@ -34,6 +37,7 @@ export const publicProfile: RequestHandler = async (req, res) => {
   res.json(profile);
 };
 
+// Valida apenas os campos enviados e atualiza o perfil do usuário autenticado.
 export const updateProfile: RequestHandler = async (req, res) => {
   const body = req.body ?? {};
   const nome = body.nome !== undefined ? text(body.nome,"Nome",100) : undefined;
@@ -49,6 +53,7 @@ export const updateProfile: RequestHandler = async (req, res) => {
   res.json(serializeProfile(user,true));
 };
 
+// Salva a URL do avatar novo no usuário e remove o arquivo anterior após a atualização.
 export const uploadAvatar: RequestHandler = async (req, res) => {
   const file = req.file ?? (req.files && !Array.isArray(req.files) ? Object.values(req.files).flat()[0] : undefined);
   if (!file) throw new HttpError(422, "Envie uma imagem");

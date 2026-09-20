@@ -1,4 +1,5 @@
 import { inflateSync, inflateRawSync } from "node:zlib";
+// Verifica integridade dos dados binários durante a inspeção de arquivos.
 function crc32(b:Buffer) {let c=0xffffffff;for(const byte of b){c^=byte;for(let j=0;j<8;j++)c=(c>>>1)^((c&1)?0xedb88320:0);}return (c^0xffffffff)>>>0;}
 function png(b:Buffer) {
  if(!b.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) return false;
@@ -93,6 +94,7 @@ function webm(b:Buffer) {
  }
  return parse(0,b.length,0)&&header&&segment&&tracks&&cluster;
 }
+// Compara assinatura e estrutura do arquivo com o tipo MIME declarado.
 export function validFileStructure(b:Buffer,mime:string):boolean {
  try {
  if(mime==="image/png")return png(b);if(mime==="image/jpeg")return jpeg(b);if(mime==="image/gif")return gif(b);if(mime==="image/webp")return webp(b);
@@ -107,6 +109,7 @@ export function validFileStructure(b:Buffer,mime:string):boolean {
  } catch {return false;}
 }
 
+// Executa a validação de conteúdo usada pelo middleware antes de aceitar uploads.
 export async function validFileContent(bytes:Buffer,mime:string):Promise<boolean> {
  if(!validFileStructure(bytes,mime))return false;
  if(!mime.startsWith("image/"))return true;

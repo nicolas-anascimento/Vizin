@@ -7,10 +7,12 @@ import { HttpError } from "../utils/httpError.ts";
 import { publicUploadUrl, removeUploadByUrl } from "../utils/files.ts";
 import { serializeItem } from "../utils/serializers.ts";
 import { asBoolean, asPositiveNumber, nonEmptyString } from "../utils/strings.ts";
+import { pageHeaders, pagination } from "../utils/listPage.ts";
 
 
 type ItemPhoto = { item_id: string; id: string; url: string; principal: boolean | null };
 
+// Carrega fotos, categoria, endereço, proprietário e avaliações usados no DTO do objeto.
 const itemInclude = {
   avaliacoes: { where: { contexto: "objeto" }, select: { nota: true } },
   fotos_item: true,
@@ -27,17 +29,32 @@ const itemInclude = {
   },
 };
 
+// Executado sob bloqueio do anúncio; a criação de solicitações também bloqueia essa linha.
+// Sob bloqueio do anúncio, impede alterações incompatíveis com locação ativa ou pedido pendente.
+async function assertItemMutation(tx: Pick<typeof prisma, "alugueis" | "$queryRaw">, itemId: string, deleting: boolean, availabilityChanged = false): Promise<void> {
+  await tx.$queryRaw`SELECT id FROM alugueis WHERE item_id=${itemId}::uuid FOR UPDATE`;
+  if (await tx.alugueis.count({ where: { item_id: itemId, status: { in: ["aprovado", "pago", "retirado", "devolvido"] } } })) {
+    throw new HttpError(409, "O objeto possui uma locação ativa.", "OBJETO_EM_LOCACAO");
+  }
+  if ((deleting || availabilityChanged) && await tx.alugueis.count({ where: { item_id: itemId, status: "pendente" } })) {
+    throw new HttpError(409, "O objeto possui uma solicitação pendente.", "OBJETO_COM_SOLICITACAO_PENDENTE");
+  }
+}
+
+// Seleciona a foto principal dentro dos índices válidos enviados pelo formulário.
 function photoIndex(value: unknown, total: number): number {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed >= 0 && parsed < total ? parsed : 0;
 }
 
+// Normaliza os formatos de arquivos produzidos pelos diferentes middlewares de upload.
 function uploadedFiles(req: Request): Express.Multer.File[] {
   if (Array.isArray(req.files)) return req.files;
   if (!req.files) return [];
   return Object.values(req.files).flat();
 }
 
+// Resolve categoria por UUID ou slug e só cria nomes previstos no catálogo.
 async function categoryId(name: string): Promise<string> {
   const normalized = slug(name);
   if (!normalized || normalized.length > 100) throw new HttpError(422, "Categoria inválida");
@@ -50,6 +67,7 @@ async function categoryId(name: string): Promise<string> {
   return category.id;
 }
 
+// Aceita nomes atuais e legados dos campos e valida preço, textos e opções do anúncio.
 function itemData(body: Record<string, unknown>) {
   const titulo = nonEmptyString(body.titulo ?? body.nome);
   const descricao = nonEmptyString(body.descricao);
@@ -76,6 +94,7 @@ function itemData(body: Record<string, unknown>) {
   };
 }
 
+// Monta filtros públicos, inclusive busca geográfica no PostGIS, e pagina os objetos visíveis.
 export const listItems: RequestHandler = async (req, res) => {
   const busca = nonEmptyString(req.query.busca ?? req.query.texto ?? req.query.q);
   const local = nonEmptyString(req.query.local ?? req.query.localizacao);
@@ -84,13 +103,14 @@ export const listItems: RequestHandler = async (req, res) => {
   const where: any = { arquivado: false, usuarios: { ativo: true } };
   if (ownerId) where.usuario_id = uuid(ownerId);
   if (req.query.disponivel !== undefined) where.disponivel = boolean(req.query.disponivel, "Disponível");
-  else if (ownerId !== req.user?.id) where.disponivel = true;
+  else if (!ownerId || ownerId !== req.user?.id) where.disponivel = true;
   const min = req.query.precoMin ?? req.query.preco_min;
   const max = req.query.precoMax ?? req.query.preco_max;
   if (min !== undefined || max !== undefined) {
     if ((min !== undefined && (!Number.isFinite(Number(min)) || Number(min) < 0)) || (max !== undefined && (!Number.isFinite(Number(max)) || Number(max) < 0))) throw new HttpError(422, "Preço inválido");
     where.preco_por_dia = { ...(min !== undefined ? { gte: Number(min) } : {}), ...(max !== undefined ? { lte: Number(max) } : {}) };
   }
+  // A busca geográfica usa endereços dentro do raio calculado em metros pelo PostGIS.
   const latitude = req.query.latitude;
   const longitude = req.query.longitude;
   if (latitude !== undefined || longitude !== undefined) {
@@ -119,15 +139,21 @@ export const listItems: RequestHandler = async (req, res) => {
   res.json(items.map(serializeItem));
 };
 
+// Lista somente anúncios não arquivados do usuário autenticado, com total para paginação.
 export const myItems: RequestHandler = async (req, res) => {
-  const items = await prisma.itens.findMany({
-    where: { usuario_id: req.user!.id, arquivado: false },
+  const {page,limit,skip}=pagination(req);
+  const where={usuario_id:req.user!.id,arquivado:false};
+  const [items,total] = await Promise.all([prisma.itens.findMany({
+    where,
     include: itemInclude,
     orderBy: { criado_em: "desc" },
-  });
+    skip,take:limit,
+  }),prisma.itens.count({where})]);
+  pageHeaders(res,total,page,limit);
   res.json(items.map(serializeItem));
 };
 
+// Mostra anúncio pelo UUID; conteúdo arquivado ou de conta inativa só é visível ao dono ou admin.
 export const getItem: RequestHandler = async (req, res) => {
   const item = await prisma.itens.findUnique({ where: { id: uuid(req.params.id) }, include: itemInclude });
   if (!item || ((!item.usuarios.ativo || item.arquivado) && item.usuario_id !== req.user?.id && req.user?.tipo !== "admin")) {
@@ -136,14 +162,18 @@ export const getItem: RequestHandler = async (req, res) => {
   res.json(serializeItem(item));
 };
 
+// Exige foto e formulário multipart, confirma categoria e endereço próprio e cria anúncio com fotos.
 export const createItem: RequestHandler = async (req, res) => {
   const data = itemData(req.body as Record<string, unknown>);
   const files = uploadedFiles(req);
+  if (!req.is("multipart/form-data")) throw new HttpError(422, "Use multipart/form-data");
+  if (files.length > 5) throw new HttpError(422, "O objeto pode ter no máximo cinco fotos");
   if (files.length === 0) throw new HttpError(422, "Adicione ao menos uma foto do objeto");
   const categoria = await categoryId(data.categoria);
   const addressId = req.body?.endereco_id ?? req.body?.enderecoId;
   const address = addressId ? await prisma.enderecos.findFirst({ where: { id: uuid(addressId), usuario_id: req.user!.id } }) : await prisma.enderecos.findFirst({ where: { usuario_id: req.user!.id, principal: true } });
   if (addressId && !address) throw new HttpError(422, "Endereço inválido");
+  // Cria anúncio e fotos na mesma escrita; o preço diário armazenado será usado nas solicitações.
   const item = await prisma.itens.create({
     data: {
       usuario_id: req.user!.id,
@@ -169,16 +199,15 @@ export const createItem: RequestHandler = async (req, res) => {
   res.status(201).json({ success: true, objeto: serializeItem(item), ...serializeItem(item) });
 };
 
+// Confere propriedade e campos enviados antes de atualizar anúncio, endereço, categoria e fotos.
 export const updateItem: RequestHandler = async (req, res) => {
   const current = await prisma.itens.findUnique({
     where: { id: uuid(req.params.id) },
     include: { fotos_item: true, categorias: true },
   });
   if (!current) throw new HttpError(404, "Objeto não encontrado");
-  if (current.usuario_id !== req.user!.id && req.user!.tipo !== "admin") throw new HttpError(403, "Você não pode editar este objeto");
+  if (current.usuario_id !== req.user!.id) throw new HttpError(403, "Você não pode editar este objeto");
   const body = (req.body ?? {}) as Record<string, unknown>;
-  const active = await prisma.alugueis.count({ where: { item_id: current.id, status: { in: ["pendente", "aprovado", "pago", "retirado", "devolvido"] } } });
-  if (active && (Object.keys(body).some(k => k !== "disponivel") || uploadedFiles(req).length)) throw new HttpError(409, "Objeto com aluguel ativo só permite alterar disponibilidade");
   if (body.disponivel !== undefined) boolean(body.disponivel, "Disponível");
   const price = body.preco_dia ?? body.preco_por_dia ?? body.preco;
   const mercado = body.valor_mercado;
@@ -216,33 +245,41 @@ export const updateItem: RequestHandler = async (req, res) => {
   if (editingPhotos && validKept.length + newFiles.length === 0) throw new HttpError(422, "O objeto precisa ter pelo menos uma foto");
   if (editingPhotos && validKept.length + newFiles.length > 5) throw new HttpError(422, "O objeto pode ter no máximo cinco fotos");
   const removed = current.fotos_item.filter((photo: ItemPhoto) => !keptIds.includes(photo.id));
+  // Bloqueia o anúncio ao editar. A verificação de fotos impede sobrescrever alterações
+  // feitas por outra requisição enquanto este formulário estava aberto.
   const updated = await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM itens WHERE id=${current.id}::uuid FOR UPDATE`;
-    if (await tx.alugueis.count({ where: { item_id: current.id, status: { in: ["pendente", "aprovado", "pago", "retirado", "devolvido"] } } }) && (Object.keys(body).some(k => k !== "disponivel") || newFiles.length)) throw new HttpError(409, "Objeto possui aluguel ativo");
-    const snapshot=await tx.fotos_item.findMany({where:{item_id:current.id}});
-    if(snapshot.length!==current.fotos_item.length || snapshot.some(p=>!current.fotos_item.some(old=>old.id===p.id))) throw new HttpError(409,"Fotos alteradas; recarregue o anúncio");
-    await tx.fotos_item.updateMany({ where: { item_id: current.id }, data: { principal: false } });
-    if (removed.length) await tx.fotos_item.deleteMany({ where: { id: { in: removed.map((photo: ItemPhoto) => photo.id) } } });
-    const created = [];
-    for (const file of newFiles) {
-      created.push(await tx.fotos_item.create({ data: { item_id: current.id, url: publicUploadUrl(file.path), principal: false } }));
+    const locked = await tx.itens.findUnique({ where: { id: current.id } });
+    if (!locked || locked.arquivado) throw new HttpError(404, "Objeto não encontrado");
+    if (locked.usuario_id !== req.user!.id) throw new HttpError(403, "Você não pode editar este objeto");
+    await assertItemMutation(tx, current.id, false,
+      (body.disponivel !== undefined || body.disponivel_imediato !== undefined) && data.disponivel !== locked.disponivel);
+    if (editingPhotos) {
+      const snapshot=await tx.fotos_item.findMany({where:{item_id:current.id}});
+      if(snapshot.length!==current.fotos_item.length || snapshot.some(p=>!current.fotos_item.some(old=>old.id===p.id))) throw new HttpError(409,"Fotos alteradas; recarregue o anúncio", "FOTOS_ALTERADAS");
+      await tx.fotos_item.updateMany({ where: { item_id: current.id }, data: { principal: false } });
+      if (removed.length) await tx.fotos_item.deleteMany({ where: { id: { in: removed.map((photo: ItemPhoto) => photo.id) } } });
+      const created = [];
+      for (const file of newFiles) {
+        created.push(await tx.fotos_item.create({ data: { item_id: current.id, url: publicUploadUrl(file.path), principal: false } }));
+      }
+      const finalPhotos = [...validKept, ...created];
+      const principalId = req.body?.foto_principal_index !== undefined ? finalPhotos[photoIndex(req.body.foto_principal_index, finalPhotos.length)]?.id : validKept.find(p => p.principal)?.id ?? finalPhotos[0]?.id;
+      if (principalId) await tx.fotos_item.update({ where: { id: principalId }, data: { principal: true } });
     }
-    const finalPhotos = [...validKept, ...created];
-    const principalId = req.body?.foto_principal_index !== undefined ? finalPhotos[photoIndex(req.body.foto_principal_index, finalPhotos.length)]?.id : validKept.find(p => p.principal)?.id ?? finalPhotos[0]?.id;
-    if (principalId) await tx.fotos_item.update({ where: { id: principalId }, data: { principal: true } });
     return tx.itens.update({
       where: { id: current.id },
       data: {
-        categoria_id: category,
-        endereco_id: addressId,
-        titulo: data.titulo,
-        descricao: data.descricao,
-        preco_por_dia: preco,
-        valor_mercado: valorMercado,
-        localizacao_texto: data.localizacao,
-        disponivel: data.disponivel,
-        condicao: data.condicao,
-        segurado: data.segurado,
+        ...(body.categoria_id !== undefined || body.categoria !== undefined ? { categoria_id: category } : {}),
+        ...(body.endereco_id !== undefined || body.enderecoId !== undefined ? { endereco_id: addressId } : {}),
+        ...(body.titulo !== undefined || body.nome !== undefined ? { titulo: data.titulo } : {}),
+        ...(body.descricao !== undefined ? { descricao: data.descricao } : {}),
+        ...(price !== undefined ? { preco_por_dia: preco } : {}),
+        ...(mercado !== undefined ? { valor_mercado: valorMercado } : {}),
+        ...(body.localizacao !== undefined || body.localizacao_texto !== undefined ? { localizacao_texto: data.localizacao } : {}),
+        ...(body.disponivel !== undefined || body.disponivel_imediato !== undefined ? { disponivel: data.disponivel } : {}),
+        ...(body.condicao !== undefined ? { condicao: data.condicao } : {}),
+        ...(body.segurado !== undefined ? { segurado: data.segurado } : {}),
         atualizado_em: new Date(),
       },
       include: itemInclude,
@@ -252,32 +289,41 @@ export const updateItem: RequestHandler = async (req, res) => {
   res.json({ success: true, objeto: serializeItem(updated), ...serializeItem(updated) });
 };
 
+// Remove ou arquiva anúncio do proprietário, conforme seu histórico de locações.
 export const deleteItem: RequestHandler = async (req, res) => {
   const item = await prisma.itens.findUnique({ where: { id: uuid(req.params.id) }, include: { fotos_item: true } });
   if (!item) throw new HttpError(404, "Objeto não encontrado");
-  if (item.usuario_id !== req.user!.id && req.user!.tipo !== "admin") throw new HttpError(403, "Você não pode excluir este objeto");
-  const activeRental = await prisma.alugueis.findFirst({
-    where: { item_id: item.id, status: { in: ["pendente", "aprovado", "pago", "retirado"] } },
+  if (item.usuario_id !== req.user!.id) throw new HttpError(403, "Você não pode excluir este objeto");
+  // Se já houve aluguel, mantém o registro arquivado para preservar o histórico;
+  // sem histórico, remove o anúncio e depois os arquivos de suas fotos.
+  const hasHistory = await prisma.$transaction(async tx => {
+    await tx.$queryRaw`SELECT id FROM itens WHERE id=${item.id}::uuid FOR UPDATE`;
+    const locked = await tx.itens.findUnique({ where: { id: item.id } });
+    if (!locked || locked.arquivado) throw new HttpError(404, "Objeto não encontrado");
+    if (locked.usuario_id !== req.user!.id) throw new HttpError(403, "Você não pode excluir este objeto");
+    await assertItemMutation(tx, item.id, true);
+    const history = await tx.alugueis.findFirst({ where: { item_id: item.id } });
+    if (history) {
+      await tx.itens.update({ where: { id: item.id }, data: { arquivado: true, disponivel: false, atualizado_em: new Date() } });
+    } else {
+      await tx.itens.delete({ where: { id: item.id } });
+    }
+    return Boolean(history);
   });
-  if (activeRental) throw new HttpError(409, "Este objeto possui uma solicitação ou aluguel ativo");
-  const hasHistory = await prisma.alugueis.findFirst({ where: { item_id: item.id } });
-  if (hasHistory) {
-    await prisma.itens.update({ where: { id: item.id }, data: { arquivado: true, disponivel: false, atualizado_em: new Date() } });
-  } else {
-    await prisma.itens.delete({ where: { id: item.id } });
-    await Promise.all(item.fotos_item.map((photo: ItemPhoto) => removeUploadByUrl(photo.url)));
-  }
+  if (!hasHistory) await Promise.all(item.fotos_item.map((photo: ItemPhoto) => removeUploadByUrl(photo.url)));
   res.json({ success: true, arquivado: Boolean(hasHistory) });
 };
 
+// Devolve as categorias cadastradas para filtros e formulários de objeto.
 export const listCategories: RequestHandler = async (_req, res) => {
   const categories = await prisma.categorias.findMany({ orderBy: { nome: "asc" } });
-  res.json(categories);
+  res.json(categories.map(({ id, nome, slug }) => ({ id, nome, slug })));
 };
 
+// Calcula períodos ocupados do objeto após encerrar solicitações vencidas.
 export const itemAvailability: RequestHandler = async(req,res) => {
  await maintainRentals();
- const item=await prisma.itens.findUnique({where:{id:uuid(req.params.id)},include:{usuarios:{select:{ativo:true}},alugueis:{where:{status:{in:["pendente","aprovado","pago","retirado"]}},select:{data_inicio:true,data_fim:true,status:true}}}});
+ const item=await prisma.itens.findUnique({where:{id:uuid(req.params.id)},include:{usuarios:{select:{ativo:true}},alugueis:{where:{status:{in:["aprovado","pago","retirado"]}},select:{data_inicio:true,data_fim:true,status:true}}}});
  if(!item || item.arquivado || !item.usuarios.ativo)throw new HttpError(404,"Objeto não encontrado");
  res.json({objetoId:item.id,disponivel:item.disponivel,periodosReservados:item.alugueis.map(r=>({data_inicio:r.data_inicio.toISOString().slice(0,10),data_fim:r.data_fim.toISOString().slice(0,10),status:r.status}))});
 };

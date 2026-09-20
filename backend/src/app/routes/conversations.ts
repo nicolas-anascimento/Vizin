@@ -1,3 +1,4 @@
+// Expõe conversas, mensagens, leitura, bloqueios e denúncias para usuários autenticados.
 import { Router } from "express";
 import * as c from "../controllers/conversationsController.ts";
 import { report } from "../controllers/supportController.ts";

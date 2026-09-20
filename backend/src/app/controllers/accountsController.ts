@@ -8,6 +8,7 @@ import { HttpError } from "../utils/httpError.ts";
 import { password, email as validEmail } from "../utils/validation.ts";
 import { nonEmptyString } from "../utils/strings.ts";
 
+// Gera token temporário de redefinição e solicita envio ao email cadastrado.
 export const requestResetPassword: RequestHandler = async (req, res) => {
   const email = validEmail(req.body?.email);
   if (!transporter && env.NODE_ENV !== "dev") throw new HttpError(503, "SMTP não configurado");
@@ -37,6 +38,7 @@ export const requestResetPassword: RequestHandler = async (req, res) => {
   res.json({ success: true, message: "Se o usuário existir, enviaremos um email" });
 };
 
+// Confere validade do token, grava novo hash e invalida sessões anteriores.
 export const resetPassword: RequestHandler = async (req, res) => {
   const token = nonEmptyString(req.body?.token);
   const senha = password(req.body?.senha ?? req.body?.senhaNova);

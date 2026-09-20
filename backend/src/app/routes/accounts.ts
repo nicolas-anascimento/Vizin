@@ -1,3 +1,4 @@
+// Expõe recuperação e redefinição de senha com limites de tentativa por rota.
 import { Router } from "express";
 import { requestResetPassword, resetPassword } from "../controllers/accountsController.ts";
 import { rateLimit } from "../middlewares/rateLimit.ts";

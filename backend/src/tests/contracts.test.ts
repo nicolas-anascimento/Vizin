@@ -1,20 +1,28 @@
+// Valida utilitários e DTOs isolados que sustentam o contrato público da API.
 import assert from "node:assert/strict";
 import test from "node:test";
 import { cpf, password, slug, uuid } from "../app/utils/validation.ts";
 import { authorizeTransition, normalizeRentalStatus } from "../app/services/rentalRules.ts";
-import { serializeItem, serializePayment, serializeProfile } from "../app/utils/serializers.ts";
+import { serializeItem, serializePayment, serializeProfile, serializePublicPayment } from "../app/utils/serializers.ts";
 import { parseDateOnly, rentalDays } from "../app/utils/dates.ts";
 test("CPF formatado é normalizado e dígitos inválidos são rejeitados",()=>{
  assert.equal(cpf("529.982.247-25"),"52998224725");
  for(const invalid of [undefined,"","11111111111","52998224724","123","abc52998224725"]) assert.throws(()=>cpf(invalid));
 });
 test("senha respeita limite bcrypt sem truncar bytes",()=>{assert.equal(password("senha123"),"senha123");assert.throws(()=>password("a1".repeat(40)));});
-test("categorias equivalentes produzem slug único",()=>{assert.equal(slug("Eletrônicos"),slug("ELETRONICOS"));});
+test("categorias equivalentes produzem slug único",()=>{assert.equal(slug("Eletrônicos"),slug("ELETRONICOS"));assert.equal(slug("  CASA E JÁRDIM  "),"casajardim");});
 test("UUID permanece string nos contratos",()=>{
  const id="b1977890-226b-41cd-aa1a-938e465e49be"; assert.equal(uuid(id),id); assert.throws(()=>uuid(1));
  assert.equal(serializeItem({id,titulo:"Objeto",preco_por_dia:"12.50"}).id,id);
  assert.equal(serializePayment({id,valor:"12.50"}).valor,12.5);
  const profile=serializeProfile({id,nome:"Pessoa",cpf:"52998224725",senha_hash:"secret"}); assert.equal(profile.cpf,undefined);assert.equal(profile.senha_hash,undefined);
+});
+test("DTO financeiro seleciona campos 3DS sem payload adicional",()=>{
+ const p={id:"b1977890-226b-41cd-aa1a-938e465e49be",aluguel_id:"b1977890-226b-41cd-aa1a-938e465e49be",valor:"12.50",status:"pendente",metodo:"cartao",gateway:"mercado_pago",dados:{provider_secret:"segredo",acao_necessaria:{tipo:"3ds",url:"https://example.com/3ds",creq:"desafio",token:"segredo"}}};
+ for(const dto of [serializePayment(p),serializePublicPayment(p)]){
+  assert.equal(JSON.stringify(dto).includes("segredo"),false);
+  assert.deepEqual(dto.acao_necessaria,{tipo:"3ds",url:"https://example.com/3ds",creq:"desafio"});
+ }
 });
 test("aluguel no mesmo dia é permitido, período invertido e data inexistente são rejeitados",()=>{
  const date=parseDateOnly("2026-10-01");assert.equal(rentalDays(date,date),1);assert.throws(()=>parseDateOnly("2026-02-30"));assert.throws(()=>rentalDays(date,parseDateOnly("2026-09-30")));
@@ -52,4 +60,15 @@ test("estruturas legítimas PDF/DOCX/MP4/WEBM são aceitas e truncamento é reje
   assert.equal(validFileStructure(bytes,mime!),true,extension);
   assert.equal(validFileStructure(bytes.subarray(0,Math.floor(bytes.length/2)),mime!),false,extension);
  }
+});
+
+
+test("DTO de objeto expõe categoria estruturada, preços e proprietário público por UUID",()=>{
+ const id="b1977890-226b-41cd-aa1a-938e465e49be";
+ const dto=serializeItem({id,titulo:"Objeto",preco_por_dia:"25",usuario_id:id,categorias:{id,nome:"Ferramentas",slug:"ferramentas"},usuarios:{id,nome:"Pessoa",cpf:"privado",email:"privado",telefone:"privado"},enderecos:{rua:"privada",cidade:"São Paulo"},fotos_item:[{id,url:"/uploads/items/test.png",principal:true}]});
+ assert.deepEqual(dto.categoria,{id,nome:"Ferramentas",slug:"ferramentas"});
+ assert.equal(dto.preco,25);assert.equal(dto.preco_dia,25);assert.equal(dto.preco_por_dia,25);
+ const owner=dto.proprietario as Record<string,unknown>;assert.equal(owner.id,id);assert.equal(owner.avatarUrl,null);
+ for(const field of ["cpf","email","telefone","enderecos","rua"]) {assert.equal(dto[field],undefined);assert.equal(owner[field],undefined);}
+ assert.deepEqual(dto.fotos,[{id,url:"/uploads/items/test.png",principal:true}]);
 });

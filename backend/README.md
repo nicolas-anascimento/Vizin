@@ -27,6 +27,6 @@ npm test
 TEST_DATABASE_URL=postgresql://.../vizin_contract_test_exemplo npm run test:integration
 ```
 
-Os testes de integração exigem banco separado com PostGIS e recusam nomes fora do prefixo `vizin_contract_test_`. Sem `TEST_DATABASE_URL` a suíte é explicitamente ignorada. Não utilizam mocks de banco. `npm run build` gera o client Prisma e compila todo `src`, incluindo adapters legados e testes. Não há lint configurado.
+Os testes de integração e financeiros exigem banco separado com PostGIS e recusam nomes fora do prefixo `vizin_contract_test_`. Sem `TEST_DATABASE_URL` ambos os comandos falham; nunca informam sucesso com zero testes. Não utilizam mocks de banco. `npm run build` gera o client Prisma e compila todo `src`, incluindo adapters legados e testes. Não há lint configurado.
 
-Use `npm run db:deploy` para migrations versionadas; `db:push` é somente uma ferramenta de desenvolvimento e não substitui migrations. As migrations novas foram verificadas em PostgreSQL 17/PostGIS num banco isolado; não foram aplicadas ao banco original.
+Use `npm run db:deploy` para migrations versionadas; `db:push` é somente uma ferramenta de desenvolvimento e não substitui migrations. Nesta revisão, aplique migrations apenas num banco isolado de testes; a verificação do banco original é somente de leitura com `npx prisma migrate status`.

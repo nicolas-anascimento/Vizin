@@ -7,6 +7,7 @@ import env from "../config/env.ts";
 import { HttpError } from "../utils/httpError.ts";
 import { cpf, email as validEmail, password, text } from "../utils/validation.ts";
 
+// Define cookie de sessão inacessível a JavaScript e ajusta SameSite, HTTPS e validade por ambiente.
 export function cookieOptions(): CookieOptions {
   return {
     httpOnly: true,
@@ -17,10 +18,12 @@ export function cookieOptions(): CookieOptions {
   };
 }
 
+// Assina identidade, papel e versão da sessão em JWT com expiração de 30 dias.
 function signToken(user: { id: string; email: string; tipo: "admin" | "usuario"; tokenVersion: number }): string {
   return jwt.sign(user, env.JWT_KEY, { expiresIn: "30d" });
 }
 
+// Valida cadastro, rejeita email existente e armazena apenas o hash bcrypt da senha; devolve perfil seguro.
 export const register: RequestHandler = async (req, res) => {
   const nome = text(req.body?.nome, "Nome", 100);
   const email = validEmail(req.body?.email);
@@ -38,6 +41,7 @@ export const register: RequestHandler = async (req, res) => {
   res.status(201).json({ success: true, message: "Conta criada com sucesso", usuario: serializeUser(user,true) });
 };
 
+// Confere CPF e senha, recusa conta inativa e entrega JWT em cookie e no corpo da resposta.
 export const login: RequestHandler = async (req, res) => {
   const documento = cpf(req.body?.cpf);
   const senha = typeof req.body?.senha === "string" ? req.body.senha : null;
@@ -57,6 +61,7 @@ export const login: RequestHandler = async (req, res) => {
   });
 };
 
+// Incrementa a versão do token para invalidar sessões emitidas antes do logout e limpa o cookie.
 export const logout: RequestHandler = async (req, res) => {
   if (req.user) await prisma.usuarios.update({ where: { id: req.user.id }, data: { token_version: { increment: 1 } } });
   const options = cookieOptions();
@@ -65,6 +70,7 @@ export const logout: RequestHandler = async (req, res) => {
   res.json({ success: true });
 };
 
+// Retorna o perfil atualizado no banco para uma sessão já autenticada pelo middleware.
 export const session: RequestHandler = async (req, res) => {
   if (!req.user) throw new HttpError(401, "Sessão inválida");
   const user = await prisma.usuarios.findUnique({

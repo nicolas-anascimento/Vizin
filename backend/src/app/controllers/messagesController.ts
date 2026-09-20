@@ -4,18 +4,25 @@ import type { RequestHandler } from "express";
 import prisma from "../config/database.ts";
 import { HttpError } from "../utils/httpError.ts";
 import { nonEmptyString } from "../utils/strings.ts";
+import { pageHeaders, pagination } from "../utils/listPage.ts";
 
+// Lista mensagens do usuário respeitando o relacionamento entre remetente e destinatário.
 export const listMessages: RequestHandler = async (req, res) => {
   const rentalId = nonEmptyString(req.query.aluguel_id);
   if (!rentalId) throw new HttpError(422, "aluguel_id é obrigatório");
   const rental = await prisma.alugueis.findUnique({ where: { id: rentalId } });
   if (!rental) throw new HttpError(404, "Aluguel não encontrado");
   if (![rental.locador_id, rental.locatario_id].includes(req.user!.id)) throw new HttpError(403, "Acesso negado");
-  const messages = await prisma.mensagens.findMany({ where: { aluguel_id: rental.id }, include: { usuarios_mensagens_remetente_idTousuarios: { select: { id: true, nome: true, foto_url: true } } }, orderBy: { enviada_em: "asc" } });
-  await prisma.mensagens.updateMany({ where: { aluguel_id: rental.id, destinatario_id: req.user!.id, lida: false }, data: { lida: true } });
+  const {page,limit,skip}=pagination(req);
+  const where={aluguel_id:rental.id};
+  const [messages,total]=await Promise.all([prisma.mensagens.findMany({ where, include: { usuarios_mensagens_remetente_idTousuarios: { select: { id: true, nome: true, foto_url: true } } }, orderBy: { enviada_em: "asc" }, skip,take:limit }),prisma.mensagens.count({where})]);
+  // Ao abrir a página, marca como lidas somente as mensagens recebidas nela.
+  await prisma.mensagens.updateMany({ where: { id:{in:messages.map(m=>m.id)}, destinatario_id: req.user!.id, lida: false }, data: { lida: true } });
+  pageHeaders(res,total,page,limit);
   res.json(messages.map(m => ({ ...serializeMessage(m, req.user!.id), conteudo: m.conteudo, aluguel_id: m.aluguel_id })));
 };
 
+// Valida destinatário e corpo e registra nova mensagem.
 export const sendMessage: RequestHandler = async (req, res) => {
   const rentalId = nonEmptyString(req.body?.aluguel_id);
   const content = nonEmptyString(req.body?.conteudo);
@@ -27,6 +34,8 @@ export const sendMessage: RequestHandler = async (req, res) => {
   if (![rental.locador_id, rental.locatario_id].includes(req.user!.id)) throw new HttpError(403, "Acesso negado");
   const message = await prisma.$transaction(async (tx) => {
     const target = req.user!.id === rental.locador_id ? rental.locatario_id : rental.locador_id;
+    // Bloqueia usuários em ordem estável para conferir bloqueios e criar conversa
+    // sem corridas entre envios simultâneos.
     for (const uid of [req.user!.id,target].sort()) await tx.$queryRaw`SELECT id FROM usuarios WHERE id=${uid}::uuid FOR UPDATE`;
     if (await tx.bloqueios.count({ where: { OR: [{ usuario_id:req.user!.id,bloqueado_id:target },{ usuario_id:target,bloqueado_id:req.user!.id }] } })) throw new HttpError(403,"Conversa bloqueada");
     const chave = [rental.locador_id,rental.locatario_id].sort().join(":")+":"+rental.item_id;

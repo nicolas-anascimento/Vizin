@@ -1,3 +1,4 @@
+// Expõe cadastro, perfil, identidade, endereço e preferências; rotas privadas exigem sessão.
 import * as settings from "../controllers/accountSettingsController.ts";
 import * as addresses from "../controllers/addressesController.ts";
 import * as identity from "../controllers/identityController.ts";
@@ -9,9 +10,12 @@ import { ownProfile, publicProfile, updateProfile, uploadAvatar } from "../contr
 import { requireAuth } from "../middlewares/auth.ts";
 import { avatarUpload } from "../middlewares/upload.ts";
 import { rateLimit } from "../middlewares/rateLimit.ts";
+import { getMyRentalBlock } from "../controllers/rentalsController.ts";
+import { listReceivedReviews } from "../controllers/reviewsController.ts";
 const router = Router();
 router.post("/", rateLimit({ windowMs: 60 * 60_000, max: 10 }), register);
 router.get("/me", requireAuth, ownProfile);
+router.get("/me/bloqueio", requireAuth, getMyRentalBlock);
 router.patch("/me", requireAuth, updateProfile);
 router.get("/perfil", requireAuth, ownProfile);
 router.put("/perfil", requireAuth, updateProfile);
@@ -38,5 +42,7 @@ router.post("/me/enderecos", requireAuth, addresses.saveAddress);
 router.patch("/me/enderecos/:id", requireAuth, addresses.saveAddress);
 router.put("/me/enderecos/:id", requireAuth, addresses.saveAddress);
 router.delete("/me/enderecos/:id", requireAuth, addresses.removeAddress);
+router.get("/:id/avaliacoes-recebidas", listReceivedReviews);
+router.get("/:id/avaliacoes-recebidas-locatario", listReceivedReviews);
 router.get("/:id", publicProfile);
 export default router;

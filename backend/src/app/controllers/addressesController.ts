@@ -2,11 +2,14 @@ import type { RequestHandler } from "express";
 import prisma from "../config/database.ts";
 import { HttpError } from "../utils/httpError.ts";
 import { text, boolean, uuid } from "../utils/validation.ts";
+// Lista endereços ligados ao usuário autenticado.
 export const listAddresses: RequestHandler = async (req, res) => { res.json(await prisma.enderecos.findMany({ where: { usuario_id: req.user!.id }, orderBy: { principal: "desc" } })); };
+// Busca endereço pelo UUID e verifica se pertence ao usuário.
 export const getAddress: RequestHandler = async(req,res) => {
  const address=await prisma.enderecos.findFirst({where:{id:uuid(req.params.id),usuario_id:req.user!.id}});
  if(!address)throw new HttpError(404,"Endereço não encontrado");res.json(address);
 };
+// Valida endereço recebido e cria ou atualiza somente registro do titular.
 export const saveAddress: RequestHandler = async (req, res) => {
  const id = req.params.id ? uuid(req.params.id) : undefined;
  const current = id ? await prisma.enderecos.findFirst({ where: { id, usuario_id: req.user!.id } }) : null;
@@ -21,6 +24,8 @@ export const saveAddress: RequestHandler = async (req, res) => {
  if ((lat === null) !== (lon === null) || (lat !== null && (!Number.isFinite(lat) || Math.abs(lat) > 90)) || (lon !== null && (!Number.isFinite(lon) || Math.abs(lon) > 180))) throw new HttpError(422, "Coordenadas inválidas");
  const principal = body.principal == null ? false : boolean(body.principal, "Principal");
  const data = { usuario_id: req.user!.id, cep, rua: text(body.rua, "Rua", 200), numero: text(body.numero, "Número", 10), bairro: text(body.bairro, "Bairro", 100), cidade: text(body.cidade, "Cidade", 100), estado, complemento: body.complemento ? text(body.complemento, "Complemento", 100) : null, principal, latitude: lat, longitude: lon };
+ // A transação garante um único endereço principal por usuário. As coordenadas
+ // também atualizam a coluna geográfica usada pela busca de objetos por raio.
  const result = await prisma.$transaction(async tx => {
   await tx.$queryRaw`SELECT id FROM usuarios WHERE id = ${req.user!.id}::uuid FOR UPDATE`;
   if (principal) await tx.enderecos.updateMany({ where: { usuario_id: req.user!.id }, data: { principal: false } });
@@ -31,6 +36,7 @@ export const saveAddress: RequestHandler = async (req, res) => {
  });
  res.status(id ? 200 : 201).json(result);
 };
+// Exclui endereço próprio quando não houver vínculo que impeça a operação.
 export const removeAddress: RequestHandler = async (req, res) => {
  await prisma.$transaction(async tx => {
   const address = await tx.enderecos.findFirst({ where: { id: uuid(req.params.id), usuario_id: req.user!.id } });

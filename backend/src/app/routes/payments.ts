@@ -1,3 +1,4 @@
+// Expõe pagamento, consulta, cancelamento e estorno apenas para usuários autenticados.
 import { Router } from "express";
 import { confirmPix, generatePix, payCard, paymentStatus, refundPayment, cancelPayment, simulatePayment } from "../controllers/paymentsController.ts";
 import { requireAuth } from "../middlewares/auth.ts";

@@ -6,11 +6,13 @@ import multer from "multer";
 import type { RequestHandler } from "express";
 import { backendRoot } from "../utils/files.ts";
 import { HttpError } from "../utils/httpError.ts";
+// Documentos de identidade e anexos ficam fora do diretório servido publicamente.
 export const privateRoot = path.join(backendRoot, "private-uploads");
 fs.mkdirSync(privateRoot, { recursive: true });
 const types: Record<string, string> = {
  "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif", "application/pdf": ".pdf", "video/mp4": ".mp4", "video/webm": ".webm", "application/msword": ".doc", "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
 };
+// Restringe MIME, tamanho e quantidade antes de gravar arquivos privados com UUID.
 function upload(max: number, size: number, imagesOnly = false) {
  return multer({ storage: multer.diskStorage({ destination: privateRoot, filename: (_req, file, cb) => cb(null, crypto.randomUUID() + types[file.mimetype]) }), limits: { fileSize: size * 1024 * 1024, files: max, fields: 30, fieldSize: 10000 }, fileFilter: (_req, file, cb) => {
   if (!types[file.mimetype] || (imagesOnly && !file.mimetype.startsWith("image/"))) cb(new HttpError(422, "Tipo de arquivo não permitido")); else cb(null, true);
@@ -20,6 +22,7 @@ export const identityUpload = upload(3, 5, true).fields([{ name: "documentoFrent
 export const attachmentUpload = upload(1, 25).single("file");
 export { validFileStructure as matchesMime } from "../utils/fileStructure.ts";
 import { validFileContent } from "../utils/fileStructure.ts";
+// Confere a estrutura real de cada arquivo, além do MIME declarado, e remove arquivos rejeitados.
 export const verifyUploads: RequestHandler = async (req, _res, next) => {
  const files = req.file ? [req.file] : Array.isArray(req.files) ? req.files : Object.values(req.files ?? {}).flat();
  for (const file of files) {
