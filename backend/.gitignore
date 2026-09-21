@@ -1,9 +1,9 @@
 node_modules/
 dist/
-.env
 src/generated/
-*.log
-uploads/**/*
-!uploads/avatars/.gitkeep
-!uploads/items/.gitkeep
-!uploads/withdrawals/.gitkeep
+uploads/
+private-uploads/
+.env
+.env.*
+!.env.example
+docs/

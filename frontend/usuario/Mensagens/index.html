@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mensagens · Empresta+</title>
+<link rel="stylesheet" href="../header/header.css?v=12">
+<link rel="stylesheet" href="../footer/footer.css">
+<link rel="stylesheet" href="../Notificacoes/notificacoes-shared.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+<link rel="stylesheet" href="mensagens.css?v=24">
+</head>
+<body>
+ 
+  <div id="header"></div>
+ 
+<div class="espaco">
+  <div class="app">
+ 
+  <!-- ===== Coluna esquerda: lista de conversas ===== -->
+  <aside class="conv-panel">
+    <div class="conv-panel__header">
+      <div class="conv-panel__title-row">
+        <h1 class="app-title">Mensagens</h1>
+        <button type="button" class="icon-btn" id="blockedUsersBtn" title="Usuários bloqueados" aria-label="Usuários bloqueados">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-6.5 8-6.5"/><circle cx="17.5" cy="17.5" r="4.5"/><path d="M15.2 19.8 19.8 15.2"/></svg>
+        </button>
+      </div>
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" class="icon icon--search"><path d="M21 21l-4.35-4.35M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <input type="text" id="searchInput" placeholder="Buscar conversas..." autocomplete="off">
+      </div>
+    </div>
+ 
+    <!-- Aviso de sem conexão -->
+    <div class="offline-banner hidden" id="offlineBanner">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l22 22M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.58 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
+      Você está offline. Algumas ações podem não funcionar.
+    </div>
+ 
+    <ul class="conv-list" id="convList" role="list" aria-label="Lista de conversas">
+      <!-- gerado via JS (renderConversationList) -->
+    </ul>
+ 
+    <div class="conv-list__empty hidden" id="convEmpty">
+      <p>Nenhuma conversa encontrada.</p>
+    </div>
+ 
+    <div class="conv-list__error hidden" id="convError">
+      <p>Não foi possível carregar suas conversas.</p>
+      <button type="button" id="retryLoadBtn" class="retry-btn">Tentar novamente</button>
+    </div>
+  </aside>
+ 
+  <!-- ===== Coluna direita: chat ===== -->
+  <section class="chat-panel" id="chatPanel">
+ 
+    <!-- Estado vazio: nenhuma conversa selecionada -->
+    <div class="chat-empty" id="chatEmpty">
+      <div class="chat-empty__icon">
+        <svg viewBox="0 0 24 24" width="48" height="48"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <p>Selecione uma conversa para começar</p>
+    </div>
+ 
+    <!-- Conteúdo do chat ativo -->
+    <div class="chat-active hidden" id="chatActive">
+ 
+      <div class="chat-header">
+        <div class="chat-header__user">
+          <div class="avatar avatar--lg">
+            <img id="chatAvatar" src="" alt="">
+            <span class="status-dot" id="chatStatusDot"></span>
+          </div>
+          <div class="chat-header__info">
+            <h2 id="chatName"></h2>
+            <span class="presence" id="chatPresence"></span>
+          </div>
+        </div>
+ 
+        <div class="chat-header__item" id="chatItemChip">
+          <!-- chip do item em negociação, gerado via JS -->
+        </div>
+ 
+        <div class="chat-header__menu">
+          <button type="button" class="icon-btn" id="chatMenuBtn" aria-label="Mais opções">
+            <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+          </button>
+          <div class="chat-menu-dropdown hidden" id="chatMenuDropdown">
+            <button type="button" id="blockUserOption">Bloquear usuário</button>
+            <button type="button" id="reportConvOption">Denunciar conversa</button>
+            <button type="button" class="danger" id="deleteConvOption">Apagar conversa</button>
+          </div>
+        </div>
+ 
+      </div>
+ 
+      <!-- Aviso quando o anúncio da conversa não está mais disponível -->
+      <div class="item-banner hidden" id="itemBanner"></div>
+ 
+      <!-- Aviso de segurança padrão do chat -->
+      <div class="safety-notice" id="safetyNotice">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
+        Nunca compartilhe dados bancários, senhas ou códigos de confirmação pelo chat.
+      </div>
+ 
+      <div class="messages" id="messagesList" aria-live="polite">
+        <!-- gerado via JS (renderMessages) -->
+      </div>
+ 
+      <div class="typing-indicator hidden" id="typingIndicator">
+        <span></span><span></span><span></span> digitando...
+      </div>
+ 
+      <!-- Preview de anexo antes de enviar -->
+      <div class="attachment-preview hidden" id="attachmentPreview">
+        <img id="attachmentPreviewImg" src="" alt="Pré-visualização do anexo">
+        <div class="attachment-preview__info">
+          <span id="attachmentPreviewName"></span>
+          <button id="attachmentRemoveBtn" aria-label="Remover anexo">&times;</button>
+        </div>
+      </div>
+ 
+      <form class="composer" id="composerForm">
+        <button type="button" class="icon-btn" id="attachBtn" title="Anexar arquivo ou imagem" aria-label="Anexar arquivo">
+          <svg viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a5.5 5.5 0 0 1-7.78-7.78l9.2-9.19a3.5 3.5 0 0 1 5.5 4.34l-9.2 9.19a1.5 1.5 0 0 1-2.12-2.12l8.49-8.48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <input type="file" id="fileInput" accept="image/*,video/*,.pdf,.doc,.docx" hidden>
+ 
+        <input type="text" id="messageInput" class="composer__input" maxlength="2000" placeholder="Escreva uma mensagem..." autocomplete="off">
+ 
+        <button type="submit" class="send-btn" id="sendBtn" aria-label="Enviar mensagem" disabled>
+          <svg viewBox="0 0 24 24"><path d="M22 2 11 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 2 15 22l-4-9-9-4 20-7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </form>
+      <div class="char-counter hidden" id="charCounter"></div>
+    </div>
+  </section>
+</div>
+</div>
+ 
+<!-- Toast de notificação -->
+<div class="toaste hidden" id="toaste"></div>
+ 
+<!-- Modal genérico: confirmação de bloqueio/exclusão e formulário de denúncia -->
+<div class="modal-overlay hidden" id="modalOverlay">
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <h3 class="modal-title" id="modalTitle"></h3>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-actions">
+      <button type="button" class="modal-btn modal-btn--ghost" id="modalCancelBtn">Cancelar</button>
+      <button type="button" class="modal-btn modal-btn--solid" id="modalConfirmBtn">Confirmar</button>
+    </div>
+  </div>
+</div>
+ 
+<div id="footer"></div>
+ 
+<div id="toast" class="toast">Copiado ✔</div>
+ 
+<script src="../header/frame.js"></script>
+<script src="../header/layout-fit.js"></script>
+ 
+<!-- Configuração e cliente da API: SEMPRE antes dos módulos compartilhados -->
+<script src="../utils/config.js"></script>
+<script src="../utils/api-client.js"></script>
+ 
+<script src="../Notificacoes/notificacoes-shared.js?v=10"></script>
+ 
+<script src="api.js"></script>
+<script src="app.js?v=2"></script>
+</body>
+</html>

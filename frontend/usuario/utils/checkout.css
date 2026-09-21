@@ -1,0 +1,23 @@
+/* Layout compartilhado pelas cobranças de locação e multa. */
+.pagamento-grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:start}
+.pagamento-main,.pagamento-sidebar{min-width:0}
+.pagamento-titulo{font-size:1.7rem;margin-bottom:8px}
+.pagamento-subtitulo{color:var(--texto-suave);margin-bottom:24px}
+.metodos-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:20px}
+.metodo-btn{display:flex;flex-direction:column;align-items:flex-start;gap:7px;border:1px solid var(--borda);border-radius:12px;background:#fff;padding:18px;cursor:pointer;text-align:left;color:var(--texto)}
+.metodo-btn.ativo,.metodo-btn:hover{border-color:var(--roxo);background:var(--roxo-claro)}
+.metodo-btn .bi{font-size:1.5rem;color:var(--roxo)}
+.metodo-nome{font-weight:700}.metodo-desc,.metodo-vazio{color:var(--texto-suave);font-size:.9rem}
+.metodo-conteudo{margin-top:16px}.metodo-actions{display:flex;gap:12px;margin-top:20px}
+.pix-box{max-width:520px}.qr-placeholder{width:210px;height:210px;border:1px solid var(--borda);border-radius:10px;display:grid;place-items:center;margin:16px auto}
+.pix-timer,.pix-aguardando,.pix-expirado,.banner-prazo,.dica-box,.seguranca-msg{padding:12px;border-radius:10px;background:#f4f2ff;margin:12px 0}
+.pix-codigo-row{display:flex;gap:8px}.pix-codigo-row input{flex:1;min-width:0}.pix-instrucoes{padding-left:24px;margin:16px 0}
+.field{margin:16px 0}.field label,.pix-codigo-label{display:block;font-weight:600;margin-bottom:6px}.field input,.pix-codigo-row input{width:100%;border:1px solid var(--borda);border-radius:8px;padding:10px;font:inherit}
+.row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.campo-seguro{min-height:42px;border:1px solid var(--borda);border-radius:8px;padding:8px}
+.field-erro,.alerta-erro{color:#b42318}.btn-block{width:100%;justify-content:center}.btn-copiar{padding:8px 14px;cursor:pointer}
+.resumo-produto{display:flex;gap:12px;align-items:center}.resumo-produto img{width:64px;height:64px;object-fit:cover;border-radius:8px}.resumo-produto-nome{font-weight:700}.resumo-produto-categoria{font-size:.85rem;color:var(--texto-suave)}
+.resumo-linha,.resumo-total-linha{display:flex;justify-content:space-between;gap:12px;margin:12px 0}.resumo-total-linha{border-top:1px solid var(--borda);padding-top:12px;font-weight:700}
+.tela-estado{text-align:center;padding:32px}.tela-estado-icone{font-size:2.5rem}.tela-estado-titulo{margin:12px 0}.tela-estado-texto{color:var(--texto-suave)}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:checkout-spin .8s linear infinite}@keyframes checkout-spin{to{transform:rotate(360deg)}}
+@media(max-width:800px){.pagamento-grid{grid-template-columns:1fr}.pagamento-sidebar{order:-1}}
+@media(max-width:480px){.metodos-grid,.row-2{grid-template-columns:1fr}}

@@ -1,0 +1,46 @@
+.editar-card{
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-borda);
+    border-radius: 16px;
+    padding: 28px;
+    max-width: 520px;
+    box-shadow: 0 8px 24px rgba(36, 19, 72, .06);
+}
+
+.editar-card h1{
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--admin-texto);
+    margin-bottom: 4px;
+}
+
+.editar-card > p{
+    font-size: 14px;
+    color: var(--admin-texto-muted);
+    margin-bottom: 20px;
+}
+
+.editar-botoes{
+    display: flex;
+    gap: 10px;
+    margin-top: 22px;
+}
+
+.editar-botoes button{ flex: 1; }
+
+.editar-status-atual{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 14px;
+    padding: 12px 14px;
+    background: var(--admin-bg);
+    border-radius: 10px;
+}
+
+.editar-status-atual span:first-child{
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--admin-texto-muted);
+}

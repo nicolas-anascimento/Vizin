@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>admin-sidebar</title>
+</head>
+<body>
+
+    <aside class="admin-sidebar" id="adminSidebar">
+
+        <!-- Logo: versão cheia (some em telas menores) + versão mini
+             (só aparece quando a sidebar colapsa pra só ícones).
+             TODO (já sinalizado antes): ajustar ../img/logo.png e
+             ../img/logo-mini.png pra profundidade real da pasta img/. -->
+        <a href="/admin/usuarios" class="nav-logo-link">
+            <div class="logo"></div>
+            <div class="logo-mini"></div>
+        </a>
+
+        <nav class="admin-sidebar-nav">
+            <ul>
+                <li>
+                    <a href="/admin/usuarios" class="admin-nav-link" data-page="usuarios">
+                        <i class="bi bi-people-fill"></i><span>Usuários</span><span class="nav-underline"></span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/admin/objetos" class="admin-nav-link" data-page="anuncios">
+                        <i class="bi bi-box-seam"></i><span>Anúncios / Itens</span><span class="nav-underline"></span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Link de perfil do admin logado — em telas menores fica só
+             o círculo do avatar (nome/badge/seta somem). -->
+        <a href="/admin/usuarios" class="admin-sidebar-perfil">
+            <div class="admin-sidebar-avatar" id="adminSidebarAvatar">?</div>
+            <div class="admin-sidebar-perfil-info">
+                <span class="admin-sidebar-perfil-nome" id="adminSidebarNome">Carregando...</span>
+                <span class="admin-sidebar-perfil-badge">Administrador</span>
+            </div>
+        </a>
+
+        <!-- Logout no mesmo formato do botão SAIR do header. O texto
+             fica num <span> à parte pra poder sumir em telas menores,
+             deixando só o ícone. -->
+        <div class="admin-sidebar-rodape">
+            <a href="#" class="btn-admin-logout js-admin-logout">
+                <i class="bi bi-box-arrow-right"></i><span> SAIR</span>
+            </a>
+        </div>
+
+    </aside>
+
+</body>
+</html>

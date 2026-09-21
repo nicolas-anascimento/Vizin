@@ -1,3 +1,4 @@
+// Confere normalização de entradas e cálculo de duração usados nos formulários de aluguel.
 import assert from "node:assert/strict";
 import test from "node:test";
 import { parseDateOnly, rentalDays } from "../app/utils/dates.ts";

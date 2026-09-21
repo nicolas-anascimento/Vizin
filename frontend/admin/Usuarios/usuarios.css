@@ -1,0 +1,524 @@
+/* ================= CABEÇALHO DA PÁGINA ================= */
+.admin-page-header{
+    margin-bottom: 24px;
+}
+
+.admin-page-header h1{
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--admin-texto);
+}
+
+.admin-page-header p{
+    margin-top: 4px;
+    font-size: 14.5px;
+    color: var(--admin-texto-muted);
+}
+
+/* ================= BARRA DE BUSCA + FILTROS ================= */
+.admin-toolbar{
+    display: flex;
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.admin-search-box{
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-borda);
+    border-radius: 12px;
+    padding: 16px;
+    height: 46px;
+}
+
+.admin-search-box i{
+    color: var(--admin-texto-muted);
+    font-size: 15px;
+}
+
+.admin-search-box input{
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 14.5px;
+    font-family: inherit;
+    color: var(--admin-texto);
+}
+
+.admin-search-box input::placeholder{
+    color: #A6A0BF;
+}
+
+.admin-btn-filtro{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 46px;
+    padding: 0 18px;
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-borda);
+    border-radius: 12px;
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--admin-texto);
+    cursor: pointer;
+    font-family: inherit;
+    transition: border-color .2s ease, color .2s ease;
+}
+
+.admin-btn-filtro:hover,
+.admin-btn-filtro.active{
+    border-color: var(--admin-roxo-500);
+    color: var(--admin-roxo-500);
+}
+
+/* ================= BARRA DE STATUS (sempre visível no desktop) =======
+   Fica escondida por padrão em qualquer tamanho de tela — só aparece
+   quando o botão "Filtros" é clicado (classe .aberta, ver usuarios.js). */
+.admin-filtro-status{
+    display: none;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    background: #F1F0F8;
+    border: 1px solid var(--admin-borda);
+    border-radius: 14px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+}
+
+.admin-filtro-status.aberta{
+    display: flex;
+}
+
+.admin-filtro-status-label{
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--admin-texto);
+}
+
+.admin-filtro-pills{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.admin-filtro-pill{
+    padding: 8px 18px;
+    border-radius: 999px;
+    border: 1px solid var(--admin-borda);
+    background: var(--admin-surface);
+    color: var(--admin-texto);
+    font-size: 13.5px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background .2s ease, color .2s ease, border-color .2s ease;
+}
+
+.admin-filtro-pill:hover{
+    border-color: var(--admin-roxo-500);
+    color: var(--admin-roxo-500);
+}
+
+.admin-filtro-pill.active{
+    background: var(--admin-roxo-500);
+    border-color: var(--admin-roxo-500);
+    color: #F2F2F2;
+}
+
+/* ================= CARD / TABELA ================= */
+.admin-card{
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-borda);
+    border-radius: 16px;
+    padding: 8px 8px 4px;
+    box-shadow: 0 8px 24px rgba(36, 19, 72, .06);
+}
+
+.admin-tabela-scroll{
+    overflow-x: auto;
+}
+
+.admin-tabela{
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 760px;
+}
+
+.admin-tabela thead th{
+    text-align: left;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--admin-texto-muted);
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--admin-borda);
+    white-space: nowrap;
+}
+
+.admin-tabela tbody td{
+    padding: 14px 16px;
+    font-size: 14px;
+    color: var(--admin-texto);
+    border-bottom: 1px solid var(--admin-borda);
+    vertical-align: middle;
+}
+
+.admin-tabela tbody tr:last-child td{
+    border-bottom: none;
+}
+
+.admin-tabela tbody tr:hover{
+    background: #FAFAFD;
+}
+
+.admin-avatar{
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #F2F2F2;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.admin-nome{
+    font-weight: 600;
+}
+
+.admin-email, .admin-telefone{
+    color: var(--admin-roxo-500);
+}
+
+/* ================= BADGE DE STATUS ================= */
+.admin-badge{
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12.5px;
+    font-weight: 700;
+}
+
+.admin-badge.ativo{
+    color: var(--admin-verde-txt);
+    background: var(--admin-verde-bg);
+}
+
+.admin-badge.suspenso{
+    color: var(--admin-ambar-txt);
+    background: var(--admin-ambar-bg);
+}
+
+.admin-badge.banido{
+    color: var(--admin-vermelho-txt);
+    background: var(--admin-vermelho-bg);
+}
+
+/* ================= AÇÕES ================= */
+.admin-acoes{
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.admin-acao-btn{
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 15px;
+    transition: background .2s ease;
+}
+
+.admin-acao-btn.ver{ color: #3B82C4; }
+.admin-acao-btn.editar{ color: var(--admin-verde-txt); }
+.admin-acao-btn.excluir{ color: var(--admin-vermelho-txt); }
+
+.admin-acao-btn:hover{
+    background: var(--admin-bg);
+}
+
+.admin-tabela-vazio{
+    text-align: center;
+    padding: 40px 16px;
+    color: var(--admin-texto-muted);
+    font-size: 14.5px;
+}
+
+/* ================= RODAPÉ / PAGINAÇÃO ================= */
+.admin-tabela-rodape{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+#infoPaginacao{
+    font-size: 13.5px;
+    color: var(--admin-texto-muted);
+}
+
+.admin-paginacao{
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.admin-pagina-btn{
+    min-width: 34px;
+    height: 34px;
+    padding: 0 10px;
+    border-radius: 8px;
+    border: 1px solid var(--admin-borda);
+    background: var(--admin-surface);
+    color: var(--admin-texto);
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: .2s ease;
+}
+
+.admin-pagina-btn:hover:not(:disabled){
+    border-color: var(--admin-roxo-500);
+    color: var(--admin-roxo-500);
+}
+
+.admin-pagina-btn:disabled{
+    opacity: .45;
+    cursor: not-allowed;
+}
+
+.admin-pagina-btn.active{
+    background: var(--admin-roxo-500);
+    border-color: var(--admin-roxo-500);
+    color: #F2F2F2;
+}
+
+/* ================= MODAL DE EXCLUSÃO ================= */
+.admin-modal-overlay{
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 8, 36, .55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 300;
+    padding: 20px;
+}
+
+/* O display:flex acima vale sempre, mesmo com o atributo [hidden] no
+   HTML — regra do site sobrepõe a regra padrão do navegador
+   ([hidden]{display:none}), então sem isto aqui o modal nunca some. */
+.admin-modal-overlay[hidden]{
+    display: none;
+}
+
+.admin-modal{
+    background: var(--admin-surface);
+    border-radius: 16px;
+    padding: 26px;
+    max-width: 380px;
+    width: 100%;
+}
+
+.admin-modal h3{
+    font-size: 18px;
+    margin-bottom: 10px;
+    color: var(--admin-texto);
+}
+
+.admin-modal p{
+    font-size: 14px;
+    color: var(--admin-texto-muted);
+    line-height: 1.5;
+}
+
+.admin-modal p strong{
+    color: var(--admin-texto);
+}
+
+.admin-modal-botoes{
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.admin-btn-secundario, .admin-btn-perigo{
+    flex: 1;
+    height: 42px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    border: none;
+    transition: opacity .2s ease;
+}
+
+.admin-btn-secundario{
+    background: var(--admin-bg);
+    color: var(--admin-texto);
+}
+
+.admin-btn-perigo{
+    background: var(--admin-vermelho-txt);
+    color: #F2F2F2;
+}
+
+.admin-btn-secundario:hover, .admin-btn-perigo:hover{
+    opacity: .85;
+}
+
+/* ================= TOAST (mesma linguagem do site) ================= */
+.admin-toast{
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background: var(--admin-roxo-700);
+    color: #F2F2F2;
+    padding: 14px 20px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: 0 8px 24px rgba(36, 19, 72, .3);
+    opacity: 0;
+    transform: translateY(20px);
+    pointer-events: none;
+    transition: all .4s ease;
+    z-index: 9999;
+}
+
+.admin-toast.show{ opacity: 1; transform: translateY(0); }
+.admin-toast.sucesso{ background: linear-gradient(90deg, var(--admin-roxo-500), var(--admin-laranja)); }
+.admin-toast.erro{ background: linear-gradient(90deg, #b91c1c, var(--admin-laranja)); }
+
+/* ===================================================
+   RESPONSIVO (mobile)
+   =================================================== */
+@media (max-width: 640px){
+
+    .admin-search-box{
+    padding: 16px;
+}
+
+    .admin-page-header h1{
+        font-size: 21px;
+    }
+
+    /* Busca em cima, botão Filtros embaixo, ocupando a largura toda */
+    .admin-toolbar{
+        flex-direction: column;
+    }
+
+    .admin-toolbar .admin-btn-filtro{
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* A barra de status é a mesma em qualquer tela (só aparece com
+       .aberta) — no mobile ela ocupa a largura toda e as pills dividem
+       o espaço igualmente. */
+    .admin-filtro-pills{
+        width: 100%;
+    }
+
+    .admin-filtro-pill{
+        flex: 1;
+        text-align: center;
+    }
+
+    .admin-toast{
+        left: 16px;
+        right: 16px;
+        bottom: 16px;
+    }
+}
+
+/* ===================================================
+   TABELA -> CARDS no mobile
+   Em telas estreitas a tabela deixa de rolar na horizontal e cada
+   linha vira um "card" empilhado, com o nome da coluna (data-label,
+   preenchido em usuarios.js) aparecendo ao lado do valor.
+   =================================================== */
+@media (max-width: 680px){
+
+    .admin-tabela-scroll{
+        overflow-x: visible;
+    }
+
+    .admin-tabela{
+        min-width: 0;
+    }
+
+    .admin-tabela thead{
+        display: none;
+    }
+
+    .admin-tabela, .admin-tabela tbody, .admin-tabela tr{
+        display: block;
+        width: 100%;
+    }
+
+    .admin-tabela tbody tr{
+        border: 1px solid var(--admin-borda);
+        border-radius: 12px;
+        margin: 10px 4px;
+        padding: 6px 14px;
+    }
+
+    .admin-tabela tbody tr:hover{
+        background: var(--admin-surface);
+    }
+
+    .admin-tabela td{
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--admin-borda);
+        text-align: right;
+    }
+
+    .admin-tabela tr td:last-child{
+        border-bottom: none;
+    }
+
+    .admin-tabela td::before{
+        content: attr(data-label);
+        font-size: 12.5px;
+        font-weight: 700;
+        color: var(--admin-texto-muted);
+        text-align: left;
+        flex: 0 0 auto;
+    }
+
+    /* Foto e Ações ficam melhor sem o rótulo repetido do lado */
+    .admin-tabela td[data-label="Foto"],
+    .admin-tabela td[data-label="Ações"]{
+        justify-content: flex-start;
+    }
+
+    .admin-tabela td[data-label="Foto"]::before,
+    .admin-tabela td[data-label="Ações"]::before{
+        display: none;
+    }
+
+    .admin-tabela td[data-label="Ações"]{
+        justify-content: flex-end;
+    }
+}

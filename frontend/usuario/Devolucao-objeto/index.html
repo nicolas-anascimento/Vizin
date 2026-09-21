@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../Produto/fluxo-aluguel.css">
+    <link rel="stylesheet" href="devolucao-objeto.css">
+    <link rel="stylesheet" href="../header/header.css">
+    <link rel="stylesheet" href="../footer/footer.css">
+    <link rel="stylesheet" href="../Notificacoes/notificacoes-shared.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <title>Devolução do Objeto</title>
+</head>
+<body>
+ 
+    <div id="header"></div>
+ 
+    <div class="page-container devolucao-container">
+ 
+        <a href="#" id="link-voltar" class="back-link"><i class="bi bi-arrow-left"></i> Voltar</a>
+ 
+        <!-- ================= ESTADO: SOLICITAÇÃO NÃO ENCONTRADA ================= -->
+        <div class="card status-card" id="etapa-erro" style="display:none;">
+            <div class="status-icone status-erro"><i class="bi bi-exclamation-triangle"></i></div>
+            <h2 class="status-titulo">Não encontramos essa locação</h2>
+            <p class="status-texto">O link que você acessou pode estar incorreto ou a solicitação já não existe mais.</p>
+            <a class="btn btn-primary btn-block" href="/historico" style="margin-top:14px;">Ver meu Histórico</a>
+        </div>
+ 
+        <!-- ================= ESTADO: ACESSO NEGADO ================= -->
+        <div class="card status-card" id="etapa-acesso-negado" style="display:none;">
+            <div class="status-icone status-erro"><i class="bi bi-shield-lock"></i></div>
+            <h2 class="status-titulo">Esta locação não é sua</h2>
+            <p class="status-texto">Você está logado com uma conta que não faz parte desta locação, então não pode enviar fotos por aqui.</p>
+            <a class="btn btn-primary btn-block" href="/historico" style="margin-top:14px;">Ver meu Histórico</a>
+        </div>
+ 
+        <div id="conteudo-devolucao">
+ 
+        <div class="card devolucao-header-card">
+            <div class="devolucao-icone"><i class="bi bi-camera"></i></div>
+            <div>
+                <h1 class="devolucao-titulo">Devolução do Objeto</h1>
+                <p class="devolucao-subtitulo" id="devolucao-subtitulo">Registre suas fotos no momento da devolução</p>
+            </div>
+        </div>
+ 
+        <!-- Prazo / atraso da devolução -->
+        <div class="card prazo-card" id="prazo-card" style="display:none;">
+            <i class="bi bi-hourglass-split"></i>
+            <span id="prazo-texto"></span>
+        </div>
+ 
+        <div class="card produto-mini-card">
+            <img id="produto-mini-imagem" src="" alt="">
+            <div>
+                <p class="produto-mini-nome" id="produto-mini-nome"></p>
+                <p class="produto-mini-categoria" id="produto-mini-categoria"></p>
+                <p class="produto-mini-proprietario">Proprietário: <strong id="produto-mini-proprietario"></strong></p>
+            </div>
+        </div>
+ 
+        <div class="info-box">
+            <i class="bi bi-exclamation-circle"></i>
+            <div>
+                <h3>Por que isso é importante?</h3>
+                <ul>
+                    <li>As fotos confirmam a identidade de ambas as partes</li>
+                    <li>Protegem tanto o locador quanto o locatário em caso de danos</li>
+                    <li>São obrigatórias para concluir a devolução</li>
+                    <li>Tire fotos nítidas com boa iluminação</li>
+                </ul>
+            </div>
+        </div>
+ 
+        <!-- ================= ESTADO: ENVIAR MINHAS FOTOS ================= -->
+        <div id="etapa-enviar">
+ 
+            <div class="card">
+                <div class="parte-header parte-header-propria" id="minha-parte-header">
+                    <div class="parte-avatar" id="minha-parte-avatar"><i class="bi bi-person-fill"></i></div>
+                    <div class="parte-info">
+                        <p class="parte-nome" id="minha-parte-nome">Suas fotos</p>
+                        <p class="parte-sub">Envie pelo menos uma foto sua com o objeto</p>
+                    </div>
+                    <span class="parte-badge" id="badge-minhas-fotos">0/3</span>
+                </div>
+ 
+                <div class="parte-dropzone" id="dropzone-minhas-fotos">
+                    <i class="bi bi-upload"></i>
+                    <span class="parte-dropzone-titulo">Clique para adicionar</span>
+                    <span class="parte-dropzone-sub">Ou arraste e solte imagens aqui</span>
+                    <span class="parte-dropzone-formatos">PNG, JPG ou JPEG · Máximo 3 fotos</span>
+                </div>
+                <input type="file" id="input-minhas-fotos" accept="image/png, image/jpeg, image/jpg" multiple hidden>
+ 
+                <div class="parte-fotos-grid" id="fotos-grid-minhas"></div>
+ 
+                <div class="field campo-observacoes">
+                    <label for="observacoes">Observações (opcional)</label>
+                    <textarea id="observacoes" placeholder="Adicione observações sobre o estado do objeto, danos existentes, ou qualquer outro detalhe relevante..."></textarea>
+                </div>
+            </div>
+ 
+            <div class="card status-outra-parte-card">
+                <h2>Status da Devolução</h2>
+                <div class="status-outra-parte" id="status-lista"></div>
+            </div>
+ 
+            <!-- Resumo da multa PROJETADA (calculada pelo back-end), mostrado antes de
+                 confirmar quando a devolução já está em atraso — ver
+                 mostrarResumoMultaAntesConfirmar em devolucao-objeto.js. -->
+            <div class="card prazo-card resumo-multa-projetada" id="resumo-multa-confirmar" style="display:none;"></div>
+ 
+            <div class="devolucao-actions">
+                <button type="button" class="btn btn-secondary" id="btn-cancelar">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btn-enviar-minhas-fotos" disabled>
+                    <i class="bi bi-check-circle"></i> Confirmar Devolução
+                </button>
+            </div>
+ 
+            <p class="devolucao-rodape">Após confirmar a devolução, o proprietário será notificado e poderá avaliar a transação.</p>
+        </div>
+ 
+        <!-- ================= ESTADO: AGUARDANDO A OUTRA PARTE ================= -->
+        <div class="card status-card" id="etapa-aguardando" style="display:none;">
+            <div class="status-icone status-pendente"><i class="bi bi-clock-history"></i></div>
+            <h2 class="status-titulo">Suas fotos foram enviadas!</h2>
+            <p class="status-texto" id="aguardando-texto">Aguardando o envio das fotos da outra parte.</p>
+            <p class="status-subtexto">Assim que a outra pessoa enviar as fotos dela, a devolução será confirmada automaticamente para os dois.</p>
+ 
+            <!-- Diferente da Retirada, aqui NÃO existe botão de cancelar a
+                 locação (o objeto já está fisicamente com o locatário, então
+                 cancelar não faz sentido nesse ponto). -->
+        </div>
+ 
+        <!-- ================= ESTADO: DEVOLUÇÃO CONFIRMADA ================= -->
+        <div class="card status-card" id="etapa-confirmada" style="display:none;">
+            <div class="status-icone status-aprovado"><i class="bi bi-check-lg"></i></div>
+            <h2 class="status-titulo">Devolução confirmada!</h2>
+            <p class="status-texto">As fotos de ambas as partes foram registradas com sucesso.</p>
+            <p class="status-subtexto">O aluguel foi concluído. Já é possível avaliar a transação.</p>
+            <p class="status-subtexto multa-nota hidden" id="confirmada-multa-nota"></p>
+ 
+            <!-- Card de ação da multa: pagar, só aparece pro
+                 locatário enquanto houver multa em aberto — ver
+                 atualizarAcaoMulta em devolucao-objeto.js. -->
+            <div class="multa-acao-card hidden" id="confirmada-multa-acao">
+                <p class="multa-acao-texto" id="confirmada-multa-acao-texto"></p>
+                <div class="multa-acao-botoes">
+                    <button type="button" class="btn btn-primary" id="btn-pagar-multa"><i class="bi bi-credit-card"></i> Pagar Multa Agora</button>
+                </div>
+            </div>
+ 
+            <a class="btn btn-primary btn-block" id="btn-ver-status" style="margin-top:14px;">Ver Status da Locação</a>
+        </div>
+ 
+        </div><!-- /#conteudo-devolucao -->
+ 
+    </div>
+ 
+    <div id="footer"></div>
+ 
+    <div id="toast" class="toast">Copiado ✔</div>
+ 
+    <!-- Overlay de zoom de foto -->
+    <div class="foto-zoom-overlay" id="foto-zoom-overlay">
+        <img id="foto-zoom-img" src="" alt="Foto ampliada">
+    </div>
+ 
+    <script src="../header/frame.js"></script>
+ 
+    <!-- Configuração e cliente da API: SEMPRE antes dos módulos compartilhados -->
+    <script src="../utils/config.js"></script>
+    <script src="../utils/api-client.js"></script>
+ 
+    <script src="../Notificacoes/notificacoes-shared.js?v=10"></script>
+ 
+    <script src="../Notificacoes/solicitacoes-shared.js?v=9"></script>
+ 
+    <script src="devolucao-shared.js?v=2"></script>
+ 
+    <script src="devolucao-objeto.js?v=11"></script>
+</body>
+</html>

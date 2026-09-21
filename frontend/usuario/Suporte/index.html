@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Suporte e Denúncias</title>
+<link rel="stylesheet" href="suporte.css?v=8">
+<link rel="stylesheet" href="../header/header.css">
+<link rel="stylesheet" href="../footer/footer.css">
+<link rel="stylesheet" href="../Notificacoes/notificacoes-shared.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+</head>
+<body>
+ 
+  <div id="header"></div>
+ 
+<div class="page">
+ 
+  <h1>Suporte e Denúncias</h1>
+  <p class="subtitle">Como podemos ajudar você?</p>
+ 
+  <div class="tabs">
+    <div class="tab-card" id="tab-ajuda">
+      <div class="tab-icon">?</div>
+      <div class="tab-title">Ajuda</div>
+      <div class="tab-desc">Precisa de ajuda ou tem dúvidas sobre a plataforma</div>
+    </div>
+    <div class="tab-card" id="tab-denuncia">
+      <div class="tab-icon">&#9873;</div>
+      <div class="tab-title">Denúncia</div>
+      <div class="tab-desc">Reportar um problema ou comportamento inadequado</div>
+    </div>
+    <div class="tab-card" id="tab-sinistro">
+      <div class="tab-icon"><i class="bi bi-tools"></i></div>
+      <div class="tab-title">Sinistro</div>
+      <div class="tab-desc">Registrar uma ocorrência após a retirada do objeto</div>
+    </div>
+  </div>
+
+  <!-- FORMULÁRIO: SINISTRO -->
+  <div class="panel-wrap" id="panel-sinistro">
+    <div class="panel">
+      <form id="form-sinistro" novalidate>
+        <div class="field" id="sinistro-aluguel-field">
+          <label for="sinistro-aluguel">Aluguel relacionado</label>
+          <select id="sinistro-aluguel" name="aluguelId">
+            <option value="">Selecione um aluguel com retirada registrada</option>
+          </select>
+          <div class="field-error">Selecione o aluguel relacionado.</div>
+        </div>
+
+        <div class="field" id="sinistro-descricao-field">
+          <label for="sinistro-descricao">Descrição da ocorrência</label>
+          <textarea id="sinistro-descricao" name="descricao" maxlength="10000" placeholder="Descreva o que aconteceu e o estado do objeto."></textarea>
+          <div class="field-error">Descreva a ocorrência.</div>
+        </div>
+
+        <div class="field" id="sinistro-valor-field">
+          <label for="sinistro-valor">Valor solicitado (opcional)</label>
+          <input type="number" id="sinistro-valor" name="valorSolicitado" min="0" step="0.01" placeholder="0,00">
+          <div class="field-error">Informe um valor válido.</div>
+        </div>
+
+        <button type="submit" class="submit-btn purple" id="sinistro-submit-btn">
+          <span>&#9992;</span> Enviar Sinistro
+        </button>
+        <div class="status-msg" id="sinistro-status"></div>
+      </form>
+    </div>
+  </div>
+ 
+  <!-- FORMULÁRIO: AJUDA -->
+  <div class="panel-wrap" id="panel-ajuda">
+    <div class="panel">
+      <form id="form-ajuda" novalidate>
+        <div class="field" id="ajuda-assunto-field">
+          <label for="ajuda-assunto">Assunto</label>
+          <input type="text" id="ajuda-assunto" name="assunto" placeholder="Ex: Dúvida sobre pagamento" maxlength="120">
+          <div class="field-error">Informe o assunto.</div>
+        </div>
+ 
+        <div class="field" id="ajuda-mensagem-field">
+          <label for="ajuda-mensagem">Mensagem</label>
+          <textarea id="ajuda-mensagem" name="mensagem" placeholder="Descreva sua dúvida ou problema..."></textarea>
+          <div class="field-error">Descreva sua dúvida ou problema.</div>
+        </div>
+ 
+        <button type="submit" class="submit-btn purple" id="ajuda-submit-btn">
+          <span>&#9992;</span> Enviar Mensagem
+        </button>
+ 
+        <div class="status-msg" id="ajuda-status"></div>
+      </form>
+    </div>
+ 
+    <div class="faq-section show" id="faq-section">
+      <h2>Perguntas Frequentes</h2>
+      <div class="faq-item">
+        <p class="faq-question">Como faço para alugar um objeto?</p>
+        <p class="faq-answer">Busque o objeto desejado, selecione as datas e envie uma solicitação ao proprietário. Após a aprovação, realize o pagamento pela plataforma.</p>
+      </div>
+      <div class="faq-item">
+        <p class="faq-question">O que acontece se o objeto for danificado?</p>
+        <p class="faq-answer">Registre o estado do objeto antes e depois do aluguel. Em caso de danos, deve ser resolvidos entre as partes; o Vizin pode mediar em caso de disputa.</p>
+      </div>
+      <div class="faq-item">
+        <p class="faq-question">Como recebo o pagamento dos meus objetos?</p>
+        <p class="faq-answer">Os pagamentos dos aluguéis são processados pela plataforma. Para dúvidas sobre repasse ou recebimento, envie uma mensagem pela aba Ajuda.</p>
+      </div>
+    </div>
+  </div>
+ 
+  <!-- FORMULÁRIO: DENÚNCIA -->
+  <div class="panel-wrap" id="panel-denuncia">
+    <div class="panel">
+ 
+      <!-- Chip de contexto: só aparece quando se chega aqui a partir de um
+           botão "Denunciar" do Perfil, do Produto ou do Histórico — mostra
+           o que já foi identificado automaticamente, pra pessoa não
+           precisar redigitar quem/o que está denunciando. -->
+      <div class="context-chip hidden" id="denuncia-contexto">
+        <i class="bi bi-info-circle"></i>
+        <span id="denuncia-contexto-texto"></span>
+        <button type="button" class="context-chip-limpar" id="denuncia-contexto-limpar" title="Denunciar outra coisa">&times;</button>
+      </div>
+ 
+      <!-- Aviso curto de segurança/emergência — sempre visível na aba de
+           Denúncia, antes de qualquer campo. Situações de risco imediato
+           não devem depender do tempo de resposta de um formulário. -->
+      <div class="safety-banner">
+        <i class="bi bi-shield-exclamation"></i>
+        <span>Está em risco imediato ou em perigo agora? Ligue <strong>190</strong> (Polícia) ou <strong>192</strong> (SAMU) antes de continuar. Este formulário é analisado pela nossa equipe, não em tempo real.</span>
+      </div>
+ 
+      <div class="warning-box show">
+        <div class="warning-icon">&#9888;</div>
+        <div>
+          <div class="warning-title">Importante</div>
+          <div class="warning-text">Denúncias falsas podem resultar em suspensão da conta. Por favor, forneça o máximo de detalhes possível.</div>
+        </div>
+      </div>
+ 
+      <form id="form-denuncia" novalidate>
+        <div class="field" id="denuncia-motivo-field">
+          <label for="denuncia-motivo">Motivo</label>
+          <select id="denuncia-motivo" name="motivo">
+            <option value="" disabled selected>Selecione o motivo</option>
+            <option value="comportamento">Comportamento inadequado / assédio</option>
+            <option value="golpe">Suspeita de golpe ou fraude</option>
+            <option value="item_danificado">Item danificado ou não devolvido</option>
+            <option value="anuncio_falso">Anúncio falso ou enganoso</option>
+            <option value="conteudo_impropprio">Conteúdo impróprio (fotos, descrição)</option>
+            <option value="pagamento">Problema com pagamento</option>
+            <option value="outro">Outro</option>
+          </select>
+          <div class="field-error">Selecione o motivo da denúncia.</div>
+        </div>
+ 
+        <!-- Select preenchido a partir das locações reais do usuário (vindas do
+             back-end, via SolicitacoesVizin). Continua opcional: a 1ª opção
+             ("Nenhum específico") fica selecionada por padrão pra quem está
+             denunciando algo sem vínculo com uma locação (ex: um anúncio,
+             antes de alugar). -->
+        <div class="field" id="denuncia-aluguel-id-field">
+          <label for="denuncia-aluguel-id">Aluguel relacionado (opcional)</label>
+          <select id="denuncia-aluguel-id" name="aluguelId">
+            <option value="">Nenhum específico</option>
+          </select>
+        </div>
+ 
+        <div class="field" id="denuncia-assunto-field">
+          <label for="denuncia-assunto">Assunto</label>
+          <input type="text" id="denuncia-assunto" name="assunto" placeholder="Ex: Objeto não devolvido" maxlength="120">
+          <div class="field-error">Informe o assunto da denúncia.</div>
+        </div>
+ 
+        <div class="field" id="denuncia-mensagem-field">
+          <label for="denuncia-mensagem">Mensagem</label>
+          <textarea id="denuncia-mensagem" name="mensagem" placeholder="Descreva em detalhes o que aconteceu..."></textarea>
+          <div class="field-error">Descreva o que aconteceu.</div>
+        </div>
+ 
+        <!-- Evidência (opcional): print, foto do objeto danificado, etc. -->
+        <div class="field" id="denuncia-anexo-field">
+          <label for="denuncia-anexo">Anexar evidência (opcional)</label>
+          <div class="anexo-input-row">
+            <button type="button" class="anexo-btn" id="denuncia-anexo-btn">
+              <i class="bi bi-paperclip"></i> Escolher arquivo
+            </button>
+            <span class="anexo-nome" id="denuncia-anexo-nome">Nenhum arquivo selecionado</span>
+          </div>
+          <input type="file" id="denuncia-anexo" accept="image/*,video/*,.pdf,.doc,.docx" hidden>
+          <p class="anexo-aviso">Imagem, vídeo ou PDF, até 25MB. Ajuda bastante em casos de dano ao objeto ou anúncio enganoso.</p>
+        </div>
+ 
+        <button type="submit" class="submit-btn orange" id="denuncia-submit-btn">
+          <span>&#9992;</span> Enviar Denúncia
+        </button>
+ 
+        <div class="status-msg" id="denuncia-status"></div>
+      </form>
+    </div>
+  </div>
+ 
+</div>
+
+<section class="page" aria-labelledby="meus-chamados-titulo">
+  <h2 id="meus-chamados-titulo">Meus chamados</h2>
+  <div id="meus-chamados-lista">Carregando...</div>
+</section>
+
+<div id="footer"></div>
+ 
+<div id="toast" class="toast">Copiado ✔</div>
+ 
+<script src="../header/frame.js"></script>
+ 
+<!-- Configuração e cliente da API: SEMPRE antes dos módulos compartilhados -->
+<script src="../utils/config.js"></script>
+<script src="../utils/api-client.js"></script>
+ 
+<script src="../Notificacoes/notificacoes-shared.js?v=10"></script>
+ 
+<script src="../Notificacoes/solicitacoes-shared.js?v=9"></script>
+ 
+<script src="suporte.js?v=3"></script>
+</body>
+</html>

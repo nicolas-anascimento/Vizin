@@ -1,0 +1,371 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Arimo:ital,wght@0,400..700;1,400..700&display=swap');
+
+/* ===================================================
+   ADMIN — SIDEBAR
+   Cópia do header do site (mesmo gradiente, cores, fonte e
+   efeito de hover com underline), só que na lateral em vez
+   de no topo. Em telas menores não vira gaveta: continua
+   fixa na lateral, só que colapsada (só ícones/avatar).
+   =================================================== */
+
+:root{
+    --admin-roxo-900: #241348;
+    --admin-roxo-800: #2E1860;
+    --admin-roxo-700: #381D73;
+    --admin-roxo-600: #4A2C94;
+    --admin-roxo-500: #6D49F2;
+    --admin-laranja: #F27C38;
+
+    --admin-bg: #F6F5FB;
+    --admin-surface: #FFFFFF;
+    --admin-borda: #E7E4F2;
+    --admin-texto: #241348;
+    --admin-texto-muted: #6B6584;
+
+    --admin-verde-txt: #1F9D66;
+    --admin-verde-bg: #DFF6EA;
+    --admin-ambar-txt: #B4770A;
+    --admin-ambar-bg: #FDECD1;
+    --admin-vermelho-txt: #C4362B;
+    --admin-vermelho-bg: #FBE1DF;
+
+    --admin-sidebar-w: 240px;
+    --admin-sidebar-w-compact: 76px;
+}
+
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body.admin-body{
+    font-family: "Arimo", sans-serif;
+    background: var(--admin-bg);
+    color: var(--admin-texto);
+    min-height: 100vh;
+}
+
+/* ================= SIDEBAR (= header, na vertical) =================
+   Mesmo gradiente roxo do header (só que 180deg em vez de 90deg) e a
+   mesma sombra de destaque (box-shadow). */
+.admin-sidebar{
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: var(--admin-sidebar-w);
+    background: linear-gradient(180deg, rgba(56, 29, 115, 1) 0%, rgba(109, 73, 242, 1) 50%, rgba(56, 29, 115, 1) 100%);
+    box-shadow: 0 0 25px #0d0d0d3a;
+    padding: 24px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    z-index: 200;
+    transition: transform .3s ease;
+}
+
+.admin-sidebar i{
+    color: #F2F2F2;
+}
+
+/* ================= LOGO (igual ao .nav-logo-link/.logo do header) ===== */
+.admin-sidebar .nav-logo-link{
+    display: flex;
+    justify-content: center;
+    padding: 4px 0 6px;
+}
+
+/* TODO: ajustar o caminho da imagem conforme a profundidade real da
+   pasta Admin-Sidebar em relação à pasta img/ do site (aqui assumido
+   um nível acima, igual ao header.css). */
+.admin-sidebar .logo{
+    background-image: url(../img/logo.png);
+    width: 106px;
+    height: 51.16px;
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
+}
+
+/* Versão mini da logo, usada só quando a sidebar colapsa em telas
+   menores (ver breakpoint no fim do arquivo). Some por padrão.
+   TODO: ajustar o caminho/nome do arquivo da logo mini. */
+.admin-sidebar .logo-mini{
+    display: none;
+    background-image: url(../img/logo-mini.png);
+    width: 32px;
+    height: 32px;
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
+}
+
+/* ================= LINKS (mesma marcação/efeito do header:
+   ul > li > a, ícone + texto, pill, sublinhado laranja no hover) ===== */
+.admin-sidebar-nav ul{
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.admin-nav-link{
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 14px;
+    border-radius: 30px;
+    color: #F2F2F2;
+    text-decoration: none;
+    font-size: 14.5px;
+    font-weight: 600;
+    background: transparent;
+    border: none;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    font-family: inherit;
+    transition: color .3s ease;
+}
+
+.admin-nav-link i{
+    position: relative;
+    z-index: 2;
+    font-size: 17px;
+    flex: 0 0 auto;
+    width: 18px;
+    text-align: center;
+    color: inherit;
+}
+
+.admin-nav-link > span:not(.nav-underline){
+    position: relative;
+    z-index: 2;
+}
+
+/* Sublinhado laranja no hover — mesmo span/animação do header
+   (nasce escalado em 0 e "abre" cobrindo o pill). */
+.admin-nav-link .nav-underline{
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    border-bottom: 2px solid var(--admin-laranja);
+    border-radius: 30px;
+    transform: scale(0) translateY(0);
+    opacity: 0;
+    transition: .5s;
+}
+
+.admin-nav-link:hover,
+.admin-nav-link:hover i,
+.admin-nav-link.active,
+.admin-nav-link.active i{
+    color: var(--admin-laranja);
+}
+
+.admin-nav-link:hover .nav-underline,
+.admin-nav-link.active .nav-underline{
+    transform: scale(1) translateY(0);
+    opacity: 1;
+}
+
+/* ================= PERFIL DO ADMIN LOGADO =================
+   Fica colado no rodapé (empurrado pra baixo pelo margin-top:auto),
+   logo acima do hr que separa do botão SAIR. */
+.admin-sidebar-perfil{
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    border-radius: 12px;
+    text-decoration: none;
+    color: #F2F2F2;
+    transition: background .2s ease;
+}
+
+.admin-sidebar-perfil:hover{
+    background: rgba(242, 242, 242, .08);
+}
+
+.admin-sidebar-avatar{
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: var(--admin-roxo-500);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    color: #F2F2F2;
+    flex: 0 0 auto;
+}
+
+.admin-sidebar-perfil-info{
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    min-width: 0;
+    flex: 1;
+}
+
+.admin-sidebar-perfil-nome{
+    font-size: 14px;
+    font-weight: 700;
+    color: #F2F2F2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.admin-sidebar-perfil-badge{
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    color: #F2F2F2;
+    background: var(--admin-laranja);
+    padding: 2px 9px;
+    border-radius: 20px;
+}
+
+.admin-sidebar-perfil-chevron{
+    font-size: 13px;
+    color: rgba(242, 242, 242, .65);
+    flex: 0 0 auto;
+}
+
+/* ================= LOGOUT (= .btn-login do header) ================= */
+.admin-sidebar-rodape{
+    border-top: 1px solid rgba(242, 242, 242, .12);
+    padding-top: 16px;
+    display: flex;
+    justify-content: center;
+}
+
+.btn-admin-logout{
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    height: 40px;
+    background: transparent;
+    border-radius: 30px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    border: 2px solid var(--admin-laranja);
+    overflow: hidden;
+    z-index: 1;
+    color: #F2F2F2;
+    text-decoration: none;
+    font-family: inherit;
+    transition: width .2s ease, border-radius .2s ease, padding .2s ease;
+}
+
+.btn-admin-logout i{
+    position: relative;
+    z-index: 2;
+    flex: 0 0 auto;
+}
+
+.btn-admin-logout span{
+    position: relative;
+    z-index: 2;
+    white-space: nowrap;
+}
+
+.btn-admin-logout::before{
+    content: "";
+    position: absolute;
+    height: 300%;
+    width: 100%;
+    background: linear-gradient(#381D73, #F27C38, #381D73, #F27C38);
+    top: -100%;
+    left: 0;
+    z-index: -1;
+    transition: .5s;
+}
+
+.btn-admin-logout:hover::before{
+    top: 0;
+}
+
+/* ================= ÁREA DE CONTEÚDO ================= */
+.admin-main{
+    margin-left: var(--admin-sidebar-w);
+    min-height: 100vh;
+    padding: 32px 40px 60px;
+}
+
+/* ===================================================
+   RESPONSIVO — sidebar colapsa pra só ícones (sem gaveta)
+   Continua fixa na lateral, só que mais estreita: textos dos
+   links, nome/badge do perfil e o texto "SAIR" somem, ficando
+   só ícone/avatar centralizados; a logo cheia dá lugar à logo
+   mini.
+   =================================================== */
+@media (max-width: 960px){
+
+    .admin-sidebar{
+        width: var(--admin-sidebar-w-compact);
+        padding: 20px 10px;
+    }
+
+    .admin-sidebar .logo{
+        display: none;
+    }
+
+    .admin-sidebar .logo-mini{
+        display: block;
+    }
+
+    .admin-nav-link{
+        justify-content: center;
+        padding: 10px 0;
+        gap: 0;
+    }
+
+    .admin-nav-link > span:not(.nav-underline){
+        display: none;
+    }
+
+    .admin-sidebar-perfil{
+        justify-content: center;
+        padding: 8px 0;
+    }
+
+    .admin-sidebar-perfil-info,
+    .admin-sidebar-perfil-chevron{
+        display: none;
+    }
+
+    .btn-admin-logout{
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        border-radius: 50%;
+        align-self: center;
+    }
+
+    .btn-admin-logout span{
+        display: none;
+    }
+
+    .admin-main{
+        margin-left: var(--admin-sidebar-w-compact);
+        padding: 24px 20px 60px;
+    }
+}

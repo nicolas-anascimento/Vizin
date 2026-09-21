@@ -1,3 +1,4 @@
+// Expõe login com limite de tentativas, logout e consulta da sessão autenticada.
 import { Router } from "express";
 import { login, logout, session } from "../controllers/authController.ts";
 import { requireAuth } from "../middlewares/auth.ts";

@@ -1,0 +1,118 @@
+.detalhe-cabecalho{
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+}
+
+.detalhe-avatar{
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #F2F2F2;
+    font-size: 24px;
+    font-weight: 700;
+    flex: 0 0 auto;
+}
+
+.detalhe-info h1{
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--admin-texto);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.detalhe-info p{
+    margin-top: 4px;
+    font-size: 14px;
+    color: var(--admin-texto-muted);
+}
+
+.detalhe-acoes{
+    display: flex;
+    gap: 10px;
+    margin-left: auto;
+    flex-wrap: wrap;
+}
+
+.detalhe-acoes button, .detalhe-acoes a{
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+}
+
+.detalhe-grid-info{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 28px;
+}
+
+.detalhe-campo{
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-borda);
+    border-radius: 12px;
+    padding: 14px 16px;
+}
+
+.detalhe-campo span{
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    color: var(--admin-texto-muted);
+    margin-bottom: 4px;
+}
+
+.detalhe-campo strong{
+    font-size: 14.5px;
+    color: var(--admin-texto);
+    font-weight: 600;
+}
+
+.detalhe-secao{
+    margin-bottom: 24px;
+}
+
+.detalhe-secao h2{
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--admin-texto);
+    margin-bottom: 12px;
+}
+
+.detalhe-lista{
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.detalhe-item-linha{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    font-size: 14px;
+    color: var(--admin-texto);
+}
+
+.detalhe-item-linha span.muted{
+    color: var(--admin-texto-muted);
+    font-size: 13px;
+}
+
+@media (max-width: 640px){
+    .detalhe-acoes{ margin-left: 0; width: 100%; }
+    .detalhe-acoes button, .detalhe-acoes a{ flex: 1; justify-content: center; }
+}

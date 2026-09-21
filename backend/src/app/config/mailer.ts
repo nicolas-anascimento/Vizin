@@ -1,6 +1,7 @@
 import nodemailer from "nodemailer";
 import env from "./env.ts";
 
+// Seleciona SMTP configurado ou Gmail legado; sem credenciais, o envio fica indisponível.
 const transporter = env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS
   ? nodemailer.createTransport({
       host: env.SMTP_HOST,

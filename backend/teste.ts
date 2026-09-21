@@ -1,3 +1,4 @@
+// Script auxiliar que gera um hash bcrypt e insere duas contas de teste no banco.
 import prisma from "./src/app/config/database.ts";
 
 // gerar_hash.ts

@@ -1,8 +1,2 @@
-import express from "express";
-import AccountController from "../controllers/accountsController.ts";
-
-const usuarios = express();
-
-usuarios.post("/", AccountController.getUserData);
-
-export default usuarios;
+// Alias legado que reutiliza as rotas atuais de usuários.
+export { default } from "./users.ts";

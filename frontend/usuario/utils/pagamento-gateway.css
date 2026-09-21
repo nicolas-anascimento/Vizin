@@ -1,0 +1,16 @@
+/* Contêineres onde o Mercado Pago injeta os iframes (número, validade, CVV).
+   Ajuste altura/borda pra ficar igual aos seus <input> normais. */
+.campo-seguro {
+  box-sizing: border-box;
+  height: 44px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--borda, #d9d9df);
+  border-radius: 8px;
+}
+
+.campo-seguro.input-erro {
+  border-color: #c0392b;
+}

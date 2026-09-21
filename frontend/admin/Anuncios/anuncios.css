@@ -1,0 +1,294 @@
+/* ================= CABEÇALHO DA PÁGINA (com botão "Criar Anúncio") ================= */
+.admin-page-header{
+    margin-bottom: 24px;
+}
+
+.admin-page-header-com-acao{
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.admin-page-header h1{
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--admin-texto);
+}
+
+.admin-page-header p{
+    margin-top: 4px;
+    font-size: 14.5px;
+    color: var(--admin-texto-muted);
+}
+
+.admin-btn-criar{
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 44px;
+    padding: 0 20px;
+    border-radius: 30px;
+    border: none;
+    background: var(--admin-roxo-500);
+    color: #F2F2F2;
+    font-size: 14.5px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: opacity .2s ease, transform .1s ease;
+}
+
+.admin-btn-criar:hover{ opacity: .9; }
+.admin-btn-criar:active{ transform: scale(.98); }
+
+/* ================= BARRA DE BUSCA + FILTROS ================= */
+.admin-toolbar{
+    display: flex;
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.admin-search-box{
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-borda);
+    border-radius: 12px;
+    padding: 0 16px;
+    height: 46px;
+}
+
+.admin-search-box i{ color: var(--admin-texto-muted); font-size: 15px; }
+
+.admin-search-box input{
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 14.5px;
+    font-family: inherit;
+    color: var(--admin-texto);
+}
+
+.admin-search-box input::placeholder{ color: #A6A0BF; }
+
+.admin-btn-filtro{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 46px;
+    padding: 0 18px;
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-borda);
+    border-radius: 12px;
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--admin-texto);
+    cursor: pointer;
+    font-family: inherit;
+    transition: border-color .2s ease, color .2s ease;
+}
+
+.admin-btn-filtro:hover, .admin-btn-filtro.active{
+    border-color: var(--admin-roxo-500);
+    color: var(--admin-roxo-500);
+}
+
+.admin-filtro-status{
+    display: none;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    background: #F1F0F8;
+    border: 1px solid var(--admin-borda);
+    border-radius: 14px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+}
+
+.admin-filtro-status.aberta{ display: flex; }
+
+.admin-filtro-status-label{
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--admin-texto);
+}
+
+.admin-filtro-pills{ display: flex; flex-wrap: wrap; gap: 8px; }
+
+.admin-filtro-pill{
+    padding: 8px 18px;
+    border-radius: 999px;
+    border: 1px solid var(--admin-borda);
+    background: var(--admin-surface);
+    color: var(--admin-texto);
+    font-size: 13.5px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background .2s ease, color .2s ease, border-color .2s ease;
+}
+
+.admin-filtro-pill:hover{ border-color: var(--admin-roxo-500); color: var(--admin-roxo-500); }
+
+.admin-filtro-pill.active{
+    background: var(--admin-roxo-500);
+    border-color: var(--admin-roxo-500);
+    color: #F2F2F2;
+}
+
+/* ================= TABELA ================= */
+.admin-tabela-scroll{ overflow-x: auto; }
+
+.admin-tabela{
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 860px;
+}
+
+.admin-tabela thead th{
+    text-align: left;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--admin-texto-muted);
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--admin-borda);
+    white-space: nowrap;
+}
+
+.admin-tabela tbody td{
+    padding: 14px 16px;
+    font-size: 14px;
+    color: var(--admin-texto);
+    border-bottom: 1px solid var(--admin-borda);
+    vertical-align: middle;
+}
+
+.admin-tabela tbody tr:last-child td{ border-bottom: none; }
+.admin-tabela tbody tr:hover{ background: #FAFAFD; }
+
+.admin-titulo-anuncio{ font-weight: 600; }
+.admin-preco{ font-weight: 600; }
+
+/* ================= MINIATURA DO ITEM ================= */
+.admin-thumb{
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #F2F2F2;
+    font-size: 17px;
+    flex: 0 0 auto;
+    background-size: cover;
+    background-position: center;
+}
+
+/* ================= PILL DE CATEGORIA ================= */
+.admin-cat-pill{
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12.5px;
+    font-weight: 700;
+}
+
+.admin-cat-pill.c0{ color: #1F9D66; background: #DFF6EA; }
+.admin-cat-pill.c1{ color: #6D49F2; background: #EDE7FE; }
+.admin-cat-pill.c2{ color: #3B82C4; background: #E3F1FB; }
+.admin-cat-pill.c3{ color: #B4770A; background: #FDECD1; }
+.admin-cat-pill.c4{ color: #C4362B; background: #FBE1DF; }
+
+/* ================= BADGES ESPECÍFICOS DESTA TELA =================
+   As classes base .admin-badge e .ativo já vêm de admin-shared.css.
+
+   Status (ciclo de vida do admin): só "removido" precisa de classe
+   própria — "ativo" reaproveita a verde que já existe em admin-shared.
+
+   Disponibilidade: os 4 estados reais que meus-objetos.js já usa do
+   lado do usuário (em_locacao > solicitação pendente > pausado/
+   disponível) — "disponivel" também reaproveita a classe "ativo"'s
+   verde por semântica equivalente, mas com nome próprio pra ficar
+   claro no HTML/JS que é outra coisa. */
+.admin-badge.removido{ color: var(--admin-vermelho-txt); background: var(--admin-vermelho-bg); }
+
+.admin-badge.disponivel{ color: var(--admin-verde-txt); background: var(--admin-verde-bg); }
+.admin-badge.em-locacao{ color: #3B82C4; background: #E3F1FB; }
+.admin-badge.solicitacao-pendente{ color: var(--admin-ambar-txt); background: var(--admin-ambar-bg); }
+.admin-badge.pausado{ color: var(--admin-texto-muted); background: var(--admin-bg); }
+
+/* ================= AÇÕES ================= */
+.admin-acoes{ display: flex; align-items: center; gap: 4px; }
+
+/* ================= RODAPÉ / PAGINAÇÃO ================= */
+.admin-tabela-rodape{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+#infoPaginacao{ font-size: 13.5px; color: var(--admin-texto-muted); }
+
+/* ===================================================
+   RESPONSIVO
+   =================================================== */
+@media (max-width: 640px){
+    .admin-toolbar{ flex-direction: column; }
+    .admin-toolbar .admin-btn-filtro{ width: 100%; justify-content: center; }
+    .admin-filtro-pills{ width: 100%; }
+    .admin-filtro-pill{ flex: 1; text-align: center; }
+    .admin-btn-criar{ width: 100%; justify-content: center; }
+}
+
+@media (max-width: 680px){
+    .admin-tabela-scroll{ overflow-x: visible; }
+    .admin-tabela{ min-width: 0; }
+    .admin-tabela thead{ display: none; }
+    .admin-tabela, .admin-tabela tbody, .admin-tabela tr{ display: block; width: 100%; }
+
+    .admin-tabela tbody tr{
+        border: 1px solid var(--admin-borda);
+        border-radius: 12px;
+        margin: 10px 4px;
+        padding: 6px 14px;
+    }
+
+    .admin-tabela tbody tr:hover{ background: var(--admin-surface); }
+
+    .admin-tabela td{
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--admin-borda);
+        text-align: right;
+    }
+
+    .admin-tabela tr td:last-child{ border-bottom: none; }
+
+    .admin-tabela td::before{
+        content: attr(data-label);
+        font-size: 12.5px;
+        font-weight: 700;
+        color: var(--admin-texto-muted);
+        text-align: left;
+        flex: 0 0 auto;
+    }
+
+    .admin-tabela td[data-label="Imagem"],
+    .admin-tabela td[data-label="Ações"]{ justify-content: flex-start; }
+
+    .admin-tabela td[data-label="Imagem"]::before,
+    .admin-tabela td[data-label="Ações"]::before{ display: none; }
+
+    .admin-tabela td[data-label="Ações"]{ justify-content: flex-end; }
+}

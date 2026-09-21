@@ -1,0 +1,250 @@
+/* ===================================================
+   ADMIN — ESTILOS COMPARTILHADOS
+   Usado em Admin-Usuarios, Admin-Usuario-Detalhe,
+   Admin-Usuario-Editar e nas próximas telas do admin.
+   As variáveis (--admin-roxo-500 etc.) já vêm de admin-sidebar.css,
+   que é carregado antes deste arquivo em toda página do admin.
+   =================================================== */
+
+.admin-card{
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-borda);
+    border-radius: 16px;
+    padding: 8px 8px 4px;
+    box-shadow: 0 8px 24px rgba(36, 19, 72, .06);
+}
+
+.admin-tabela-vazio{
+    text-align: center;
+    padding: 40px 16px;
+    color: var(--admin-texto-muted);
+    font-size: 14.5px;
+}
+
+/* ================= AVATAR / INICIAIS ================= */
+.admin-avatar{
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #F2F2F2;
+    font-size: 13px;
+    font-weight: 700;
+    flex: 0 0 auto;
+}
+
+/* ================= BADGE DE STATUS ================= */
+.admin-badge{
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12.5px;
+    font-weight: 700;
+}
+
+.admin-badge.ativo{ color: var(--admin-verde-txt); background: var(--admin-verde-bg); }
+.admin-badge.suspenso{ color: var(--admin-ambar-txt); background: var(--admin-ambar-bg); }
+.admin-badge.banido{ color: var(--admin-vermelho-txt); background: var(--admin-vermelho-bg); }
+
+/* ================= BOTÕES DE AÇÃO (ícones em tabela/cards) ================= */
+.admin-acao-btn{
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 15px;
+    transition: background .2s ease;
+}
+
+.admin-acao-btn.ver{ color: #3B82C4; }
+.admin-acao-btn.editar{ color: var(--admin-verde-txt); }
+.admin-acao-btn.status{ color: var(--admin-roxo-500); }
+.admin-acao-btn.excluir{ color: var(--admin-vermelho-txt); }
+
+.admin-acao-btn:hover{ background: var(--admin-bg); }
+
+/* ================= BOTÕES DE FORMULÁRIO/MODAL ================= */
+.admin-btn-secundario, .admin-btn-perigo, .admin-btn-primario{
+    height: 42px;
+    padding: 0 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    border: none;
+    transition: opacity .2s ease, transform .1s ease;
+}
+
+.admin-btn-secundario{ background: var(--admin-bg); color: var(--admin-texto); }
+.admin-btn-perigo{ background: var(--admin-vermelho-txt); color: #F2F2F2; }
+.admin-btn-primario{ background: linear-gradient(90deg, var(--admin-roxo-500), var(--admin-laranja)); color: #F2F2F2; }
+
+.admin-btn-secundario:hover, .admin-btn-perigo:hover, .admin-btn-primario:hover{ opacity: .88; }
+.admin-btn-secundario:active, .admin-btn-perigo:active, .admin-btn-primario:active{ transform: scale(.98); }
+
+.admin-btn-secundario:disabled, .admin-btn-perigo:disabled, .admin-btn-primario:disabled{
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+/* ================= MODAL ================= */
+.admin-modal-overlay{
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 8, 36, .55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 300;
+    padding: 20px;
+}
+
+/* O display:flex acima vale sempre, mesmo com o atributo [hidden] no
+   HTML — sem isto aqui o modal nunca some (mesmo ajuste que já foi
+   feito no modal de excluir em usuarios.css). */
+.admin-modal-overlay[hidden]{
+    display: none;
+}
+
+.admin-modal{
+    background: var(--admin-surface);
+    border-radius: 16px;
+    padding: 26px;
+    max-width: 420px;
+    width: 100%;
+}
+
+.admin-modal h3{
+    font-size: 18px;
+    margin-bottom: 10px;
+    color: var(--admin-texto);
+}
+
+.admin-modal p{
+    font-size: 14px;
+    color: var(--admin-texto-muted);
+    line-height: 1.5;
+}
+
+.admin-modal p strong{ color: var(--admin-texto); }
+
+.admin-modal-botoes{
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.admin-modal-botoes button{ flex: 1; }
+
+/* ================= CAMPOS DE FORMULÁRIO (modal e telas de edição) ================= */
+.admin-form-campo{
+    margin-top: 14px;
+}
+
+.admin-form-campo label{
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--admin-texto-muted);
+    margin-bottom: 6px;
+}
+
+.admin-form-campo label span{
+    font-weight: 400;
+    color: var(--admin-vermelho-txt);
+    font-size: 12px;
+}
+
+.admin-form-campo input,
+.admin-form-campo select,
+.admin-form-campo textarea{
+    width: 100%;
+    border: 1px solid var(--admin-borda);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--admin-texto);
+    background: var(--admin-surface);
+    outline: none;
+    transition: border-color .2s ease;
+    resize: vertical;
+}
+
+.admin-form-campo input:focus,
+.admin-form-campo select:focus,
+.admin-form-campo textarea:focus{
+    border-color: var(--admin-roxo-500);
+}
+
+.admin-form-campo input:disabled{
+    background: var(--admin-bg);
+    color: var(--admin-texto-muted);
+    cursor: not-allowed;
+}
+
+.admin-form-campo small{
+    display: block;
+    margin-top: 5px;
+    font-size: 12px;
+    color: var(--admin-texto-muted);
+}
+
+.admin-form-erro{
+    color: var(--admin-vermelho-txt) !important;
+    font-size: 13px !important;
+    margin-top: 10px !important;
+    min-height: 0 !important;
+}
+
+/* ================= TOAST ================= */
+.admin-toast{
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background: var(--admin-roxo-700);
+    color: #F2F2F2;
+    padding: 14px 20px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: 0 8px 24px rgba(36, 19, 72, .3);
+    opacity: 0;
+    transform: translateY(20px);
+    pointer-events: none;
+    transition: all .4s ease;
+    z-index: 9999;
+    max-width: 320px;
+}
+
+.admin-toast.show{ opacity: 1; transform: translateY(0); }
+.admin-toast.sucesso{ background: linear-gradient(90deg, var(--admin-roxo-500), var(--admin-laranja)); }
+.admin-toast.erro{ background: linear-gradient(90deg, #b91c1c, var(--admin-laranja)); }
+.admin-toast.info{ background: var(--admin-roxo-700); }
+
+@media (max-width: 640px){
+    .admin-toast{ left: 16px; right: 16px; bottom: 16px; max-width: none; }
+}
+
+/* ================= BOTÃO "VOLTAR" (telas de detalhe/edição) ================= */
+.admin-voltar{
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--admin-texto-muted);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 18px;
+    transition: color .2s ease;
+}
+
+.admin-voltar:hover{ color: var(--admin-roxo-500); }

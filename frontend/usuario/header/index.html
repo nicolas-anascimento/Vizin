@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>header</title>
+</head>
+<body>
+ 
+    <header id="header">
+        <div class="container-nav">
+            <div class="nav-wrapper">
+ 
+                <a href="/inicio" class="nav-logo-link"><div class="logo"></div></a>
+ 
+                <nav class="nav-center">
+                    <ul>
+                        <li><a href="/inicio"><i class="bi bi-house"></i><span class="nav-text"> Início</span><span class="nav-underline"></span></a></li>
+                        <li><a href="/meus-objetos" class="protegido"><i class="bi bi-box-seam"></i><span class="nav-text"> Meus Objetos</span><span class="nav-underline"></span></a></li>
+                        <li><a href="/historico" class="protegido"><i class="bi bi-clock-history"></i><span class="nav-text"> Histórico</span><span class="nav-underline"></span></a></li>
+                        <li><a href="/mensagens" class="protegido"><i class="bi bi-chat-dots"></i><span class="nav-text"> Mensagens</span><span class="nav-underline"></span></a></li>
+                        <li><a href="/notificacoes" class="protegido"><i class="bi bi-bell"></i><span class="nav-text"> Notificações</span><span class="nav-underline"></span></a></li>
+                        <li><a href="/perfil" class="protegido"><i class="bi bi-person"></i><span class="nav-text"> Perfil</span><span class="nav-underline"></span></a></li>
+                        <li><a href="/suporte" class="protegido"><i class="bi bi-headset"></i><span class="nav-text"> Suporte</span><span class="nav-underline"></span></a></li>
+                    </ul>
+                </nav>
+ 
+                <!-- Só aparece no mobile: ícones fixos do topo. Ocupa a mesma
+                     coluna central do grid que .nav-center usa no desktop,
+                     então fica no meio (logo à esquerda, ícones no meio,
+                     SAIR na extremidade direita), igual ao layout desktop.
+                     Usa a mesma marcação ul>li>a do menu desktop (com
+                     .nav-text e .nav-underline) para herdar os mesmos
+                     efeitos de hover/foco. -->
+                <nav class="nav-mobile-top">
+                    <ul>
+                        <li><a href="/notificacoes" class="protegido" aria-label="Notificações"><i class="bi bi-bell"></i><span class="nav-text"> Notificações</span><span class="nav-underline"></span></a></li>
+                        <li><a href="/perfil" class="protegido" aria-label="Perfil"><i class="bi bi-person"></i><span class="nav-text"> Perfil</span><span class="nav-underline"></span></a></li>
+                        <li><a href="/suporte" class="protegido" aria-label="Suporte"><i class="bi bi-headset"></i><span class="nav-text"> Suporte</span><span class="nav-underline"></span></a></li>
+                    </ul>
+                </nav>
+ 
+                <!-- Botão SAIR: mesmo formato de botão do desktop, sempre na
+                     extremidade direita (própria coluna do grid), tanto no
+                     desktop quanto no mobile. -->
+                <div class="nav-right">
+                    <button class="btn-login js-logout">
+                        <i class="bi bi-box-arrow-right"></i> SAIR
+                    </button>
+                </div>
+ 
+            </div>
+        </div>
+    </header>
+ 
+    <!-- Barra de navegação fixa (mobile) — sem o Sair, que agora fica só no menu do topo.
+         O botão de Anunciar objeto fica no meio, em destaque (círculo laranja),
+         e só aparece em telas pequenas (ver header.css) — nas telas onde o
+         botão do banner da Início já foi escondido, evitando CTA duplicado. -->
+    <nav class="bottom-nav">
+        <a href="/inicio" class="bottom-nav-item"><i class="bi bi-house"></i><span>Início</span><span class="nav-underline"></span></a>
+        <a href="/meus-objetos" class="bottom-nav-item protegido"><i class="bi bi-box-seam"></i><span>Objetos</span><span class="nav-underline"></span></a>
+        <a href="/cadastrar-objeto" class="bottom-nav-fab protegido" aria-label="Anunciar objeto"><i class="bi bi-plus-lg"></i></a>
+        <a href="/historico" class="bottom-nav-item protegido"><i class="bi bi-clock-history"></i><span>Histórico</span><span class="nav-underline"></span></a>
+        <a href="/mensagens" class="bottom-nav-item protegido"><i class="bi bi-chat-dots"></i><span>Mensagens</span><span class="nav-underline"></span></a>
+    </nav>
+ 
+</body>
+</html>

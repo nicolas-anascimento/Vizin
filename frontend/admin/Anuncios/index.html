@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../admin-sidebar/admin-sidebar.css">
+    <link rel="stylesheet" href="../Usuarios/admin-shared.css">
+    <link rel="stylesheet" href="anuncios.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <title>Anúncios — Admin Vizin</title>
+</head>
+<body class="admin-body" data-page="anuncios">
+
+    <div id="adminSidebarContainer"></div>
+
+    <main class="admin-main">
+
+        <header class="admin-page-header admin-page-header-com-acao">
+            <div>
+                <h1>Gerenciamento de Anúncios</h1>
+                <p>Gerencie todos os anúncios e itens da plataforma</p>
+            </div>
+        </header>
+
+        <div class="admin-filtros-container">
+
+            <section class="admin-toolbar">
+                <div class="admin-search-box">
+                    <i class="bi bi-search"></i>
+                    <input type="text" id="buscaAnuncios" placeholder="Buscar por título, proprietário ou categoria...">
+                </div>
+
+                <button class="admin-btn-filtro" id="btnFiltros" type="button">
+                    <i class="bi bi-funnel"></i> Filtros
+                </button>
+            </section>
+
+            <section class="admin-filtro-status" id="filtroStatusBar">
+                <span class="admin-filtro-status-label">Status:</span>
+                <div class="admin-filtro-pills">
+                    <button type="button" class="admin-filtro-pill active" data-status="todos">Todos</button>
+                    <button type="button" class="admin-filtro-pill" data-status="ativo">Ativo</button>
+                    <button type="button" class="admin-filtro-pill" data-status="arquivado">Arquivado</button>
+                </div>
+            </section>
+
+        </div>
+
+        <section class="admin-card">
+
+            <div class="admin-tabela-scroll">
+                <table class="admin-tabela">
+                    <thead>
+                        <tr>
+                            <th>Imagem</th>
+                            <th>Título</th>
+                            <th>Proprietário</th>
+                            <th>Categoria</th>
+                            <th>Preço/Dia</th>
+                            <th>Disponibilidade</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="corpoTabelaAnuncios">
+                        <!-- linhas inseridas via anuncios.js -->
+                    </tbody>
+                </table>
+            </div>
+
+            <p id="tabelaEstadoVazio" class="admin-tabela-vazio" hidden>Nenhum anúncio encontrado.</p>
+
+            <div class="admin-tabela-rodape">
+                <span id="infoPaginacao"></span>
+                <div class="admin-paginacao" id="paginacao"></div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <div id="toast" class="admin-toast"></div>
+
+    <script src="../../usuario/Login/api.js"></script>
+    <script src="admin-api.js"></script>
+    <script src="admin-anuncio-acoes.js"></script>
+    <script src="../admin-sidebar/admin-frame.js"></script>
+    <script src="anuncios.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../admin-sidebar/admin-sidebar.css">
+    <link rel="stylesheet" href="../Usuarios/admin-shared.css">
+    <link rel="stylesheet" href="editar.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <title>Editar usuário — Admin Vizin</title>
+</head>
+<body class="admin-body" data-page="usuarios">
+
+    <div id="adminSidebarContainer"></div>
+
+    <main class="admin-main">
+
+        <a href="/admin/usuarios" class="admin-voltar" id="linkVoltar">
+            <i class="bi bi-arrow-left"></i> Voltar
+        </a>
+
+        <div id="conteudoEditar">
+            <p class="admin-tabela-vazio">Carregando...</p>
+        </div>
+
+    </main>
+
+    <div id="toast" class="admin-toast"></div>
+
+    <script src="../../usuario/Login/api.js"></script>
+    <script src="../Usuarios/admin-api.js"></script>
+    <script src="../admin-sidebar/admin-frame.js"></script>
+    <script src="editar.js"></script>
+
+</body>
+</html>

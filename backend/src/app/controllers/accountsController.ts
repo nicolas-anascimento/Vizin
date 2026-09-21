@@ -5,10 +5,13 @@ import prisma from "../config/database.ts";
 import transporter from "../config/mailer.ts";
 import env from "../config/env.ts";
 import { HttpError } from "../utils/httpError.ts";
+import { password, email as validEmail } from "../utils/validation.ts";
 import { nonEmptyString } from "../utils/strings.ts";
 
+// Gera token temporário de redefinição e solicita envio ao email cadastrado.
 export const requestResetPassword: RequestHandler = async (req, res) => {
-  const email = nonEmptyString(req.body?.email)?.toLowerCase();
+  const email = validEmail(req.body?.email);
+  if (!transporter && env.NODE_ENV !== "dev") throw new HttpError(503, "SMTP não configurado");
   if (!email) throw new HttpError(422, "Email é obrigatório");
   const user = await prisma.usuarios.findUnique({ where: { email } });
   if (user) {
@@ -35,9 +38,10 @@ export const requestResetPassword: RequestHandler = async (req, res) => {
   res.json({ success: true, message: "Se o usuário existir, enviaremos um email" });
 };
 
+// Confere validade do token, grava novo hash e invalida sessões anteriores.
 export const resetPassword: RequestHandler = async (req, res) => {
   const token = nonEmptyString(req.body?.token);
-  const senha = nonEmptyString(req.body?.senha);
+  const senha = password(req.body?.senha ?? req.body?.senhaNova);
   if (!token || !senha) throw new HttpError(422, "Token e nova senha são obrigatórios");
   if (senha.length < 8) throw new HttpError(422, "A senha deve ter pelo menos 8 caracteres");
   const tokenHash = createHash("sha256").update(token).digest("hex");

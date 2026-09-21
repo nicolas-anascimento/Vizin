@@ -1,0 +1,250 @@
+.avaliacao-container {
+  max-width: 640px;
+}
+
+/* ---------- Cabeçalho ---------- */
+.avaliacao-header-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.avaliacao-icone {
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+  border-radius: 14px;
+  background: var(--roxo);
+  color: #fff;
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avaliacao-titulo {
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--texto);
+  margin: 0 0 4px;
+}
+
+.avaliacao-subtitulo {
+  font-size: 13.5px;
+  color: var(--texto-suave);
+  margin: 0;
+}
+
+/* ---------- Mini card do produto ---------- */
+.produto-mini-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--fundo);
+  box-shadow: none;
+}
+
+.produto-mini-card img {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: #eee;
+}
+
+.produto-mini-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.produto-mini-nome {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--texto);
+}
+
+.produto-mini-status {
+  margin: 3px 0;
+  font-size: 12.5px;
+  color: var(--verde);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.produto-mini-outraparte {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--texto-suave);
+}
+
+.produto-mini-outraparte strong {
+  color: var(--texto);
+}
+
+/* ---------- Estrelas ---------- */
+.avaliacao-pergunta {
+  font-size: 13.5px;
+  color: var(--texto-suave);
+  margin: -6px 0 18px;
+}
+
+.estrelas-row {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.estrela {
+  font-size: 32px;
+  color: #d9d9e3;
+  cursor: pointer;
+  transition: transform 0.12s ease, color 0.12s ease;
+}
+
+.estrela:hover {
+  transform: scale(1.12);
+}
+
+.estrela.preenchida {
+  color: var(--amarelo);
+}
+
+.estrela.preenchida::before {
+  content: "\F586"; /* bi-star-fill */
+}
+
+.estrelas-legenda {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--roxo);
+  margin-bottom: 18px;
+}
+
+.escala-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11.5px;
+  color: var(--texto-fraco);
+  font-weight: 600;
+}
+
+.escala-barra {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--borda);
+  overflow: hidden;
+}
+
+.escala-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #dc2626, var(--amarelo), var(--verde));
+  border-radius: 999px;
+  transition: width 0.25s ease;
+}
+
+/* ---------- Comentário ---------- */
+.opcional {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--texto-fraco);
+}
+
+textarea#comentario {
+  width: 100%;
+  min-height: 110px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--borda);
+  font-size: 13.5px;
+  color: var(--texto);
+  font-family: inherit;
+  resize: vertical;
+  margin-top: 4px;
+}
+
+textarea#comentario:focus {
+  outline: none;
+  border-color: var(--roxo);
+}
+
+.contador-caracteres {
+  text-align: right;
+  font-size: 11.5px;
+  color: var(--texto-fraco);
+  margin-top: 6px;
+}
+
+/* ---------- Ações ---------- */
+.avaliacao-actions {
+  display: flex;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.avaliacao-actions .btn {
+  flex: 1;
+}
+
+.avaliacao-rodape {
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--texto-fraco);
+  margin-top: 16px;
+  line-height: 1.5;
+}
+
+/* ---------- Estado: já enviada ---------- */
+.status-card {
+  text-align: center;
+}
+
+.status-icone {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  margin: 0 auto 14px;
+}
+
+.status-aprovado {
+  background: var(--verde-claro);
+  color: var(--verde);
+}
+
+.status-titulo {
+  font-size: 17px;
+  margin-bottom: 8px;
+}
+
+.status-texto {
+  font-size: 14px;
+  color: var(--texto-suave);
+  margin: 0;
+}
+
+@media (max-width: 480px) {
+  .avaliacao-header-card {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .produto-mini-card {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .estrela {
+    font-size: 28px;
+  }
+}

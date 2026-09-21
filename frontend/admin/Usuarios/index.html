@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../admin-sidebar/admin-sidebar.css">
+    <link rel="stylesheet" href="admin-shared.css">
+    <link rel="stylesheet" href="usuarios.css?v=12">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <title>Usuários — Admin Vizin</title>
+</head>
+<body class="admin-body" data-page="usuarios">
+
+    <div id="adminSidebarContainer"></div>
+
+    <main class="admin-main">
+
+        <header class="admin-page-header">
+            <h1>Gerenciamento de Usuários</h1>
+            <p>Gerencie todos os usuários da plataforma</p>
+        </header>
+
+        <!-- Envolve busca + botão Filtros + barra de status, pra dar pra
+             detectar "clique fora" e fechar a barra no mobile. -->
+        <div class="admin-filtros-container">
+
+            <section class="admin-toolbar">
+                <div class="admin-search-box">
+                    <i class="bi bi-search"></i>
+                    <input type="text" id="buscaUsuarios" placeholder="Buscar por nome, email ou CPF...">
+                </div>
+
+                <button class="admin-btn-filtro" id="btnFiltros" type="button">
+                    <i class="bi bi-funnel"></i> Filtros
+                </button>
+            </section>
+
+            <!-- Barra de status escondida por padrão em qualquer tela;
+                 o botão "Filtros" acima abre/fecha ela (ver usuarios.js). -->
+            <section class="admin-filtro-status" id="filtroStatusBar">
+                <span class="admin-filtro-status-label">Status:</span>
+                <div class="admin-filtro-pills">
+                    <button type="button" class="admin-filtro-pill active" data-status="todos">Todos</button>
+                    <button type="button" class="admin-filtro-pill" data-status="ativo">Ativo</button>
+                    <button type="button" class="admin-filtro-pill" data-status="inativo">Inativo</button>
+                    
+                </div>
+            </section>
+
+        </div>
+
+        <section class="admin-card">
+
+            <div class="admin-tabela-scroll">
+                <table class="admin-tabela">
+                    <thead>
+                        <tr>
+                            <th>Foto</th>
+                            <th>Nome</th>
+                            <th>Email</th>
+                            <th>CPF</th>
+                            <th>Telefone</th>
+                            <th>Data Cadastro</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="corpoTabelaUsuarios">
+                        <!-- linhas inseridas via usuarios.js -->
+                    </tbody>
+                </table>
+            </div>
+
+            <p id="tabelaEstadoVazio" class="admin-tabela-vazio" hidden>Nenhum usuário encontrado.</p>
+
+            <div class="admin-tabela-rodape">
+                <span id="infoPaginacao"></span>
+                <div class="admin-paginacao" id="paginacao"></div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- O modal de excluir e o de alterar status agora são injetados
+         automaticamente por admin-usuario-acoes.js (compartilhados com
+         Admin-Usuario-Detalhe), então não declaramos mais o antigo
+         #modalExcluirOverlay aqui. -->
+
+    <div id="toast" class="admin-toast"></div>
+
+    <script src="../../usuario/Login/api.js"></script>
+    <script src="admin-api.js"></script>
+    <script src="admin-usuario-acoes.js"></script>
+    <script src="../admin-sidebar/admin-frame.js"></script>
+    <script src="usuarios.js"></script>
+
+</body>
+</html>

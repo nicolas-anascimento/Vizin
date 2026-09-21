@@ -1,0 +1,252 @@
+/* CSS compartilhado pelas telas de "configurações" da conta.
+   Usa var(--..., fallback) em tudo pra não conflitar com o tema real do
+   projeto (definido em fluxo-aluguel.css) caso os nomes de variável sejam
+   os mesmos — o fallback só entra em ação se a variável não existir. */
+ 
+.conta-container {
+  max-width: 640px;
+  margin-top: 90px;
+}
+ 
+.conta-voltar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--texto-suave, #555);
+  text-decoration: none;
+  margin-bottom: 14px;
+}
+ 
+.conta-voltar:hover {
+  color: var(--roxo, #6D49F2);
+}
+ 
+.conta-titulo-pagina {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--texto, #1a1a2e);
+  margin: 0 0 4px;
+}
+ 
+.conta-subtitulo-pagina {
+  font-size: 13.5px;
+  color: var(--texto-suave, #555);
+  margin: 0 0 20px;
+}
+ 
+.conta-linha-opcao {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 2px;
+}
+ 
+.conta-linha-opcao + .conta-linha-opcao {
+  border-top: 1px solid var(--borda, #e4e4e8);
+}
+ 
+.conta-linha-texto h3 {
+  margin: 0 0 3px;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--texto, #1a1a2e);
+}
+ 
+.conta-linha-texto p {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--texto-suave, #555);
+  line-height: 1.5;
+}
+ 
+.conta-linha-opcao .btn {
+  flex-shrink: 0;
+  width: auto;
+  padding: 9px 18px;
+  height: auto;
+}
+ 
+/* ================= TOGGLE (switch) ================= */
+.conta-toggle {
+  position: relative;
+  display: inline-block;
+  width: 42px;
+  height: 24px;
+  flex-shrink: 0;
+}
+ 
+.conta-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+ 
+.conta-toggle-track {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: #ccc;
+  border-radius: 999px;
+  transition: .2s;
+}
+ 
+.conta-toggle-track::before {
+  content: "";
+  position: absolute;
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: .2s;
+}
+ 
+.conta-toggle input:checked + .conta-toggle-track {
+  background: var(--roxo, #6D49F2);
+}
+ 
+.conta-toggle input:checked + .conta-toggle-track::before {
+  transform: translateX(18px);
+}
+ 
+.conta-toggle input:disabled + .conta-toggle-track {
+  opacity: .5;
+  cursor: not-allowed;
+}
+ 
+/* ================= ZONA DE RISCO ================= */
+.conta-zona-risco {
+  border: 1.5px solid #f5c2c0;
+  background: #fdf5f5;
+}
+ 
+.conta-zona-risco h2 {
+  color: #b91c1c;
+}
+ 
+.conta-zona-risco .conta-linha-texto p {
+  color: #9b4444;
+}
+ 
+/* ================= AVISO / ALERTA ================= */
+.conta-aviso {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #fdeaea;
+  border: 1.5px solid #f5c2c0;
+  color: #b91c1c;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+ 
+.conta-aviso i {
+  font-size: 17px;
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+ 
+.conta-aviso ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+ 
+.conta-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #f4f0ff;
+  border: 1.5px solid #ddd4fb;
+  color: #4b3391;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+ 
+.conta-info i {
+  font-size: 17px;
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+ 
+/* ================= FORMULÁRIOS ================= */
+.conta-field {
+  margin-bottom: 16px;
+}
+ 
+.conta-field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--texto, #1a1a2e);
+  margin-bottom: 6px;
+}
+ 
+.conta-field input {
+  width: 100%;
+  padding: 11px 12px;
+  border-radius: 10px;
+  border: 1.5px solid var(--borda, #e4e4e8);
+  font-size: 14px;
+  color: var(--texto, #1a1a2e);
+  font-family: inherit;
+}
+ 
+.conta-field-senha {
+  position: relative;
+}
+ 
+.conta-field-senha i {
+  position: absolute;
+  right: 12px;
+  top: 41px;
+  cursor: pointer;
+  color: var(--texto-fraco, #999);
+}
+ 
+.conta-checkbox-linha {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--texto-suave, #555);
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+ 
+.conta-checkbox-linha input {
+  margin-top: 3px;
+}
+ 
+.conta-mensagem {
+  font-size: 13.5px;
+  margin-top: 10px;
+  min-height: 18px;
+}
+ 
+.conta-mensagem.erro { color: #c0392b; }
+.conta-mensagem.sucesso { color: #2f9e5c; }
+ 
+.toggle-senha {
+  cursor: pointer;
+}
+ 
+.toggle-senha:hover {
+  color: var(--roxo, #6D49F2);
+}
+ 
+.conta-card + .card,
+.card + .conta-zona-risco,
+.card + .card {
+  margin-top: 16px;
+}
+ 

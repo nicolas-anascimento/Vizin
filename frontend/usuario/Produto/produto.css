@@ -1,0 +1,570 @@
+.produto-grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 24px;
+  align-items: start;
+}
+ 
+.produto-imagem {
+  width: 100%;
+  height: 320px;
+  object-fit: contain;
+  border-radius: 18px;
+  background: #eee;
+  display: block; /* remove o espaço inline (gap de baseline) que empurrava o
+                      contador pra fora da foto, fazendo ele "flutuar" embaixo
+                      dela em vez de ficar colado no canto */
+}
+ 
+/* Container que envolve a foto principal — permite posicionar as setas e o
+   contador exatamente sobre a imagem, e agora concentra o espaçamento que
+   antes estava (incorretamente) direto na .produto-imagem */
+#produto-imagem-wrapper {
+  position: relative;
+  line-height: 0;
+  margin-bottom: 20px;
+  border-radius: 18px;
+  overflow: hidden;
+}
+ 
+/* Setas de navegação da foto principal — antes eram geradas via JS
+   (cssText) trocando "left" por "right" numa string, o que quebrava sempre
+   que o navegador reformatava o cssText lido de volta, fazendo as duas
+   setas caírem no mesmo lado. Agora cada seta só recebe a classe certa
+   (.prev ou .next) e o posicionamento vem 100% do CSS. */
+.produto-imagem-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+  z-index: 2;
+}
+ 
+.produto-imagem-nav:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+ 
+.produto-imagem-nav.prev {
+  left: 12px;
+}
+ 
+.produto-imagem-nav.next {
+  right: 12px;
+}
+ 
+.produto-imagem-contador {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  padding: 3px 11px;
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: normal;
+  z-index: 2;
+}
+ 
+/* Miniaturas abaixo da foto principal */
+#produto-thumbs {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 24px; /* pequeno respiro antes do próximo card (título/preço) */
+}
+ 
+#produto-thumbs img {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+  flex-shrink: 0;
+}
+ 
+#produto-thumbs img:hover {
+  transform: translateY(-2px);
+}
+ 
+#produto-thumbs img.thumb-ativa {
+  border-color: var(--roxo);
+}
+ 
+.produto-titulo-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+ 
+.produto-titulo {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--texto);
+  margin: 0;
+}
+ 
+.produto-preco {
+  text-align: right;
+  white-space: nowrap;
+}
+ 
+.preco-valor {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--laranja);
+}
+ 
+.preco-label {
+  display: block;
+  font-size: 12px;
+  color: var(--texto-suave);
+}
+ 
+.produto-local {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--texto-suave);
+  margin: 10px 0 0;
+}
+ 
+.produto-descricao {
+  margin: 0;
+  font-size: 14.5px;
+  color: var(--texto-suave);
+  line-height: 1.6;
+}
+ 
+.proprietario-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+ 
+.proprietario-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+ 
+.avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--roxo);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+}
+ 
+.proprietario-nome {
+  margin: 0;
+  font-weight: 700;
+  font-size: 14.5px;
+  color: var(--texto);
+}
+ 
+.proprietario-avaliacao {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--texto-suave);
+}
+ 
+.proprietario-avaliacao i {
+  color: var(--laranja);
+}
+ 
+.proprietario-acoes {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+ 
+.proprietario-acoes .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+ 
+.dica-box i {
+  color: var(--roxo);
+  margin-right: 4px;
+}
+ 
+/* ================= DENUNCIAR ANÚNCIO ================= */
+/* Ação de baixa ênfase de propósito — não deve competir visualmente com
+   "Conversar"/"Solicitar Aluguel", mas precisa estar visível o bastante
+   pra quem precisar (anúncio falso, item proibido, fotos ofensivas etc). */
+.link-denunciar-anuncio {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--texto-fraco);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+ 
+.link-denunciar-anuncio:hover {
+  color: #dc2626;
+  text-decoration: underline;
+}
+ 
+/* ================= AVALIAÇÕES DO OBJETO ================= */
+.produto-avaliacao-resumo {
+  margin-bottom: 6px;
+}
+ 
+/* Resumo em destaque: nota grande + estrelas + total de avaliações */
+.produto-avaliacao-resumo-box {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 6px;
+}
+ 
+.produto-avaliacao-nota-grande {
+  font-size: 38px;
+  font-weight: 800;
+  color: var(--texto);
+  line-height: 1;
+}
+ 
+.produto-avaliacao-resumo-detalhes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+ 
+.produto-avaliacao-estrelas {
+  color: var(--laranja);
+  font-size: 14px;
+  letter-spacing: 2px;
+}
+ 
+.produto-avaliacao-estrelas .bi-star {
+  color: var(--borda);
+}
+ 
+.produto-avaliacao-total {
+  font-size: 13px;
+  color: var(--texto-suave);
+}
+ 
+.produto-avaliacao-nota {
+  font-weight: 700;
+  color: var(--texto);
+}
+ 
+.produto-avaliacao-nota i,
+.produto-avaliacao-nota-item i {
+  color: var(--laranja);
+}
+ 
+.produto-avaliacao-item {
+  padding: 16px 0;
+  border-top: 1px solid var(--borda);
+}
+ 
+.produto-avaliacao-item:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+ 
+.produto-avaliacao-topo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+ 
+.produto-avaliacao-avatar {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--roxo);
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+ 
+.produto-avaliacao-avatar-link {
+  display: inline-flex;
+  text-decoration: none;
+  transition: transform 0.12s ease;
+}
+ 
+.produto-avaliacao-avatar-link:hover {
+  transform: scale(1.06);
+}
+ 
+.produto-avaliacao-nome-link {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--texto);
+  text-decoration: none;
+  cursor: pointer;
+}
+ 
+.produto-avaliacao-nome-link:hover {
+  color: var(--roxo);
+  text-decoration: underline;
+}
+ 
+.produto-avaliacao-info {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  gap: 2px;
+}
+ 
+.produto-avaliacao-info strong {
+  font-size: 14px;
+  color: var(--texto);
+}
+ 
+.produto-avaliacao-data {
+  font-size: 12px;
+  color: var(--texto-fraco);
+}
+ 
+.produto-avaliacao-nota-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 0;
+  background: #fdf3e7;
+  padding: 4px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+  margin-left: auto;
+}
+ 
+.produto-avaliacao-comentario {
+  font-size: 14px;
+  color: var(--texto);
+  line-height: 1.5;
+  margin: 0 0 0 48px; /* alinha com o nome, depois do avatar (36px + 12px gap) */
+}
+ 
+.produto-avaliacao-vazio {
+  font-size: 13.5px;
+  color: var(--texto-fraco);
+}
+ 
+/* ================= SIDEBAR ================= */
+.produto-sidebar {
+  position: sticky;
+  top:100px;
+}
+ 
+.sidebar-card .field {
+  margin-bottom: 14px;
+}
+ 
+.sidebar-card label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--texto);
+  margin-bottom: 6px;
+}
+ 
+.sidebar-card input[type="date"] {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--borda);
+  border-radius: 10px;
+  font-size: 14px;
+  color: var(--texto);
+}
+ 
+.resumo-datas {
+  background: var(--fundo);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+ 
+.resumo-linha {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13.5px;
+  color: var(--texto-suave);
+  padding: 4px 0;
+}
+ 
+.resumo-total {
+  border-top: 1px solid var(--borda);
+  margin-top: 4px;
+  padding-top: 8px;
+  font-weight: 700;
+  color: var(--texto);
+}
+ 
+#resumo-total{
+  color: var(--laranja);
+}
+ 
+.sidebar-aviso {
+  font-size: 12px;
+  color: var(--texto-fraco);
+  text-align: center;
+  margin: 12px 0 0;
+  line-height: 1.5;
+}
+ 
+/* ================= ERRO INLINE (DATAS INVÁLIDAS) ================= */
+.field-error {
+  font-size: 12.5px;
+  color: #dc2626;
+  margin: -8px 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+ 
+/* ================= AVISO DE BLOQUEIO NO CARD-DONO ================= */
+.aviso-bloqueio {
+  background: #fdeaea;
+  color: #c0392b !important;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-top: 10px !important;
+  text-align: left;
+  line-height: 1.5;
+}
+ 
+.aviso-bloqueio a {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+}
+ 
+/* ================= TOAST DE ATUALIZAÇÃO (preço/objeto mudou) ================= */
+.aviso-atualizacao {
+  font-size: 12.5px;
+  color: var(--roxo);
+  background: var(--roxo-claro);
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin: -6px 0 16px;
+  text-align: center;
+}
+ 
+/* ================= ESTADOS DE STATUS ================= */
+.status-card {
+  text-align: center;
+}
+ 
+.status-icone {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  margin: 0 auto 14px;
+}
+ 
+.status-pendente {
+  background: #fef3e2;
+  color: var(--amarelo);
+}
+ 
+.status-info {
+  background: var(--roxo-claro);
+  color: var(--roxo);
+}
+ 
+.status-aprovado {
+  background: var(--verde-claro);
+  color: var(--verde);
+}
+ 
+.status-rejeitado{
+  background: #fef3e2;
+  color: #dc2626;
+}
+ 
+.status-titulo {
+  font-size: 17px;
+  margin-bottom: 8px;
+}
+ 
+.status-texto {
+  font-size: 14px;
+  color: var(--texto-suave);
+  margin: 0 0 4px;
+}
+ 
+.status-subtexto {
+  font-size: 12.5px;
+  color: var(--texto-fraco);
+  margin: 0 0 4px;
+}
+ 
+#btn-ir-pagamento {
+  margin-top: 16px;
+}
+ 
+@media (max-width: 800px) {
+  .produto-grid {
+    grid-template-columns: 1fr;
+  }
+ 
+  .produto-sidebar {
+    position: static;
+  }
+}
+ 
+@media (max-width: 480px) {
+  .proprietario-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+ 
+  .proprietario-acoes {
+    justify-content: stretch;
+  }
+ 
+  .proprietario-acoes .btn {
+    flex: 1;
+    justify-content: center;
+  }
+}
+ 

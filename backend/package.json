@@ -14,19 +14,24 @@
     "db:push": "prisma db push",
     "typecheck": "tsc --noEmit",
     "seed": "tsx src/seed.ts",
-    "test": "tsx --test src/tests/**/*.test.ts"
+    "test": "node --import tsx --input-type=module -e \"await import('./src/tests/contracts.test.ts'); await import('./src/tests/utils.test.ts'); await import('./src/tests/paymentRules.test.ts')\"",
+    "test:integration": "node --env-file=.env --import tsx scripts/runIntegration.ts",
+    "test:financial": "node --env-file=.env --import tsx --input-type=module -e \"await import('./src/tests/integration/payments.test.ts')\"",
+    "test:admin": "node --env-file=.env --import tsx src/tests/integration/admin.integration.test.ts",
+    "test:front-contract": "node --env-file=.env --import tsx src/tests/integration/frontendContract.integration.test.ts"
   },
   "dependencies": {
-    "@prisma/adapter-pg": "^7.8.0",
-    "@prisma/client": "^7.8.0",
+    "@prisma/adapter-pg": "7.8.0",
+    "@prisma/client": "7.8.0",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.4.0",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.0.2",
-    "nodemailer": "^8.0.10",
-    "pg": "^8.20.0"
+    "nodemailer": "^10.0.10",
+    "pg": "^8.20.0",
+    "sharp": "^0.35.4"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
@@ -37,8 +42,17 @@
     "@types/node": "^25.5.0",
     "@types/nodemailer": "^8.0.0",
     "@types/pg": "^8.20.0",
-    "prisma": "^7.8.0",
+    "prisma": "7.8.0",
     "tsx": "^4.20.6",
     "typescript": "^6.0.2"
+  },
+  "overrides": {
+    "deepmerge-ts": "^8.0.2",
+    "mysql2": "^3.24.4",
+    "valibot": "^1.5.0",
+    "@hono/node-server": "^1.19.15"
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }

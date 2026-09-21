@@ -1,11 +1,36 @@
+// Expõe ciclo da solicitação: criação, status, pagamento, fotos, multa, relato e avaliação.
+import { createReview, listRentalReviews } from "../controllers/reviewsController.ts";
+import { rentalPaymentSummary, rentalPaymentConfirmation, createContractPayment, fineSummary } from "../controllers/paymentsController.ts";
+import { rateLimit } from "../middlewares/rateLimit.ts";
 import { Router } from "express";
-import { createRentalRequest, getRentalStatus, listMyRentals, updateRentalStatus } from "../controllers/rentalsController.ts";
+import { createRentalRequest, getRentalStatus, listMyRentals, updateRentalStatus, cancelRentalRequest } from "../controllers/rentalsController.ts";
+import { recordHandover, handoverStatus } from "../controllers/handoverController.ts";
+import { withdrawalUpload } from "../middlewares/upload.ts";
+import { verifyUploads } from "../middlewares/privateUpload.ts";
+import { createRentalReport, listRentalReports } from "../controllers/rentalReportsController.ts";
 import { requireAuth } from "../middlewares/auth.ts";
 const router = Router();
 router.use(requireAuth);
 router.get("/", listMyRentals);
 router.post("/", createRentalRequest);
+router.get("/historico", listMyRentals);
+router.post("/:id/cancelamento", cancelRentalRequest);
+router.get("/:id/relatos", listRentalReports);
+router.post("/:id/multa/contestacao", createRentalReport);
+router.get("/:id/retirada", handoverStatus(false));
+// O upload valida as fotos antes de chegar ao controller que confirma a etapa no banco.
+router.post("/:id/retirada/fotos", withdrawalUpload, verifyUploads, recordHandover(false));
+router.get("/:id/devolucao", handoverStatus(true));
+router.post("/:id/devolucao/fotos", withdrawalUpload, verifyUploads, recordHandover(true));
+router.patch("/:id", updateRentalStatus);
+router.post("/:id/avaliacao", createReview);
+router.get("/:id/avaliacoes", listRentalReviews);
 router.get("/:id/status", getRentalStatus);
+router.get("/:id/pagamento", rentalPaymentSummary);
+router.get("/:id/confirmacao-pagamento", rentalPaymentConfirmation);
+router.post("/:id/pagamentos", rateLimit({windowMs:60000,max:30}), createContractPayment);
+router.get("/:id/multa", fineSummary);
+router.post("/:id/multa/pagamentos", rateLimit({windowMs:60000,max:30}), createContractPayment);
 router.get("/:id", getRentalStatus);
 router.patch("/:id/status", updateRentalStatus);
 export default router;

@@ -1,102 +1,32 @@
-# Vizin Backend
+# VIZIN Backend
 
-API em Express, TypeScript, PostgreSQL/PostGIS e Prisma.
-
-## Desenvolvimento
+Backend em TypeScript, Node.js, Express 5, Prisma 7.8 com adapter `pg`, PostgreSQL e PostGIS. Não usa MongoDB nem autenticação por e-mail. Login usa CPF validado e senha; e-mail é utilizado para recuperação e confirmação de alteração.
 
 ```bash
-cp .env_example .env
+cp .env.example .env
+# Ajuste DATABASE_URL e JWT_KEY antes de iniciar.
 docker compose up -d
-npm install
-npm run prisma:generate
-npm run db:push
+npm ci
+npm run build
+npm run db:deploy
 npm run seed
 npm run dev
 ```
 
-Servidor padrão: `http://localhost:8080`.
+`ADMIN_EMAIL`, `ADMIN_CPF` válido e `ADMIN_PASSWORD` configuram o administrador via seed. Não há credenciais administrativas fixas. Em produção use `NODE_ENV=production`, HTTPS, SMTP e `PAYMENT_MODE=gateway`.
 
-## Scripts
+O servidor disponibiliza a API em `/api`, os assets existentes em `/assets` e páginas em rotas como `/login`, `/home`, `/historico` e `/mensagens`. O diretório real do frontend é `../frontend-mocks`. **Essas telas ainda possuem fluxos simulados com localStorage e chamadas de API comentadas. O backend implementa os contratos descritos nelas, mas não transforma essas simulações em chamadas reais. Nenhum arquivo do frontend foi alterado.**
 
-- `npm run dev`: servidor com recarga;
-- `npm run build`: gera Prisma Client e compila TypeScript;
-- `npm start`: executa `dist/app.js`;
-- `npm run typecheck`: valida TypeScript;
-- `npm test`: testes unitários;
-- `npm run db:push`: sincronização rápida para desenvolvimento;
-- `npm run db:migrate`: cria migration em desenvolvimento;
-- `npm run db:deploy`: aplica migrations versionadas;
-- `npm run seed`: categorias e administrador.
-
-## Rotas principais
-
-### Sessão e usuários
-
-- `POST /api/usuarios`
-- `POST /api/login`
-- `POST /api/login/logout`
-- `GET /api/login/sessao`
-- `POST /api/contas/recuperar-senha`
-- `POST /api/contas/resetar-senha`
-- `GET /api/usuarios/me`
-- `GET|PUT|PATCH /api/usuarios/perfil`
-- `POST /api/usuarios/avatar`
-- `GET /api/usuarios/:id`
-
-### Objetos
-
-- `GET|POST /api/objetos`
-- `GET /api/objetos/meus`
-- `GET|PUT|PATCH|DELETE /api/objetos/:id`
-- `GET /api/categorias`
-
-### Aluguéis
-
-- `GET|POST /api/solicitacoes`
-- `GET /api/solicitacoes/:id/status`
-- `PATCH /api/solicitacoes/:id/status`
-- Alias equivalente em `/api/alugueis`.
-
-Transições permitidas:
-
-- `pendente → aprovado | recusado | cancelado`
-- `aprovado → pago` pelo endpoint de pagamento ou `cancelado` pelo locatário
-- `pago → retirado` pelo registro da retirada
-- `retirado → devolvido`
-- `devolvido → finalizado`
-
-### Pagamentos e retirada
-
-- `POST /api/pagamentos/pix/gerar`
-- `POST /api/pagamentos/pix/confirmar`
-- `POST /api/pagamentos/cartao`
-- `GET /api/pedidos/:id`
-- `POST /api/retiradas`
-
-### Outras áreas
-
-- `/api/notificacoes`
-- `/api/avaliacoes`
-- `/api/mensagens`
-- `/api/admin/*`
-- `GET /api/saude`
-
-## Segurança
-
-- JWT expira em 30 dias;
-- senha redefinida invalida tokens anteriores;
-- páginas privadas também são protegidas no servidor;
-- uploads aceitam apenas JPG, PNG, WEBP e GIF, até 5 MB por arquivo;
-- pagamentos simulados são bloqueados fora do ambiente de desenvolvimento;
-- login, cadastro e recuperação de senha possuem rate limit.
-
-## Produção
+- [Contratos, rotas, regras e integração de gateway](docs/API.md)
+- [Relatório da implementação e verificações](docs/IMPLEMENTACAO.md)
 
 ```bash
-npm ci
-npm run build
-npm run db:deploy
-npm start
+npm run typecheck
+npm test
+# Prepare um banco separado vizin_contract_test_* e aplique as migrations nele.
+TEST_DATABASE_URL=postgresql://.../vizin_contract_test_exemplo npm run test:integration
 ```
 
-O pagamento real precisa ser integrado antes do deploy. Configure SMTP, HTTPS, backup do banco, armazenamento externo de uploads e observabilidade para uma operação pública.
+Os testes de integração e financeiros exigem banco separado com PostGIS e recusam nomes fora do prefixo `vizin_contract_test_`. Sem `TEST_DATABASE_URL` ambos os comandos falham; nunca informam sucesso com zero testes. Não utilizam mocks de banco. `npm run build` gera o client Prisma e compila todo `src`, incluindo adapters legados e testes. Não há lint configurado.
+
+Use `npm run db:deploy` para migrations versionadas; `db:push` é somente uma ferramenta de desenvolvimento e não substitui migrations. Nesta revisão, aplique migrations apenas num banco isolado de testes; a verificação do banco original é somente de leitura com `npx prisma migrate status`.
