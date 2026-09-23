@@ -1,15 +1,11 @@
-async function listarUsuariosAdmin({ pagina = 1, porPagina = 25 } = {}) {
-    return apiRequest(`/admin/usuarios?page=${pagina}&limit=${porPagina}`, 'GET', null, 'Não foi possível carregar usuários.');
+async function listarUsuariosAdmin({ busca = '', status = 'todos', pagina = 1, porPagina = 25 } = {}) {
+    const params = new URLSearchParams({ page: String(pagina), limit: String(porPagina) });
+    if (busca) params.set('busca', busca);
+    if (status !== 'todos') params.set('status', status);
+    return apiRequest(`/admin/usuarios?${params}`, 'GET', null, 'Não foi possível carregar usuários.');
 }
 async function buscarUsuarioAdminPorId(id) {
-    let pagina = 1;
-    while (true) {
-        const resposta = await listarUsuariosAdmin({ pagina, porPagina: 100 });
-        const usuario = resposta.dados.find(u => u.id === id);
-        if (usuario) return usuario;
-        if (pagina >= resposta.paginas) return null;
-        pagina++;
-    }
+    return apiRequest(`/admin/usuarios/${encodeURIComponent(id)}`, 'GET', null, 'Não foi possível carregar o usuário.');
 }
 async function alterarStatusUsuarioAdmin(id, status) {
     return apiRequest(`/admin/usuarios/${encodeURIComponent(id)}/status`, 'PATCH', { ativo: status === 'ativo' }, 'Não foi possível alterar o status.');

@@ -35,15 +35,12 @@ async function carregarDetalhe() {
     let usuario;
     try { usuario = await buscarUsuarioAdminPorId(idUsuario); }
     catch (err) { conteudo.textContent = err.message; return; }
-    if (!usuario) { conteudo.textContent = 'Usuário não encontrado na listagem administrativa.'; return; }
     usuario = { ...usuario, status: usuario.ativo ? 'ativo' : 'inativo', dataCadastro: usuario.criado_em };
     renderizarDetalhe(usuario);
 }
 
 function renderizarDetalhe(usuario) {
-    const itens = usuario.itensAnunciados || [];
-    const alugueis = usuario.historicoAlugueis || [];
-    const denuncias = usuario.denuncias || [];
+    const estatisticas = usuario.estatisticas || {};
 
     conteudo.innerHTML = `
         <div class="detalhe-cabecalho">
@@ -61,50 +58,29 @@ function renderizarDetalhe(usuario) {
 
         <div class="detalhe-grid-info">
             <div class="detalhe-campo"><span>Email</span><strong>${escAdmin(usuario.email)}</strong></div>
-            <div class="detalhe-campo"><span>CPF</span><strong>Não disponível nesta rota</strong></div>
-            <div class="detalhe-campo"><span>Telefone</span><strong>Não disponível nesta rota</strong></div>
+            <div class="detalhe-campo"><span>Tipo</span><strong>${usuario.tipo === 'admin' ? 'Administrador' : 'Usuário'}</strong></div>
+            <div class="detalhe-campo"><span>Verificação</span><strong>${usuario.verificado ? 'Verificado' : 'Não verificado'}</strong></div>
             <div class="detalhe-campo"><span>Data de Cadastro</span><strong>${formatarData(usuario.dataCadastro)}</strong></div>
         </div>
 
         <section class="detalhe-secao">
             <h2>Itens anunciados</h2>
             <div class="admin-card">
-                ${itens.length
-                    ? `<ul class="detalhe-lista">${itens.map(i => `
-                        <li class="detalhe-item-linha">
-                            <span>${escAdmin(i.nome)}</span>
-                            <span class="muted">${escAdmin(i.status)}</span>
-                        </li>`).join("")}</ul>`
-                    : `<p class="admin-tabela-vazio">Dados não disponíveis nesta rota.</p>`
-                }
+                <p class="admin-tabela-vazio">${Number(estatisticas.objetos || 0)} objeto(s) cadastrado(s).</p>
             </div>
         </section>
 
         <section class="detalhe-secao">
             <h2>Histórico de aluguéis</h2>
             <div class="admin-card">
-                ${alugueis.length
-                    ? `<ul class="detalhe-lista">${alugueis.map(a => `
-                        <li class="detalhe-item-linha">
-                            <span>${escAdmin(a.item)} <span class="muted">— ${escAdmin(a.papel)}</span></span>
-                            <span class="muted">${formatarData(a.data)} · ${escAdmin(a.situacao)}</span>
-                        </li>`).join("")}</ul>`
-                    : `<p class="admin-tabela-vazio">Dados não disponíveis nesta rota.</p>`
-                }
+                <p class="admin-tabela-vazio">Como locatário: ${Number(estatisticas.alugueis_como_locatario || 0)} · Como proprietário: ${Number(estatisticas.alugueis_como_proprietario || 0)}</p>
             </div>
         </section>
 
         <section class="detalhe-secao">
             <h2>Denúncias recebidas</h2>
             <div class="admin-card">
-                ${denuncias.length
-                    ? `<ul class="detalhe-lista">${denuncias.map(d => `
-                        <li class="detalhe-item-linha">
-                            <span>${escAdmin(d.motivo)}</span>
-                            <span class="muted">${formatarData(d.data)} · ${escAdmin(d.status)}</span>
-                        </li>`).join("")}</ul>`
-                    : `<p class="admin-tabela-vazio">Dados não disponíveis nesta rota.</p>`
-                }
+                <p class="admin-tabela-vazio">${Number(estatisticas.denuncias_recebidas || 0)} denúncia(s) recebida(s).</p>
             </div>
         </section>
     `;

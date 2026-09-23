@@ -5,21 +5,10 @@
  *
  *   - "Ver anúncio": mostra todos os dados do anúncio (fotos, descrição,
  *     localização, proprietário, categoria, preço, disponibilidade) pro
- *     admin analisar antes de decidir alterar status ou excluir.
- *   - "Alterar status": alterna Ativo <-> Removido — reversível, motivo
- *     obrigatório ao remover.
- *   - "Excluir anúncio": remoção definitiva — motivo sempre obrigatório.
- *     Se o anúncio já teve locações no histórico, o back recusa (409) e
- *     este modal se transforma numa oferta de "arquivar em vez de
- *     excluir" (ver confirmarModalExcluirAnuncio).
- *
- * Ciclo de vida do anúncio: ATIVO, REMOVIDO e ARQUIVADO. Não existe etapa
- * de aprovação/moderação. "Arquivado" não aparece como opção manual no
- * select de "Alterar status" — só é atingido automaticamente quando o
- * back recusa excluir um anúncio com histórico de locação. Alterar
- * status pra "removido" faz o back notificar o dono com o motivo
- * informado (ver notificacoes-shared.js, tipo "anuncio_removido_admin"
- * -> leva o dono pra /meus-objetos). Arquivar não notifica o dono.
+ *     admin analisar antes de decidir alterar visibilidade ou arquivar.
+ *   - "Alterar visibilidade": alterna o boolean `disponivel`; ocultar
+ *     exige motivo e não altera dados comerciais do proprietário.
+ *   - "Arquivar anúncio": arquivamento administrativo, nunca hard-delete.
  *
  * Uso:
  *   abrirModalVerAnuncio(anuncio);
@@ -27,15 +16,11 @@
  *   abrirModalExcluirAnuncio(anuncio, () => { ...recarregar/redirecionar... });
  *
  * Depende de:
- *   - admin-api.js desta pasta (alterarStatusAnuncioAdmin, excluirAnuncioAdmin)
+ *   - admin-api.js desta pasta (alterarVisibilidadeAnuncioAdmin, arquivarAnuncioAdmin)
  *   - window.mostrarToastAdmin (definido em admin-frame.js)
  *
- * TODO: o modal "Ver anúncio" assume que os campos completos (descrição,
- * localização, todas as fotos em `fotos_item`) já vêm na própria linha
- * devolvida por GET /admin/objetos — é o que anuncios.js espalha (`...a`)
- * pra dentro de cada item de `estado.anuncios`. Se a listagem do back for
- * enxuta (sem esses campos), este modal precisa passar a buscar
- * GET /admin/objetos/:id à parte antes de abrir — confirmar com o back-end.
+ * O modal de detalhe recebe dados de GET /objetos/:id, rota canônica já
+ * autorizada para administradores inclusive quando o item está arquivado.
  * ------------------------------------------------------------------
  */
 
@@ -47,7 +32,7 @@ let _anuncioExcluirAtual = null;
 let _callbackExcluirAnuncio = null;
 
 function labelStatusAnuncio(status) {
-    return { ativo: "Ativo", removido: "Removido", arquivado: "Arquivado" }[status] || status;
+    return { ativo: "Ativo", arquivado: "Arquivado" }[status] || status;
 }
 
 function garantirModaisAnuncio() {
@@ -83,19 +68,14 @@ function garantirModaisAnuncio() {
 
         <div class="admin-modal-overlay" id="admModalStatusAnuncioOverlay" hidden>
             <div class="admin-modal">
-                <h3>Alterar status</h3>
+                <h3>Alterar visibilidade</h3>
                 <p>Anúncio: <strong id="admModalStatusAnuncioTitulo"></strong></p>
 
                 <div class="admin-form-campo">
-                    <label for="admModalStatusAnuncioSelect">Novo status</label>
+                    <label for="admModalStatusAnuncioSelect">Disponibilidade</label>
                     <select id="admModalStatusAnuncioSelect">
-                        <option value="ativo">Ativo</option>
-                        <option value="removido">Removido</option>
-                        <!-- "Arquivado" normalmente só é atingido via oferta automática no
-                             modal de excluir (histórico de locação) — aparece aqui só pra
-                             exibir corretamente o status atual quando já está arquivado,
-                             e pra permitir reverter manualmente se precisar. -->
-                        <option value="arquivado">Arquivado</option>
+                        <option value="disponivel">Disponível</option>
+                        <option value="indisponivel">Indisponível</option>
                     </select>
                 </div>
 
@@ -104,7 +84,7 @@ function garantirModaisAnuncio() {
                         Motivo <span id="admModalStatusAnuncioMotivoObrig">(obrigatório)</span>
                     </label>
                     <textarea id="admModalStatusAnuncioMotivo" rows="3"
-                        placeholder="Explique o motivo — o proprietário poderá ver essa mensagem."></textarea>
+                        placeholder="Registre o motivo administrativo da ocultação."></textarea>
                 </div>
 
                 <p class="admin-form-erro" id="admModalStatusAnuncioErro"></p>
@@ -118,32 +98,23 @@ function garantirModaisAnuncio() {
 
         <div class="admin-modal-overlay" id="admModalExcluirAnuncioOverlay" hidden>
             <div class="admin-modal">
-                <h3>Excluir anúncio</h3>
-                <p>Tem certeza que deseja excluir <strong id="admModalExcluirAnuncioTitulo"></strong>?
-                   Essa ação não pode ser desfeita.</p>
+                <h3>Arquivar anúncio</h3>
+                <p>Tem certeza que deseja arquivar <strong id="admModalExcluirAnuncioTitulo"></strong>?
+                   O item deixará de aparecer no catálogo.</p>
 
                 <div class="admin-form-campo" id="admModalExcluirAnuncioMotivoCampo">
                     <label for="admModalExcluirAnuncioMotivo">
                         Motivo <span>(obrigatório)</span>
                     </label>
                     <textarea id="admModalExcluirAnuncioMotivo" rows="3"
-                        placeholder="Explique o motivo — o proprietário poderá ver essa mensagem."></textarea>
+                        placeholder="Registre o motivo administrativo do arquivamento."></textarea>
                 </div>
 
                 <p class="admin-form-erro" id="admModalExcluirAnuncioErro"></p>
 
-                <!-- Some por padrão; aparece só quando o back recusa a exclusão por causa
-                     de histórico de locação (ver confirmarModalExcluirAnuncio). Nesse ponto
-                     a exclusão em si não é mais possível, então trocamos a ação principal
-                     do modal por "arquivar". -->
                 <div class="admin-modal-botoes" id="admModalExcluirAnuncioBotoesPadrao">
                     <button class="admin-btn-secundario" id="admModalExcluirAnuncioCancelar">Cancelar</button>
-                    <button class="admin-btn-perigo" id="admModalExcluirAnuncioConfirmar">Excluir</button>
-                </div>
-
-                <div class="admin-modal-botoes" id="admModalExcluirAnuncioBotoesArquivar" hidden>
-                    <button class="admin-btn-secundario" id="admModalExcluirAnuncioCancelarArquivar">Cancelar</button>
-                    <button class="admin-btn-primario" id="admModalExcluirAnuncioConfirmarArquivar">Arquivar anúncio</button>
+                    <button class="admin-btn-perigo" id="admModalExcluirAnuncioConfirmar">Arquivar</button>
                 </div>
             </div>
         </div>
@@ -159,8 +130,7 @@ function garantirModaisAnuncio() {
 function atualizarObrigatoriedadeMotivoAnuncio() {
     const select = document.getElementById("admModalStatusAnuncioSelect");
     const aviso = document.getElementById("admModalStatusAnuncioMotivoObrig");
-    // Só "removido" exige motivo — voltar pra "ativo" não precisa.
-    aviso.style.display = select.value === "removido" ? "inline" : "none";
+    aviso.style.display = select.value === "indisponivel" ? "inline" : "none";
 }
 
 // ================= VER ANÚNCIO =================
@@ -211,7 +181,7 @@ function abrirModalStatusAnuncio(anuncio, aoConfirmar) {
     _callbackStatusAnuncio = aoConfirmar;
 
     document.getElementById("admModalStatusAnuncioTitulo").textContent = anuncio.titulo;
-    document.getElementById("admModalStatusAnuncioSelect").value = anuncio.status;
+    document.getElementById("admModalStatusAnuncioSelect").value = anuncio.disponivel ? "disponivel" : "indisponivel";
     document.getElementById("admModalStatusAnuncioMotivo").value = "";
     document.getElementById("admModalStatusAnuncioErro").textContent = "";
     atualizarObrigatoriedadeMotivoAnuncio();
@@ -232,21 +202,22 @@ function fecharModalStatusAnuncio() {
 
 async function confirmarModalStatusAnuncio() {
     const novoStatus = document.getElementById("admModalStatusAnuncioSelect").value;
+    const disponivel = novoStatus === "disponivel";
     const motivo = document.getElementById("admModalStatusAnuncioMotivo").value.trim();
     const erroEl = document.getElementById("admModalStatusAnuncioErro");
     erroEl.textContent = "";
 
-    if (novoStatus === "removido" && !motivo) {
-        erroEl.textContent = "Informe o motivo da remoção.";
+    if (!disponivel && !motivo) {
+        erroEl.textContent = "Informe o motivo da ocultação.";
         return;
     }
 
     const botao = document.getElementById('admModalStatusAnuncioConfirmar');
     botao.disabled = true;
-    try { await alterarStatusAnuncioAdmin(_anuncioStatusAtual.id, novoStatus, motivo); }
+    try { await alterarVisibilidadeAnuncioAdmin(_anuncioStatusAtual.id, disponivel, motivo); }
     catch (err) { erroEl.textContent = err.message; botao.disabled = false; return; }
     window.mostrarToastAdmin(
-        `Status de "${_anuncioStatusAtual.titulo}" atualizado para "${labelStatusAnuncio(novoStatus)}"`,
+        `Visibilidade de "${_anuncioStatusAtual.titulo}" atualizada`,
         "sucesso"
     );
 
@@ -266,7 +237,6 @@ function abrirModalExcluirAnuncio(anuncio, aoConfirmar) {
     document.getElementById("admModalExcluirAnuncioTitulo").textContent = anuncio.titulo;
     document.getElementById("admModalExcluirAnuncioMotivo").value = "";
     document.getElementById("admModalExcluirAnuncioErro").textContent = "";
-    voltarParaModoExcluir();
     document.getElementById("admModalExcluirAnuncioOverlay").hidden = false;
 
     const btn = document.getElementById("admModalExcluirAnuncioConfirmar");
@@ -274,39 +244,12 @@ function abrirModalExcluirAnuncio(anuncio, aoConfirmar) {
     btn.replaceWith(btnNovo);
     btnNovo.addEventListener("click", confirmarModalExcluirAnuncio);
 
-    const btnArquivar = document.getElementById("admModalExcluirAnuncioConfirmarArquivar");
-    const btnArquivarNovo = btnArquivar.cloneNode(true);
-    btnArquivar.replaceWith(btnArquivarNovo);
-    btnArquivarNovo.addEventListener("click", confirmarArquivarAnuncio);
-
-    document.getElementById("admModalExcluirAnuncioCancelarArquivar")
-        .addEventListener("click", fecharModalExcluirAnuncio);
 }
 
 function fecharModalExcluirAnuncio() {
     document.getElementById("admModalExcluirAnuncioOverlay").hidden = true;
     _anuncioExcluirAtual = null;
     _callbackExcluirAnuncio = null;
-}
-
-// Volta o modal pro estado normal de "excluir" (campo de motivo + botão
-// Excluir). Usado ao abrir o modal e caso o admin cancele a oferta de
-// arquivar sem fechar tudo.
-function voltarParaModoExcluir() {
-    document.getElementById("admModalExcluirAnuncioMotivoCampo").hidden = false;
-    document.getElementById("admModalExcluirAnuncioBotoesPadrao").hidden = false;
-    document.getElementById("admModalExcluirAnuncioBotoesArquivar").hidden = true;
-}
-
-// Troca o modal pra oferta de "arquivar em vez de excluir" — chamado
-// quando o back recusa a exclusão porque o anúncio já teve locações no
-// histórico. O motivo já digitado é reaproveitado se o admin confirmar
-// o arquivamento (senão fica só como registro do que ele tentou fazer).
-function oferecerArquivarNoLugar(mensagem) {
-    document.getElementById("admModalExcluirAnuncioErro").textContent = mensagem;
-    document.getElementById("admModalExcluirAnuncioMotivoCampo").hidden = true;
-    document.getElementById("admModalExcluirAnuncioBotoesPadrao").hidden = true;
-    document.getElementById("admModalExcluirAnuncioBotoesArquivar").hidden = false;
 }
 
 async function confirmarModalExcluirAnuncio() {
@@ -316,38 +259,17 @@ async function confirmarModalExcluirAnuncio() {
     erroEl.textContent = "";
 
     if (!motivo) {
-        erroEl.textContent = "Informe o motivo da exclusão.";
+        erroEl.textContent = "Informe o motivo do arquivamento.";
         return;
     }
 
     const botao = document.getElementById("admModalExcluirAnuncioConfirmar");
     botao.disabled = true;
     try {
-        await excluirAnuncioAdmin(anuncio.id, motivo);
+        await arquivarAnuncioAdmin(anuncio.id, motivo);
     } catch (err) {
         botao.disabled = false;
-        if (err.sugerirArquivar) { oferecerArquivarNoLugar(err.message); return; }
         erroEl.textContent = err.message;
-        return;
-    }
-
-    window.mostrarToastAdmin(`"${anuncio.titulo}" foi excluído`, "sucesso");
-
-    const callback = _callbackExcluirAnuncio;
-    fecharModalExcluirAnuncio();
-    if (callback) callback();
-}
-
-async function confirmarArquivarAnuncio() {
-    const anuncio = _anuncioExcluirAtual;
-    const motivo = document.getElementById("admModalExcluirAnuncioMotivo").value.trim();
-
-    const botao = document.getElementById("admModalExcluirAnuncioConfirmarArquivar");
-    botao.disabled = true;
-    try { await alterarStatusAnuncioAdmin(anuncio.id, "arquivado", motivo); }
-    catch (err) {
-        document.getElementById("admModalExcluirAnuncioErro").textContent = err.message;
-        botao.disabled = false;
         return;
     }
 

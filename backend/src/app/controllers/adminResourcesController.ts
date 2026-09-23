@@ -4,24 +4,89 @@ import { text, uuid, slug } from "../utils/validation.ts";
 import { HttpError } from "../utils/httpError.ts";
 import { serializeReview } from "../utils/serializers.ts";
 import { audit, dateFilters, paged, pagination, statusFilter } from "../utils/admin.ts";
+import { businessDate, businessDayStart } from "../utils/dates.ts";
 
 // DTO financeiro do painel, sem dados sensíveis do meio de pagamento.
-function paymentDto(p: { id: string; aluguel_id: string; valor: unknown; metodo: string | null; status: string | null; pago_em: Date | null; referencia: string | null; tipo: string; gateway: string; criado_em: Date }) {
-  return { id: p.id, aluguel_id: p.aluguel_id, valor: Number(p.valor), metodo: p.metodo, status: p.status, pago_em: p.pago_em, referencia: p.referencia, tipo: p.tipo, gateway: p.gateway, criado_em: p.criado_em };
+function paymentDto(p: any) {
+  return {
+    id: p.id, aluguel_id: p.aluguel_id, valor: Number(p.valor), metodo: p.metodo,
+    status: p.status, pago_em: p.pago_em, referencia: p.referencia, tipo: p.tipo,
+    gateway: p.gateway, criado_em: p.criado_em,
+    ...(p.alugueis ? {
+      usuario: p.alugueis.usuarios_alugueis_locatario_idTousuarios,
+      produto: p.alugueis.itens,
+    } : {}),
+  };
 }
+const paymentSelect = {
+  id: true, aluguel_id: true, valor: true, metodo: true, status: true,
+  pago_em: true, referencia: true, tipo: true, gateway: true, criado_em: true,
+  alugueis: { select: {
+    usuarios_alugueis_locatario_idTousuarios: { select: { id: true, nome: true } },
+    itens: { select: { id: true, titulo: true } },
+  } },
+} as const;
 // Filtra e pagina cobranças para acompanhamento administrativo.
 export const adminPayments: RequestHandler = async (req, res) => {
   const { page, limit, skip } = pagination(req);
   const status=statusFilter(req,["pendente","pago","falhou","cancelado","estornado","cancelamento_pendente","estorno_pendente","conciliacao","expirado"]);
-  const where = { ...(status ? { status } : {}) };
-  const [rows, total] = await Promise.all([prisma.pagamentos.findMany({ where, skip, take: limit, orderBy: { criado_em: "desc" }, select: { id: true, aluguel_id: true, valor: true, metodo: true, status: true, pago_em: true, referencia: true, tipo: true, gateway: true, criado_em: true } }), prisma.pagamentos.count({ where })]);
+  const busca = typeof req.query.busca === "string" && req.query.busca.trim() ? text(req.query.busca, "Busca", 100) : undefined;
+  const buscaUuid = busca && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(busca) ? busca : undefined;
+  const where = {
+    ...(status ? { status } : {}),
+    ...(busca ? { OR: [
+      ...(buscaUuid ? [{ id: buscaUuid }] : []),
+      { referencia: { contains: busca, mode: "insensitive" as const } },
+      { metodo: { contains: busca, mode: "insensitive" as const } },
+      { alugueis: { usuarios_alugueis_locatario_idTousuarios: { nome: { contains: busca, mode: "insensitive" as const } } } },
+      { alugueis: { itens: { titulo: { contains: busca, mode: "insensitive" as const } } } },
+    ] } : {}),
+  };
+  const [rows, total] = await Promise.all([prisma.pagamentos.findMany({ where, skip, take: limit, orderBy: { criado_em: "desc" }, select: paymentSelect }), prisma.pagamentos.count({ where })]);
   res.json(paged(rows.map(paymentDto), total, page, limit));
 };
 // Detalha uma cobrança para análise administrativa.
 export const adminPayment: RequestHandler = async (req, res) => {
-  const payment = await prisma.pagamentos.findUnique({ where: { id: uuid(req.params.id) }, select: { id: true, aluguel_id: true, valor: true, metodo: true, status: true, pago_em: true, referencia: true, tipo: true, gateway: true, criado_em: true } });
+  const payment = await prisma.pagamentos.findUnique({ where: { id: uuid(req.params.id) }, select: paymentSelect });
   if (!payment) throw new HttpError(404, "Pagamento não encontrado", "nao_encontrada");
   res.json(paymentDto(payment));
+};
+// Agrega exatamente os indicadores exibidos pela tela financeira administrativa.
+export const adminPaymentStats: RequestHandler = async (_req, res) => {
+  const today = businessDate();
+  const currentMonth = businessDayStart(new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1)));
+  const nextMonth = businessDayStart(new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 1)));
+  const previousMonth = businessDayStart(new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 1, 1)));
+  const monthRanges = Array.from({ length: 6 }, (_, index) => {
+    const offset = index - 5;
+    const labelDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + offset, 1));
+    return {
+      mes: `${labelDate.getUTCFullYear()}-${String(labelDate.getUTCMonth() + 1).padStart(2, "0")}`,
+      start: businessDayStart(labelDate),
+      end: businessDayStart(new Date(Date.UTC(labelDate.getUTCFullYear(), labelDate.getUTCMonth() + 1, 1))),
+    };
+  });
+  const [total, pending, failed, current, previous, methods, ...months] = await Promise.all([
+    prisma.pagamentos.aggregate({ where: { status: "pago" }, _sum: { valor: true } }),
+    prisma.pagamentos.count({ where: { status: "pendente" } }),
+    prisma.pagamentos.count({ where: { status: "falhou" } }),
+    prisma.pagamentos.aggregate({ where: { status: "pago", pago_em: { gte: currentMonth, lt: nextMonth } }, _sum: { valor: true } }),
+    prisma.pagamentos.aggregate({ where: { status: "pago", pago_em: { gte: previousMonth, lt: currentMonth } }, _sum: { valor: true } }),
+    prisma.pagamentos.groupBy({ by: ["metodo"], where: { status: "pago" }, _sum: { valor: true } }),
+    ...monthRanges.map(range => prisma.pagamentos.aggregate({ where: { status: "pago", pago_em: { gte: range.start, lt: range.end } }, _sum: { valor: true } })),
+  ]);
+  const currentValue = Number(current._sum.valor ?? 0);
+  const previousValue = Number(previous._sum.valor ?? 0);
+  res.json({
+    receita_total: Number(total._sum.valor ?? 0),
+    receita_variacao_percentual: previousValue > 0 ? ((currentValue - previousValue) / previousValue) * 100 : null,
+    pagamentos_pendentes: pending,
+    transacoes_falhadas: failed,
+    receita_mensal: monthRanges.map((range, index) => ({ mes: range.mes, valor: Number(months[index]!._sum.valor ?? 0) })),
+    metodos: methods.filter(row => row.metodo).map(row => ({ metodo: row.metodo, total: Number(row._sum.valor ?? 0) })),
+    timezone: "America/Sao_Paulo",
+    receita_base: "pago_em",
+  });
 };
 // Lista avaliações para moderação.
 export const adminReviews: RequestHandler = async (req, res) => {

@@ -15,6 +15,15 @@ test("redirect pós autenticação usa o tipo devolvido pelo backend", async()=>
  assert.equal(vm.runInContext("destinoAposAutenticacao({ tipo: 'admin' })",context),"/admin");
  assert.equal(vm.runInContext("destinoAposAutenticacao({ tipo: 'usuario' })",context),"/inicio");
 });
+test("frontend admin usa contratos canônicos de usuário e objeto", async()=>{
+ const userApi=await readFile(new URL("../../../frontend/admin/Usuarios/admin-api.js",import.meta.url),"utf8");
+ const itemApi=await readFile(new URL("../../../frontend/admin/Anuncios/admin-api.js",import.meta.url),"utf8");
+ assert.match(userApi,/\/admin\/usuarios\/\$\{encodeURIComponent\(id\)\}/);
+ assert.doesNotMatch(userApi,/while\s*\(true\)/);
+ assert.match(itemApi,/\{ disponivel,/);
+ assert.doesNotMatch(itemApi,/\{ status,/);
+ assert.match(itemApi,/\/objetos\/\$\{encodeURIComponent\(id\)\}/);
+});
 test("CPF formatado é normalizado e dígitos inválidos são rejeitados",()=>{
  assert.equal(cpf("529.982.247-25"),"52998224725");
  for(const invalid of [undefined,"","11111111111","52998224724","123","abc52998224725"]) assert.throws(()=>cpf(invalid));

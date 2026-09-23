@@ -44,6 +44,31 @@ test("admin: autorização, paginação, moderação, auditoria e conflitos", as
     assert.equal((await api("/usuarios")).status, 401);
     await prisma.usuarios.update({ where: { id: admin.id }, data: { ativo: true } });
   });
+  await t.test("detalhe administrativo de usuário: autorização, UUID e DTO seguro", async () => {
+    assert.equal((await api(`/usuarios/${owner.id}`, "GET", undefined, null)).status, 401);
+    assert.equal((await api(`/usuarios/${owner.id}`, "GET", undefined, ownerToken)).status, 403);
+    const detail = await api(`/usuarios/${owner.id}`);
+    assert.equal(detail.status, 200);
+    assert.equal(detail.data.id, owner.id);
+    assert.equal(typeof detail.data.estatisticas.objetos, "number");
+    assert.equal(typeof detail.data.estatisticas.alugueis_como_locatario, "number");
+    assert.equal(typeof detail.data.estatisticas.alugueis_como_proprietario, "number");
+    assert.equal(typeof detail.data.estatisticas.denuncias_recebidas, "number");
+    for (const field of ["cpf", "telefone", "senha", "senha_hash", "hash", "salt", "token", "token_version", "reset_token", "mercado_pago_customer_id", "saldo_carteira"]) {
+      assert.equal(Object.hasOwn(detail.data, field), false, field);
+    }
+    assert.equal((await api("/usuarios/uuid-invalido")).status, 422);
+    assert.equal((await api(`/usuarios/${crypto.randomUUID()}`)).status, 404);
+  });
+  await t.test("listagem de usuários filtra no servidor", async () => {
+    const byName = await api("/usuarios?busca=Owner&status=ativo&page=1&limit=1");
+    assert.equal(byName.status, 200);
+    assert.equal(byName.data.dados.length, 1);
+    assert.equal(byName.data.dados[0].id, owner.id);
+    assert.equal((await api("/usuarios?status=desconhecido")).status, 422);
+    assert.equal((await api("/usuarios?limit=0")).status, 422);
+    assert.equal((await api("/usuarios?limit=1000")).data.dados.length <= 100, true);
+  });
   await t.test("CSRF por cookie e Bearer inválido", async () => {
     const cookie = `token=${adminToken}`;
     const blocked = await fetch(`${base}/categorias`, { method: "POST", headers: { Cookie: cookie, "Content-Type": "application/json" }, body: JSON.stringify({ nome: "CSRF" }) });
@@ -73,6 +98,11 @@ test("admin: autorização, paginação, moderação, auditoria e conflitos", as
     const first = await api("/objetos?page=1&limit=20"), second = await api("/objetos?page=2&limit=20");
     assert.equal(first.status, 200); assert.equal(first.data.data.length, 20); assert.equal(second.data.data.length, 20);
     assert.equal(first.data.total, second.data.total); assert.notEqual(first.data.data[0].id, second.data.data[0].id);
+    assert.equal(["ativo", "arquivado"].includes(first.data.data[0].status), true);
+    assert.equal(typeof first.data.data[0].emLocacao, "boolean");
+    assert.equal(typeof first.data.data[0].solicitacaoPendente, "boolean");
+    const searched = await api("/objetos?busca=Objeto%20terceiro&page=1&limit=20");
+    assert.equal(searched.data.data.some((row: any) => row.id === item.id), true);
     assert.equal((await api("/objetos?limit=100000")).data.limit, 100);
     assert.equal((await api("/objetos?limit=0")).status, 422);
     assert.equal((await api("/objetos?page=-1")).status,422);
@@ -192,6 +222,29 @@ test("admin: autorização, paginação, moderação, auditoria e conflitos", as
     assert.equal((await api(`/conciliacoes/${crypto.randomUUID()}`)).status, 404);
     assert.equal((await api(`/pagamentos/${crypto.randomUUID()}`)).status, 404);
     assert.equal((await api("/pagamentos/fake/pagar", "POST", {})).status, 404);
+  });
+  await t.test("pagamentos administrativos: busca, relações seguras e estatísticas", async () => {
+    const list = await api("/pagamentos?busca=Renter&page=1&limit=100");
+    assert.equal(list.status, 200);
+    assert.equal(Array.isArray(list.data.data), true);
+    if (list.data.data.length) {
+      assert.equal(list.data.data[0].usuario.nome, "Renter");
+      assert.equal(typeof list.data.data[0].produto.titulo, "string");
+      const serialized = JSON.stringify(list.data.data[0]);
+      for (const secret of ["token_cartao", "access_token", "card_number", "cvv", "senha_hash", "dados"]) assert.equal(serialized.includes(secret), false, secret);
+    }
+    assert.equal((await api("/pagamentos?status=desconhecido")).status, 422);
+    assert.equal((await api("/pagamentos?limit=0")).status, 422);
+    const stats = await api("/pagamentos/estatisticas");
+    assert.equal(stats.status, 200);
+    assert.equal(typeof stats.data.receita_total, "number");
+    assert.equal(typeof stats.data.pagamentos_pendentes, "number");
+    assert.equal(typeof stats.data.transacoes_falhadas, "number");
+    assert.equal(stats.data.receita_mensal.length, 6);
+    assert.equal(stats.data.timezone, "America/Sao_Paulo");
+    assert.equal(stats.data.receita_base, "pago_em");
+    assert.equal((await api("/pagamentos/estatisticas", "GET", undefined, null)).status, 401);
+    assert.equal((await api("/pagamentos/estatisticas", "GET", undefined, ownerToken)).status, 403);
   });
   await t.test("métricas financeiras seguem o pagamento no período civil", async () => {
     const range = "/metricas?dataInicio=2041-03-04&dataFim=2041-03-04";

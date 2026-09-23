@@ -1,4 +1,4 @@
-import { cpf, uuid } from "../utils/validation.ts";
+import { cpf, text, uuid } from "../utils/validation.ts";
 import type { RequestHandler } from "express";
 import prisma from "../config/database.ts";
 import { HttpError } from "../utils/httpError.ts";
@@ -42,8 +42,47 @@ export const metrics: RequestHandler = async (req, res) => {
 // Filtra e pagina usuários para o painel, sem expor o hash de senha.
 export const listUsers: RequestHandler = async (req, res) => {
   const { page, limit, skip } = pagination(req, 25);
-  const [rows, total] = await Promise.all([prisma.usuarios.findMany({ skip, take: limit, orderBy: { criado_em: "desc" }, select: { id: true, nome: true, email: true, tipo: true, ativo: true, verificado: true, criado_em: true, foto_url: true } }), prisma.usuarios.count()]);
+  const status = statusFilter(req, ["ativo", "inativo"]);
+  const busca = typeof req.query.busca === "string" && req.query.busca.trim() ? text(req.query.busca, "Busca", 100) : undefined;
+  const buscaCpf = busca?.replace(/\D/g, "");
+  const where = {
+    ...(status ? { ativo: status === "ativo" } : {}),
+    ...(busca ? { OR: [
+      { nome: { contains: busca, mode: "insensitive" as const } },
+      { email: { contains: busca, mode: "insensitive" as const } },
+      ...(buscaCpf ? [{ cpf: { contains: buscaCpf } }] : []),
+    ] } : {}),
+  };
+  const [rows, total] = await Promise.all([prisma.usuarios.findMany({ where, skip, take: limit, orderBy: { criado_em: "desc" }, select: { id: true, nome: true, email: true, tipo: true, ativo: true, verificado: true, criado_em: true, foto_url: true } }), prisma.usuarios.count({ where })]);
   res.json({ dados: rows, total, pagina: page, paginas: Math.ceil(total / limit) });
+};
+// Detalha a conta sem credenciais ou listas potencialmente ilimitadas.
+export const getUser: RequestHandler = async (req, res) => {
+  const id = uuid(req.params.id);
+  const user = await prisma.usuarios.findUnique({
+    where: { id },
+    select: {
+      id: true, nome: true, email: true, tipo: true, ativo: true,
+      verificado: true, foto_url: true, criado_em: true,
+      _count: { select: {
+        itens: true,
+        alugueis_alugueis_locatario_idTousuarios: true,
+        alugueis_alugueis_locador_idTousuarios: true,
+        denunciado: true,
+      } },
+    },
+  });
+  if (!user) throw new HttpError(404, "Usuário não encontrado", "nao_encontrada");
+  const { _count, ...dados } = user;
+  res.json({
+    ...dados,
+    estatisticas: {
+      objetos: _count.itens,
+      alugueis_como_locatario: _count.alugueis_alugueis_locatario_idTousuarios,
+      alugueis_como_proprietario: _count.alugueis_alugueis_locador_idTousuarios,
+      denuncias_recebidas: _count.denunciado,
+    },
+  });
 };
 // Consulta pendências que condicionam alterações administrativas da conta.
 async function obligations(tx: any, id: string) {
@@ -83,9 +122,38 @@ export const deleteUser: RequestHandler = async (req, res) => {
 export const listAdminItems: RequestHandler = async (req, res) => {
   const { page, limit, skip } = pagination(req);
   const status=statusFilter(req,["ativo","arquivado"]);
-  const where = { ...(status === "arquivado" ? { arquivado: true } : status === "ativo" ? { arquivado: false } : {}) };
+  const busca = typeof req.query.busca === "string" && req.query.busca.trim() ? text(req.query.busca, "Busca", 100) : undefined;
+  const where = {
+    ...(status === "arquivado" ? { arquivado: true } : status === "ativo" ? { arquivado: false } : {}),
+    ...(busca ? { OR: [
+      { titulo: { contains: busca, mode: "insensitive" as const } },
+      { usuarios: { nome: { contains: busca, mode: "insensitive" as const } } },
+      { categorias: { nome: { contains: busca, mode: "insensitive" as const } } },
+    ] } : {}),
+  };
   const [data, total] = await Promise.all([prisma.itens.findMany({ where, skip, take: limit, orderBy: { criado_em: "desc" }, select: { id: true, usuario_id: true, titulo: true, preco_por_dia: true, disponivel: true, arquivado: true, criado_em: true, categorias: { select: { nome: true, slug: true } }, usuarios: { select: { id: true, nome: true } }, fotos_item: { where: { principal: true }, take: 1, select: { url: true } } } }), prisma.itens.count({ where })]);
-  res.json(paged(data.map(row=>({...row,preco_por_dia:Number(row.preco_por_dia)})), total, page, limit));
+  const rentalStates = data.length ? await prisma.alugueis.groupBy({
+    by: ["item_id", "status"],
+    where: { item_id: { in: data.map(row => row.id) }, status: { in: ["pendente", "aprovado", "pago", "retirado", "devolvido"] } },
+    _count: true,
+  }) : [];
+  const statesByItem = new Map<string, Set<string>>();
+  for (const row of rentalStates) {
+    if (!row.status) continue;
+    const states = statesByItem.get(row.item_id) ?? new Set<string>();
+    states.add(row.status);
+    statesByItem.set(row.item_id, states);
+  }
+  res.json(paged(data.map(row => {
+    const states = statesByItem.get(row.id) ?? new Set<string>();
+    return {
+      ...row,
+      preco_por_dia: Number(row.preco_por_dia),
+      status: row.arquivado ? "arquivado" : "ativo",
+      emLocacao: ["aprovado", "pago", "retirado", "devolvido"].some(value => states.has(value)),
+      solicitacaoPendente: states.has("pendente"),
+    };
+  }), total, page, limit));
 };
 // Lista locações com filtros e paginação para acompanhamento.
 export const listAdminRentals: RequestHandler = async (req, res) => {

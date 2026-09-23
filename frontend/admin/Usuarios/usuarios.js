@@ -22,25 +22,21 @@ const inputBusca = document.getElementById("buscaUsuarios");
 // CARREGAR DADOS
 // =====================================================
 async function carregarUsuarios() {
-    corpoTabela.innerHTML = `<tr><td colspan="8" class="admin-tabela-vazio">Carregando...</td></tr>`;
+    corpoTabela.innerHTML = `<tr><td colspan="6" class="admin-tabela-vazio">Carregando...</td></tr>`;
     tabelaEstadoVazio.hidden = true;
 
     try {
-        const todos = [];
-        for (let pagina = 1; ; pagina++) {
-            const resposta = await listarUsuariosAdmin({ pagina, porPagina: 100 });
-            todos.push(...resposta.dados);
-            if (pagina >= resposta.paginas) break;
-        }
-        const filtrados = todos.filter(u =>
-            (!estado.busca || [u.nome, u.email].some(c => c?.toLowerCase().includes(estado.busca.toLowerCase()))) &&
-            (estado.status === 'todos' || (u.ativo ? 'ativo' : 'inativo') === estado.status)
-        );
-        estado.total = filtrados.length;
-        estado.usuarios = filtrados.slice((estado.pagina - 1) * POR_PAGINA, estado.pagina * POR_PAGINA)
+        const resposta = await listarUsuariosAdmin({
+            busca: estado.busca,
+            status: estado.status,
+            pagina: estado.pagina,
+            porPagina: POR_PAGINA
+        });
+        estado.total = resposta.total;
+        estado.usuarios = resposta.dados
             .map(u => ({ ...u, status: u.ativo ? 'ativo' : 'inativo', dataCadastro: u.criado_em }));
     } catch (err) {
-        corpoTabela.innerHTML = `<tr><td colspan="8" class="admin-tabela-vazio">${err.message}</td></tr>`;
+        corpoTabela.innerHTML = `<tr><td colspan="6" class="admin-tabela-vazio">${err.message}</td></tr>`;
         infoPaginacao.textContent = '';
         paginacaoEl.innerHTML = '';
         return;
@@ -91,8 +87,6 @@ function renderizarTabela() {
             <td data-label="Foto"><div class="admin-avatar" style="background:${corAvatar(u.id)}">${iniciais(u.nome)}</div></td>
             <td data-label="Nome" class="admin-nome">${escAdmin(u.nome)}</td>
             <td data-label="Email" class="admin-email">${escAdmin(u.email)}</td>
-            <td data-label="CPF">—</td>
-            <td data-label="Telefone" class="admin-telefone">—</td>
             <td data-label="Data Cadastro">${formatarData(u.dataCadastro)}</td>
             <td data-label="Status"><span class="admin-badge ${u.status}">${labelStatus(u.status)}</span></td>
             <td data-label="Ações">

@@ -207,17 +207,14 @@
 /* ================= BADGES ESPECÍFICOS DESTA TELA =================
    As classes base .admin-badge e .ativo já vêm de admin-shared.css.
 
-   Status (ciclo de vida do admin): "ativo" reaproveita a verde que já
-   existe em admin-shared. "Removido" e "arquivado" têm classe própria —
-   removido é vermelho (ação de moderação), arquivado é neutro/cinza
-   (não é penalidade, só saiu de circulação por já ter histórico).
+   Status persistido: "ativo" reaproveita a classe verde compartilhada;
+   "arquivado" é neutro/cinza.
 
    Disponibilidade: os 4 estados reais que meus-objetos.js já usa do
    lado do usuário (em_locacao > solicitação pendente > pausado/
    disponível) — "disponivel" também reaproveita a classe "ativo"'s
    verde por semântica equivalente, mas com nome próprio pra ficar
    claro no HTML/JS que é outra coisa. */
-.admin-badge.removido{ color: var(--admin-vermelho-txt); background: var(--admin-vermelho-bg); }
 .admin-badge.arquivado{ color: var(--admin-texto-muted); background: var(--admin-bg); }
 
 .admin-badge.disponivel{ color: var(--admin-verde-txt); background: var(--admin-verde-bg); }
