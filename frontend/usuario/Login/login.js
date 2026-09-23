@@ -1,6 +1,19 @@
 const container = document.querySelector('.container');
 const LoginLink = document.querySelector('.SignInLink');
 const RegisterLink = document.querySelector('.SignUpLink');
+
+// Se a tela foi aberta com uma sessão válida, o próprio back-end informa
+// o papel atual. Isso também cobre sessões legadas mantidas só por Bearer.
+(async function redirecionarSessaoExistente() {
+    try {
+        const usuario = await obterSessaoAtual();
+        if (!usuario) return;
+        atualizarCacheUsuario(usuario);
+        window.location.replace(destinoAposAutenticacao(usuario));
+    } catch (_) {
+        // Uma indisponibilidade momentânea não impede o usuário de tentar login.
+    }
+})();
  
 // ================= MENSAGEM VINDA DE OUTRA TELA =================
 // Ex: a Início redireciona pra cá quando não há token e deixa um
@@ -370,22 +383,18 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
     erro.textContent = "Carregando...";
  
     try {
-        // TODO: confirmar com o back-end o formato exato da resposta de sucesso
-        // do POST /login. Abaixo assumimos:
-        // { token: "...", usuario: { id, nome, email, tipo, avatarUrl, verificado } }
-        // (cpf não é usado aqui, não precisa vir na resposta).
+        // POST /api/login devolve o usuário autenticado com `tipo`.
         const resposta = await login(somenteNumeros(cpf), senha);
 
         localStorage.setItem("token", resposta.token);
-        const { id, nome, email, tipo, avatarUrl, verificado } = resposta.usuario;
-        localStorage.setItem("usuario", JSON.stringify({ id, nome, email, tipo, avatarUrl, verificado }));
+        atualizarCacheUsuario(resposta.usuario);
 
         erro.textContent = "Login realizado com sucesso!";
         erro.classList.remove("erro");
         erro.classList.add("sucesso");
  
         setTimeout(() => {
-            window.location.href = "/inicio";
+            window.location.href = destinoAposAutenticacao(resposta.usuario);
         }, 1000);
 
     } catch (err) {

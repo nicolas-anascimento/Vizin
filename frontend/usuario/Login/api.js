@@ -2,6 +2,44 @@ const API_URL = "/api";
 
 // Rota web canônica, independente da profundidade do arquivo que usa o cliente.
 const LOGIN_INDEX_URL = "/login";
+const HOME_INDEX_URL = "/inicio";
+const ADMIN_INDEX_URL = "/admin";
+
+// O papel vem sempre do usuário devolvido pelo back-end na autenticação
+// atual. O localStorage é somente cache e nunca decide o destino.
+function destinoAposAutenticacao(usuario) {
+    return usuario?.tipo === "admin" ? ADMIN_INDEX_URL : HOME_INDEX_URL;
+}
+
+function atualizarCacheUsuario(usuario) {
+    const { id, nome, email, tipo, avatarUrl, verificado } = usuario;
+    localStorage.setItem("usuario", JSON.stringify({ id, nome, email, tipo, avatarUrl, verificado }));
+}
+
+// Reconstrói uma sessão existente pelo servidor. O Bearer legado pode estar
+// expirado enquanto o cookie httpOnly ainda é válido, por isso a segunda
+// tentativa remove apenas o Bearer e deixa o back-end validar o cookie.
+async function obterSessaoAtual() {
+    const token = localStorage.getItem("token");
+    const consultar = (bearer) => fetch(`${API_URL}/login/sessao`, {
+        credentials: "same-origin",
+        headers: bearer ? { Authorization: `Bearer ${bearer}` } : {}
+    });
+
+    let response = await consultar(token);
+    if (response.status === 401 && token) {
+        localStorage.removeItem("token");
+        response = await consultar(null);
+    }
+    if (response.status === 401) return null;
+
+    let data = null;
+    try { data = await response.json(); } catch (_) { /* resposta sem JSON */ }
+    if (!response.ok) {
+        throw new Error(data?.mensagem || data?.message || "Não foi possível consultar sua sessão.");
+    }
+    return data;
+}
 
 async function apiRequest(endpoint, method = "GET", body = null, mensagemErroPadrao = "Não foi possível completar a solicitação. Tente novamente.") {
     const token = localStorage.getItem("token");

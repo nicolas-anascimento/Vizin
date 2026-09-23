@@ -1,10 +1,20 @@
 // Valida utilitários e DTOs isolados que sustentam o contrato público da API.
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFile } from "node:fs/promises";
+import vm from "node:vm";
 import { cpf, password, slug, uuid } from "../app/utils/validation.ts";
 import { authorizeTransition, normalizeRentalStatus } from "../app/services/rentalRules.ts";
 import { serializeItem, serializePayment, serializeProfile, serializePublicPayment } from "../app/utils/serializers.ts";
 import { parseDateOnly, rentalDays } from "../app/utils/dates.ts";
+
+test("redirect pós autenticação usa o tipo devolvido pelo backend", async()=>{
+ const source=await readFile(new URL("../../../frontend/usuario/Login/api.js",import.meta.url),"utf8");
+ const context=vm.createContext({});
+ new vm.Script(source).runInContext(context);
+ assert.equal(vm.runInContext("destinoAposAutenticacao({ tipo: 'admin' })",context),"/admin");
+ assert.equal(vm.runInContext("destinoAposAutenticacao({ tipo: 'usuario' })",context),"/inicio");
+});
 test("CPF formatado é normalizado e dígitos inválidos são rejeitados",()=>{
  assert.equal(cpf("529.982.247-25"),"52998224725");
  for(const invalid of [undefined,"","11111111111","52998224724","123","abc52998224725"]) assert.throws(()=>cpf(invalid));
