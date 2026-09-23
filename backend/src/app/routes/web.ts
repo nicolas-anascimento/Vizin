@@ -1,98 +1,110 @@
 // Rotas de navegação do frontend. A API continua exclusivamente sob /api.
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { Router, type RequestHandler } from "express";
 import { requireAdminPage, requireAuthPage } from "../middlewares/auth.ts";
 
 const router = Router();
-const userView = (folder: string, file = "index.html") =>
-  `/assets/usuario/${folder}/${file}`;
-const adminView = (folder: string) => `/assets/admin/${folder}/index.html`;
+const frontendPath = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../../../frontend",
+);
 
-function withQuery(req: Parameters<RequestHandler>[0], target: string): string {
-  const query = req.originalUrl.split("?")[1];
-  if (!query) return target;
-  return `${target}${target.includes("?") ? "&" : "?"}${query}`;
-}
+const sendFrontendFile = (...segments: string[]): RequestHandler =>
+  (_req, res) => res.sendFile(path.join(frontendPath, ...segments));
 
-const redirectTo = (target: string): RequestHandler => (req, res) =>
-  res.redirect(withQuery(req, target));
+const userPage = (folder: string, file = "index.html") =>
+  sendFrontendFile("usuario", folder, file);
+const adminPage = (folder: string) =>
+  sendFrontendFile("admin", folder, "index.html");
 
-const guestOrHome: RequestHandler = (req, res) => {
+const loginPage = userPage("Login");
+const guestOrHome: RequestHandler = (req, res, next) => {
   if (req.user) {
     res.redirect(req.user.tipo === "admin" ? "/admin" : "/inicio");
     return;
   }
-  res.redirect(withQuery(req, userView("Login")));
+  loginPage(req, res, next);
 };
 
 // Páginas públicas.
-router.get("/", guestOrHome);
+router.get("/", (req, res) => {
+  res.redirect(
+    req.user ? (req.user.tipo === "admin" ? "/admin" : "/inicio") : "/login",
+  );
+});
 router.get("/login", guestOrHome);
-router.get("/cadastro", (req, res) =>
-  res.redirect(withQuery(req, `${userView("Login")}?cadastro=1`)),
-);
+router.get("/cadastro", guestOrHome);
 router.get(
   "/recuperar-senha",
-  redirectTo(userView("Recuperar-senha", "Recuperar-senha-index.html")),
+  userPage("Recuperar-senha", "Recuperar-senha-index.html"),
 );
 router.get(
   "/resetar-senha",
-  redirectTo(userView("Resetar-senha", "Resetar-senha-index.html")),
+  userPage("Resetar-senha", "Resetar-senha-index.html"),
 );
-router.get("/termos", redirectTo(userView("Termos")));
+router.get("/termos", userPage("Termos"));
+router.get("/politica-de-privacidade", userPage("Politica-de-privacidade"));
+
+// Fragmentos de layout também ficam fora de /assets, que serve apenas arquivos estáticos.
+router.get("/partials/header", sendFrontendFile("usuario", "header", "index.html"));
+router.get("/partials/footer", sendFrontendFile("usuario", "footer", "index.html"));
 router.get(
-  "/politica-de-privacidade",
-  redirectTo(userView("Politica-de-privacidade")),
+  "/partials/admin-sidebar",
+  requireAdminPage,
+  sendFrontendFile("admin", "admin-sidebar", "index.html"),
 );
 
 // Páginas autenticadas. Os aliases preservam URLs já publicadas.
-const authenticatedPages: Record<string, string> = {
-  "/inicio": userView("Inicio"),
-  "/home": userView("Inicio"),
-  "/produto": userView("Produto"),
-  "/perfil": userView("Perfil"),
-  "/minha-conta": userView("Minha-conta"),
-  "/alterar-senha": userView("Alterar-senha.js"),
-  "/excluir-conta": userView("Excluir-conta"),
-  "/preferencias": userView("Preferencias"),
-  "/privacidade": userView("Privacidade"),
-  "/verificacao": userView("Verificacao-da-conta"),
-  "/verificacao-da-conta": userView("Verificacao-da-conta"),
-  "/meus-objetos": userView("Meus-objetos"),
-  "/objetos": userView("Meus-objetos"),
-  "/cadastrar-objeto": userView("Cadastrar-objeto"),
-  "/editar-objeto": userView("Editar-objeto"),
-  "/notificacoes": userView("Notificacoes"),
-  "/historico": userView("Historico"),
-  "/status-locacao": userView("Status-locacao"),
-  "/retirada": userView("Retirada-objeto"),
-  "/retirada-objeto": userView("Retirada-objeto"),
-  "/devolucao": userView("Devolucao-objeto"),
-  "/devolucao-objeto": userView("Devolucao-objeto"),
-  "/avaliacao": userView("Avaliacao"),
-  "/mensagens": userView("Mensagens"),
-  "/suporte": userView("Suporte"),
-  "/finalizar-pagamento": userView("Finalizar-pagamento"),
-  "/pagamento-confirmado": userView("Pagamento-confirmado"),
-  "/pagamento-multa": userView("Pagamento-multa"),
-  "/formas-de-pagamento": userView("Forma-de pagamento"),
-  "/forma-de-pagamento": userView("Forma-de pagamento"),
+const authenticatedPages: Record<string, RequestHandler> = {
+  "/inicio": userPage("Inicio"),
+  "/home": userPage("Inicio"),
+  "/produto": userPage("Produto"),
+  "/perfil": userPage("Perfil"),
+  "/minha-conta": userPage("Minha-conta"),
+  "/alterar-senha": userPage("Alterar-senha.js"),
+  "/excluir-conta": userPage("Excluir-conta"),
+  "/preferencias": userPage("Preferencias"),
+  "/privacidade": userPage("Privacidade"),
+  "/verificacao": userPage("Verificacao-da-conta"),
+  "/verificacao-da-conta": userPage("Verificacao-da-conta"),
+  "/meus-objetos": userPage("Meus-objetos"),
+  "/objetos": userPage("Meus-objetos"),
+  "/cadastrar-objeto": userPage("Cadastrar-objeto"),
+  "/editar-objeto": userPage("Editar-objeto"),
+  "/notificacoes": userPage("Notificacoes"),
+  "/historico": userPage("Historico"),
+  "/status-locacao": userPage("Status-locacao"),
+  "/retirada": userPage("Retirada-objeto"),
+  "/retirada-objeto": userPage("Retirada-objeto"),
+  "/devolucao": userPage("Devolucao-objeto"),
+  "/devolucao-objeto": userPage("Devolucao-objeto"),
+  "/avaliacao": userPage("Avaliacao"),
+  "/mensagens": userPage("Mensagens"),
+  "/suporte": userPage("Suporte"),
+  "/finalizar-pagamento": userPage("Finalizar-pagamento"),
+  "/pagamento-confirmado": userPage("Pagamento-confirmado"),
+  "/pagamento-multa": userPage("Pagamento-multa"),
+  "/formas-de-pagamento": userPage("Forma-de pagamento"),
+  "/forma-de-pagamento": userPage("Forma-de pagamento"),
 };
 
-for (const [route, target] of Object.entries(authenticatedPages)) {
-  router.get(route, requireAuthPage, redirectTo(target));
+for (const [route, page] of Object.entries(authenticatedPages)) {
+  router.get(route, requireAuthPage, page);
 }
 
 // Páginas administrativas existentes.
-const adminPages: Record<string, string> = {
-  "/admin": adminView("Usuarios"),
-  "/admin/usuarios": adminView("Usuarios"),
-  "/admin/usuarios/detalhe": adminView("Detalhes-do-usuario"),
-  "/admin/usuarios/editar": adminView("Editar-usuario"),
-  "/admin/objetos": adminView("Anuncios"),
+const adminPages: Record<string, RequestHandler> = {
+  "/admin": adminPage("Usuarios"),
+  "/admin/usuarios": adminPage("Usuarios"),
+  "/admin/usuarios/detalhe": adminPage("Detalhes-do-usuario"),
+  "/admin/usuarios/editar": adminPage("Editar-usuario"),
+  "/admin/objetos": adminPage("Anuncios"),
+  "/admin/pagamentos": adminPage("Pagamentos"),
 };
 
-for (const [route, target] of Object.entries(adminPages)) {
-  router.get(route, requireAdminPage, redirectTo(target));
+for (const [route, page] of Object.entries(adminPages)) {
+  router.get(route, requireAdminPage, page);
 }
 
 export default router;

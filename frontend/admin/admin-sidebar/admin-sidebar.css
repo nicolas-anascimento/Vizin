@@ -1,12 +1,12 @@
-
 @import url('https://fonts.googleapis.com/css2?family=Arimo:ital,wght@0,400..700;1,400..700&display=swap');
 
 /* ===================================================
    ADMIN — SIDEBAR
    Cópia do header do site (mesmo gradiente, cores, fonte e
    efeito de hover com underline), só que na lateral em vez
-   de no topo. Em telas menores não vira gaveta: continua
-   fixa na lateral, só que colapsada (só ícones/avatar).
+   de no topo. Em telas menores vira uma gaveta: desliza pra
+   fora da tela e só aparece quando o botão de menu (topbar
+   mobile) é clicado, com um overlay escurecendo o conteúdo.
    =================================================== */
 
 :root{
@@ -31,7 +31,6 @@
     --admin-vermelho-bg: #FBE1DF;
 
     --admin-sidebar-w: 240px;
-    --admin-sidebar-w-compact: 76px;
 }
 
 *{
@@ -89,17 +88,11 @@ body.admin-body{
     background-repeat: no-repeat;
 }
 
-/* Versão mini da logo, usada só quando a sidebar colapsa em telas
-   menores (ver breakpoint no fim do arquivo). Some por padrão.
-   TODO: ajustar o caminho/nome do arquivo da logo mini. */
+/* Sidebar não colapsa mais em telas menores (virou gaveta), então a
+   logo mini não é mais usada — mantida só escondida, caso o HTML
+   ainda tenha o elemento. */
 .admin-sidebar .logo-mini{
     display: none;
-    background-image: url(../img/logo-mini.png);
-    width: 32px;
-    height: 32px;
-    background-position: center;
-    background-size: cover;
-    background-repeat: no-repeat;
 }
 
 /* ================= LINKS (mesma marcação/efeito do header:
@@ -303,6 +296,17 @@ body.admin-body{
     top: 0;
 }
 
+/* Fundo escurecido usado só no mobile, quando a sidebar vira uma
+   gaveta — some por padrão, aparece via body.admin-sidebar-aberta
+   (ver media query abaixo). */
+.admin-sidebar-overlay{
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 8, 36, .55);
+    z-index: 190;
+}
+
 /* ================= ÁREA DE CONTEÚDO ================= */
 .admin-main{
     margin-left: var(--admin-sidebar-w);
@@ -310,62 +314,54 @@ body.admin-body{
     padding: 32px 40px 60px;
 }
 
+/* Botão de abrir o menu (hambúrguer) — cada página do admin coloca
+   esse bloco no topo do .admin-main. Some no desktop, aparece só
+   quando a sidebar é gaveta (ver media query abaixo). */
+.admin-topbar-mobile{
+    display: none;
+}
+
 /* ===================================================
-   RESPONSIVO — sidebar colapsa pra só ícones (sem gaveta)
-   Continua fixa na lateral, só que mais estreita: textos dos
-   links, nome/badge do perfil e o texto "SAIR" somem, ficando
-   só ícone/avatar centralizados; a logo cheia dá lugar à logo
-   mini.
+   RESPONSIVO — sidebar vira gaveta (desliza pra fora da tela)
    =================================================== */
 @media (max-width: 960px){
 
     .admin-sidebar{
-        width: var(--admin-sidebar-w-compact);
-        padding: 20px 10px;
+        transform: translateX(-100%);
+        box-shadow: 0 0 30px rgba(0,0,0,.4);
     }
 
-    .admin-sidebar .logo{
-        display: none;
+    body.admin-sidebar-aberta .admin-sidebar{
+        transform: translateX(0);
     }
 
-    .admin-sidebar .logo-mini{
+    body.admin-sidebar-aberta .admin-sidebar-overlay{
         display: block;
     }
 
-    .admin-nav-link{
-        justify-content: center;
-        padding: 10px 0;
-        gap: 0;
+    .admin-main{
+        margin-left: 0;
+        padding: 24px 20px 80px;
     }
 
-    .admin-nav-link > span:not(.nav-underline){
-        display: none;
+    .admin-topbar-mobile{
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 20px;
     }
 
-    .admin-sidebar-perfil{
-        justify-content: center;
-        padding: 8px 0;
-    }
-
-    .admin-sidebar-perfil-info,
-    .admin-sidebar-perfil-chevron{
-        display: none;
-    }
-
-    .btn-admin-logout{
+    .admin-topbar-mobile button{
+        background: var(--admin-surface);
+        border: 1px solid var(--admin-borda);
+        border-radius: 10px;
         width: 40px;
         height: 40px;
-        padding: 0;
-        border-radius: 50%;
-        align-self: center;
-    }
-
-    .btn-admin-logout span{
-        display: none;
-    }
-
-    .admin-main{
-        margin-left: var(--admin-sidebar-w-compact);
-        padding: 24px 20px 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        color: var(--admin-roxo-700);
+        cursor: pointer;
     }
 }

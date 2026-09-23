@@ -18,7 +18,7 @@ function corAvatar(id) {
 
 function formatarData(iso) {
     if (!iso) return "—";
-    const [ano, mes, dia] = iso.split("-");
+    const [ano, mes, dia] = iso.slice(0, 10).split("-");
     return `${dia}/${mes}/${ano}`;
 }
 
@@ -72,8 +72,8 @@ function renderizarDetalhe(usuario) {
                 ${itens.length
                     ? `<ul class="detalhe-lista">${itens.map(i => `
                         <li class="detalhe-item-linha">
-                            <span>${i.nome}</span>
-                            <span class="muted">${i.status}</span>
+                            <span>${escAdmin(i.nome)}</span>
+                            <span class="muted">${escAdmin(i.status)}</span>
                         </li>`).join("")}</ul>`
                     : `<p class="admin-tabela-vazio">Dados não disponíveis nesta rota.</p>`
                 }
@@ -86,8 +86,8 @@ function renderizarDetalhe(usuario) {
                 ${alugueis.length
                     ? `<ul class="detalhe-lista">${alugueis.map(a => `
                         <li class="detalhe-item-linha">
-                            <span>${a.item} <span class="muted">— ${a.papel}</span></span>
-                            <span class="muted">${formatarData(a.data)} · ${a.situacao}</span>
+                            <span>${escAdmin(a.item)} <span class="muted">— ${escAdmin(a.papel)}</span></span>
+                            <span class="muted">${formatarData(a.data)} · ${escAdmin(a.situacao)}</span>
                         </li>`).join("")}</ul>`
                     : `<p class="admin-tabela-vazio">Dados não disponíveis nesta rota.</p>`
                 }
@@ -100,8 +100,8 @@ function renderizarDetalhe(usuario) {
                 ${denuncias.length
                     ? `<ul class="detalhe-lista">${denuncias.map(d => `
                         <li class="detalhe-item-linha">
-                            <span>${d.motivo}</span>
-                            <span class="muted">${formatarData(d.data)} · ${d.status}</span>
+                            <span>${escAdmin(d.motivo)}</span>
+                            <span class="muted">${formatarData(d.data)} · ${escAdmin(d.status)}</span>
                         </li>`).join("")}</ul>`
                     : `<p class="admin-tabela-vazio">Dados não disponíveis nesta rota.</p>`
                 }

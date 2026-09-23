@@ -55,7 +55,7 @@ test("decodifica imagens legítimas JPG/PNG/GIF/WEBP e rejeita truncamento",asyn
 
 test("estruturas legítimas PDF/DOCX/MP4/WEBM são aceitas e truncamento é rejeitado",async()=>{
  const {readFile}=await import("node:fs/promises");const {validFileStructure}=await import("../app/utils/fileStructure.ts");
- for(const [extension,mime] of [["pdf","application/pdf"],["docx","application/vnd.openxmlformats-officedocument.wordprocessingml.document"],["mp4","video/mp4"],["webm","video/webm"]]) {
+ for(const [extension,mime] of [["pdf","application/pdf"],["docx","application/vnd.openxmlformats-officedocument.wordprocessingml.document"],["mp4","video/mp4"],["webm","video/webm"]] as const) {
   const bytes=await readFile(new URL(`./fixtures/valid.${extension}`,import.meta.url));
   assert.equal(validFileStructure(bytes,mime!),true,extension);
   assert.equal(validFileStructure(bytes.subarray(0,Math.floor(bytes.length/2)),mime!),false,extension);

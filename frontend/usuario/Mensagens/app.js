@@ -20,6 +20,12 @@ const state = {
   activeConversationId: null,
   messages: [],           // mensagens da conversa aberta
 };
+
+let realtimeSocket = null;
+let typingSent = false;
+let typingStopTimer = null;
+let remoteTypingTimer = null;
+const pendingSendTimers = new Map();
  
 const els = {
   app: document.querySelector(".app"),
@@ -99,6 +105,10 @@ function itemIcon(icon) {
 async function init() {
   bindEvents();
   setupOfflineDetection();
+  const session = await (window.SessaoVizin?.pronto ?? Promise.resolve(usuarioLogado));
+  if (!session) return;
+  await window.SessaoVizin?.realtimePronto;
+  setupRealtime();
   await loadConversations();
 }
  
@@ -137,12 +147,157 @@ function setupOfflineDetection() {
   window.addEventListener("offline", update);
   update();
 }
+
+function setupRealtime() {
+  realtimeSocket = window.SocketVizin?.connect() || null;
+  if (!realtimeSocket) return;
+
+  realtimeSocket.on("connect", () => {
+    if (state.activeConversationId) {
+      realtimeSocket.emit("chat:join", { conversation_id: state.activeConversationId });
+    }
+  });
+  realtimeSocket.on("message:new", onRealtimeMessage);
+  realtimeSocket.on("message:ack", onRealtimeAck);
+  realtimeSocket.on("message:read:update", onRealtimeRead);
+  realtimeSocket.on("typing:update", onRealtimeTyping);
+  realtimeSocket.on("conversation:update", onRealtimeConversationUpdate);
+  realtimeSocket.on("socket:error", onRealtimeError);
+  realtimeSocket.on("disconnect", () => {
+    stopTyping();
+    els.typingIndicator.classList.add("hidden");
+  });
+}
+
+function loggedUserId() {
+  return String(usuarioLogado?.id || "");
+}
+
+async function normalizeRealtimeMessage(message) {
+  const normalized = await API.normalizeMessage(message);
+  return {
+    ...normalized,
+    from: message?.sender?.id === loggedUserId() ? "me" : "them"
+  };
+}
+
+function replaceOrAppendMessage(message) {
+  const index = state.messages.findIndex(item =>
+    item.id === message.id ||
+    (message.client_message_id && item.client_message_id === message.client_message_id) ||
+    (message.client_message_id && item.id === message.client_message_id)
+  );
+  if (index >= 0) state.messages[index] = message;
+  else state.messages.push(message);
+  state.messages.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+}
+
+async function onRealtimeMessage(rawMessage) {
+  const conversationId = rawMessage?.conversation_id;
+  if (!conversationId || conversationId !== state.activeConversationId) return;
+  const message = await normalizeRealtimeMessage(rawMessage);
+  replaceOrAppendMessage(message);
+  clearPendingSend(message.client_message_id);
+  renderMessages(state.messages);
+  if (message.from === "them") {
+    realtimeSocket?.emit("message:read", { conversation_id: conversationId });
+  }
+}
+
+async function onRealtimeAck(payload) {
+  if (!payload?.message || !payload.client_message_id) return;
+  clearPendingSend(payload.client_message_id);
+  const message = await normalizeRealtimeMessage(payload.message);
+  if (message.conversation_id !== state.activeConversationId) return;
+  replaceOrAppendMessage(message);
+  renderMessages(state.messages);
+}
+
+function onRealtimeRead(payload) {
+  if (
+    payload?.conversation_id !== state.activeConversationId ||
+    payload.user_id === loggedUserId()
+  ) return;
+  state.messages.forEach(message => {
+    if (message.from === "me" && message.status !== "failed") message.status = "read";
+  });
+  renderMessages(state.messages);
+}
+
+function onRealtimeTyping(payload) {
+  if (
+    payload?.conversation_id !== state.activeConversationId ||
+    payload.user_id === loggedUserId()
+  ) return;
+  clearTimeout(remoteTypingTimer);
+  els.typingIndicator.classList.toggle("hidden", !payload.typing);
+  if (payload.typing) {
+    remoteTypingTimer = setTimeout(() => {
+      els.typingIndicator.classList.add("hidden");
+    }, 3000);
+  }
+}
+
+function onRealtimeConversationUpdate(payload) {
+  const conversationId = payload?.conversation_id;
+  const message = payload?.message;
+  if (!conversationId || !message) return;
+  const conversation = state.conversations.find(item => item.id === conversationId);
+  if (!conversation) {
+    loadConversations().catch(() => {});
+    return;
+  }
+  conversation.lastMessage = {
+    ...message,
+    from: message.sender?.id === loggedUserId() ? "me" : "them"
+  };
+  if (
+    conversationId !== state.activeConversationId &&
+    message.sender?.id !== loggedUserId()
+  ) {
+    conversation.unreadCount = (conversation.unreadCount || 0) + 1;
+  }
+  state.conversations = [conversation, ...state.conversations.filter(item => item.id !== conversationId)];
+  renderConversationList(currentFilteredList());
+}
+
+function onRealtimeError(error) {
+  if (error?.client_message_id) {
+    clearPendingSend(error.client_message_id);
+    const message = state.messages.find(item =>
+      item.id === error.client_message_id ||
+      item.client_message_id === error.client_message_id
+    );
+    if (message) message.status = "failed";
+    if (state.activeConversationId) renderMessages(state.messages);
+  }
+  if (error?.message) showToast(error.message);
+}
+
+function clearPendingSend(clientMessageId) {
+  if (!clientMessageId) return;
+  clearTimeout(pendingSendTimers.get(clientMessageId));
+  pendingSendTimers.delete(clientMessageId);
+}
  
 // Se a página foi aberta a partir do botão "Conversar" da página do
 // objeto (com ?userId=...&produtoId=...), abre a conversa certa —
 // criando uma nova se ainda não existir.
 async function abrirConversaViaQueryParams() {
   const params = new URLSearchParams(window.location.search);
+
+  // Vindo de uma notificação de "Nova mensagem": /mensagens?conversaId=<id>
+  // abre direto a conversa indicada (o ID é sempre string/UUID).
+  const conversaId = params.get("conversaId");
+  if (conversaId) {
+    if (state.conversations.some(c => c.id === conversaId)) {
+      openConversation(conversaId);
+    } else {
+      showToast("Não foi possível encontrar essa conversa.");
+    }
+    return;
+  }
+
   const userId = params.get("userId");
   if (!userId) return;
  
@@ -310,6 +465,11 @@ function onSearch() {
    ABRIR CONVERSA
    ============================================================ */
 async function openConversation(id) {
+  const previousConversationId = state.activeConversationId;
+  if (previousConversationId && previousConversationId !== id) {
+    stopTyping();
+    realtimeSocket?.emit("chat:leave", { conversation_id: previousConversationId });
+  }
   state.activeConversationId = id;
   const conv = state.conversations.find(c => c.id === id);
   if (!conv) return;
@@ -332,9 +492,15 @@ async function openConversation(id) {
  
   renderItemBanner(conv);
  
+  realtimeSocket?.emit("chat:join", { conversation_id: id });
+
   // marca como lida
   if (conv.unreadCount > 0) {
-    await API.markAsRead(id);
+    if (realtimeSocket?.connected) {
+      realtimeSocket.emit("message:read", { conversation_id: id });
+    } else {
+      await API.markAsRead(id);
+    }
     conv.unreadCount = 0;
     renderConversationList(currentFilteredList());
     document.querySelector(`.conv-item[data-id="${id}"]`)?.classList.add("active");
@@ -353,8 +519,13 @@ async function openConversation(id) {
  
   els.typingIndicator.classList.add("hidden");
  
+  state.messages = [];
   try {
-    state.messages = await API.getMessages(id);
+    const history = await API.getMessages(id);
+    if (state.activeConversationId !== id) return;
+    const receivedWhileLoading = state.messages;
+    state.messages = history;
+    receivedWhileLoading.forEach(replaceOrAppendMessage);
     renderMessages(state.messages);
   } catch (err) {
     state.messages = [];
@@ -550,6 +721,28 @@ function onMessageInputChange() {
   updateSendBtnState();
   updateCharCounter();
   saveDraft(state.activeConversationId, els.messageInput.value);
+  updateTyping();
+}
+
+function updateTyping() {
+  clearTimeout(typingStopTimer);
+  if (!state.activeConversationId || !realtimeSocket?.connected || !els.messageInput.value.trim()) {
+    stopTyping();
+    return;
+  }
+  if (!typingSent) {
+    realtimeSocket.emit("typing:start", { conversation_id: state.activeConversationId });
+    typingSent = true;
+  }
+  typingStopTimer = setTimeout(stopTyping, 1500);
+}
+
+function stopTyping() {
+  clearTimeout(typingStopTimer);
+  if (typingSent && state.activeConversationId && realtimeSocket?.connected) {
+    realtimeSocket.emit("typing:stop", { conversation_id: state.activeConversationId });
+  }
+  typingSent = false;
 }
  
 function updateCharCounter() {
@@ -589,9 +782,12 @@ async function onSendMessage(e) {
   // Envio otimista: a bolha aparece na hora, com um relógio, e só vira
   // "enviada"/"falhou" quando a resposta do back-end chega. Isso evita
   // a sensação de trava enquanto a rede responde.
-  const tempId = "tmp" + Date.now();
+  stopTyping();
+  const tempId = crypto.randomUUID();
   const optimisticMsg = {
     id: tempId,
+    client_message_id: tempId,
+    conversation_id: id,
     from: "me",
     type: attachment ? attachment.type : "text",
     text,
@@ -602,12 +798,32 @@ async function onSendMessage(e) {
   state.messages.push(optimisticMsg);
   renderMessages(state.messages);
  
-  await trySendMessage(id, optimisticMsg, { text, attachment });
+  await trySendMessage(id, optimisticMsg, { text, attachment, clientMessageId: tempId });
 }
  
 async function trySendMessage(convId, optimisticMsg, payload) {
+  if (realtimeSocket?.connected) {
+    realtimeSocket.emit("message:send", {
+      conversation_id: convId,
+      content: payload.text || "",
+      attachment_id: payload.attachment?.id || null,
+      client_message_id: payload.clientMessageId
+    });
+    const timer = setTimeout(() => {
+      pendingSendTimers.delete(payload.clientMessageId);
+      // O mesmo client_message_id torna o fallback REST idempotente caso o ACK se perca.
+      trySendMessageViaRest(convId, optimisticMsg, payload);
+    }, 10000);
+    pendingSendTimers.set(payload.clientMessageId, timer);
+    return;
+  }
+  await trySendMessageViaRest(convId, optimisticMsg, payload);
+}
+
+async function trySendMessageViaRest(convId, optimisticMsg, payload) {
   try {
     const newMsg = await API.sendMessage(convId, payload);
+    clearPendingSend(payload.clientMessageId);
     // substitui a mensagem otimista pela confirmada pelo back-end
     const idx = state.messages.findIndex(m => m.id === optimisticMsg.id);
     if (idx >= 0) state.messages[idx] = newMsg;
@@ -639,7 +855,9 @@ function retryFailedMessage(msgId) {
   if (!msg) return;
   msg.status = "sending";
   renderMessages(state.messages);
-  trySendMessage(convId, msg, { text: msg.text, attachment: msg.attachment });
+  const clientMessageId = msg.client_message_id || msg.id || crypto.randomUUID();
+  msg.client_message_id = clientMessageId;
+  trySendMessage(convId, msg, { text: msg.text, attachment: msg.attachment, clientMessageId });
 }
  
 // Chamado pelo botão "Apagar" de uma mensagem com falha (nunca chegou

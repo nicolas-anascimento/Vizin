@@ -26,17 +26,49 @@ window.SessaoVizin.pronto = (async () => {
     return usuario;
 })().catch(() => null);
 
-fetch("../header/index.html")
+// Carrega uma única conexão Socket.IO nas páginas autenticadas. O histórico e
+// todas as ações continuam disponíveis por REST se o realtime não carregar.
+function carregarScriptRealtime(src, id) {
+    const existente = document.getElementById(id);
+    if (existente) {
+        return existente.dataset.loaded === "true"
+            ? Promise.resolve()
+            : new Promise((resolve, reject) => {
+                existente.addEventListener("load", resolve, { once: true });
+                existente.addEventListener("error", reject, { once: true });
+            });
+    }
+    return new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.id = id;
+        script.src = src;
+        script.addEventListener("load", () => {
+            script.dataset.loaded = "true";
+            resolve();
+        }, { once: true });
+        script.addEventListener("error", reject, { once: true });
+        document.head.appendChild(script);
+    });
+}
+
+window.SessaoVizin.realtimePronto = window.SessaoVizin.pronto.then(async (usuario) => {
+    if (!usuario) return null;
+    await carregarScriptRealtime("/socket.io/socket.io.js", "vizin-socket-io-client");
+    await carregarScriptRealtime("/assets/usuario/utils/socket-client.js", "vizin-socket-client");
+    return window.SocketVizin?.connect() || null;
+}).catch(() => null);
+
+fetch("/partials/header")
     .then(r => {
-        if (!r.ok) throw new Error(`Erro ${r.status} ao buscar ../header/index.html`);
+        if (!r.ok) throw new Error(`Erro ${r.status} ao buscar o header`);
         return r.text();
     })
     .then(html => document.getElementById("header").innerHTML = html)
     .catch(err => console.error("Falha ao carregar header:", err));
  
-fetch("../footer/index.html")
+fetch("/partials/footer")
     .then(r => {
-        if (!r.ok) throw new Error(`Erro ${r.status} ao buscar ../footer/index.html`);
+        if (!r.ok) throw new Error(`Erro ${r.status} ao buscar o footer`);
         return r.text();
     })
     .then(html => document.getElementById("footer").innerHTML = html)
@@ -146,6 +178,7 @@ document.addEventListener("click", async (e) => {
         if (!resposta.ok && resposta.status !== 401) throw new Error("Não foi possível encerrar a sessão no servidor.");
         localStorage.removeItem("token");
         localStorage.removeItem("usuario");
+        window.SocketVizin?.disconnect();
     } catch (erro) {
         btnLogout.disabled = false;
         mostrarToast(erro.message || "Não foi possível sair. Tente novamente.", "erro");

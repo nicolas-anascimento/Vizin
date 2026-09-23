@@ -2,7 +2,7 @@ if (!localStorage.getItem("token")) {
     window.location.href = "/login";
 }
  
-const { obterTodas, marcarComoLida, excluir, iconePorTipo } = window.NotificacoesVizin;
+const { obterTodas, marcarComoLida, excluir, iconePorTipo, obterDestino } = window.NotificacoesVizin;
  
 const listaNaoLidasEl = document.getElementById("lista-nao-lidas");
 const listaLidasEl = document.getElementById("lista-lidas");
@@ -21,75 +21,10 @@ let carregado = false;
 const subtituloEl = document.getElementById("notificacoes-subtitulo");
  
 // ================= DEEP LINK POR TIPO =================
-// Cada tipo de notificação (menos "solicitacao_aluguel", que já tem seu
-// próprio tratamento especial abaixo, e "resposta_email", que não carrega
-// nenhum id pra apontar pra lugar nenhum) leva pra um destino diferente,
-// dependendo de a locação ainda estar em andamento ou já ter terminado.
-// Sem isso, a pessoa recebia "Retirada confirmada" ou "Devolução
-// confirmada" e não tinha como chegar direto na locação em questão.
-const DESTINO_EM_ANDAMENTO = (id) => `/status-locacao?solicitacaoId=${id}`;
-const DESTINO_HISTORICO = () => `/historico`;
-const DESTINO_MENSAGENS = () => `/mensagens`;
- 
-const TIPOS_EM_ANDAMENTO = new Set(["aluguel_aprovado", "retirada_confirmada", "lembrete", "problema_reportado"]);
-const TIPOS_HISTORICO = new Set(["aluguel_rejeitado", "aluguel_cancelado", "devolucao_confirmada", "pagamento_liberado"]);
-
-// Notificações de conta/administrativas: não são sobre uma locação
-// específica, então (diferente do grupo "em andamento" acima) não
-// dependem de solicitacaoId. "bloqueio_conta" e "dados_atualizados_admin"
-// mandam pro Perfil — é lá que a pessoa vê os próprios dados/status.
-// "anuncio_removido_admin" manda pra lista de objetos, pra ela ver o
-// anúncio afetado.
-//
-// CORRIGIDO: "bloqueio_conta" antes estava em TIPOS_EM_ANDAMENTO, que só
-// gera link quando existe solicitacaoId — mas bloquear uma conta não é
-// sobre uma locação, então essa notificação nunca teria solicitacaoId e
-// caía sempre no "sem destino" (só "Marcar como lida", sem "Ver detalhes").
-const TIPOS_CONTA = new Map([
-    ["bloqueio_conta", () => "/perfil"],
-    ["dados_atualizados_admin", () => "/perfil"],
-    ["anuncio_removido_admin", () => "/meus-objetos"]
-]);
- 
-// "avaliacao_recebida" não entra em nenhum dos dois grupos acima porque não
-// tem UM destino fixo: a avaliação que a pessoa recebeu pode ser sobre o
-// OBJETO (dada pelo locatário, aparece na página de Produto) ou sobre ELA
-// COMO LOCATÁRIA (dada pelo proprietário, aparece no próprio Perfil) — só
-// dá pra saber isso comparando quem é o dono/locatário daquele aluguel com
-// quem está logado agora (o destinatário desta notificação).
-function obterDestinoAvaliacao(notificacao) {
-    if (!notificacao.solicitacaoId || !window.SolicitacoesVizin) return DESTINO_HISTORICO();
- 
-    const solicitacao = window.SolicitacoesVizin.obterPorId(notificacao.solicitacaoId);
-    if (!solicitacao) return DESTINO_HISTORICO();
- 
-    const euEraProprietario = solicitacao.souProprietario;
- 
-    // Eu era o dono do objeto nesse aluguel -> a avaliação que recebi é do
-    // locatário sobre o OBJETO -> mora na página de Produto.
-    if (euEraProprietario) {
-        return `/produto?id=${solicitacao.produtoId}#avaliacoes`;
-    }
- 
-    // Eu era o locatário -> a avaliação que recebi é do proprietário sobre
-    // MIM -> mora no meu próprio Perfil, na seção de avaliações recebidas.
-    return `/perfil#avaliacoes-secao`;
-}
- 
-function obterDestino(notificacao) {
-    if (notificacao.tipo === "avaliacao_recebida") return obterDestinoAvaliacao(notificacao);
-
-    if (TIPOS_CONTA.has(notificacao.tipo)) return TIPOS_CONTA.get(notificacao.tipo)();
-
-    if (TIPOS_EM_ANDAMENTO.has(notificacao.tipo)) {
-        // Sem solicitacaoId (ex: item antigo do seed/mock) não dá pra saber
-        // pra onde mandar a pessoa — cai no comportamento padrão.
-        return notificacao.solicitacaoId ? DESTINO_EM_ANDAMENTO(notificacao.solicitacaoId) : null;
-    }
-    if (TIPOS_HISTORICO.has(notificacao.tipo)) return DESTINO_HISTORICO();
-    if (notificacao.tipo === "mensagem") return DESTINO_MENSAGENS();
-    return null;
-}
+// O mapa "tipo de notificação -> página de destino" mora em
+// notificacoes-shared.js (obterDestino), porque o toast de notificação nova,
+// que aparece em qualquer página, usa exatamente o mesmo destino.
+// "solicitacao_aluguel" tem tratamento próprio em criarCard().
  
 function criarCard(notificacao) {
     const card = document.createElement("div");

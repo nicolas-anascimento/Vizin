@@ -1,28 +1,22 @@
 // ---------- Navegação entre abas ----------
 const tabAjuda = document.getElementById('tab-ajuda');
 const tabDenuncia = document.getElementById('tab-denuncia');
-const tabSinistro = document.getElementById('tab-sinistro');
 const panelAjuda = document.getElementById('panel-ajuda');
 const panelDenuncia = document.getElementById('panel-denuncia');
-const panelSinistro = document.getElementById('panel-sinistro');
  
 function setActiveTab(tab){
   const isAjuda = tab === 'ajuda';
   const isDenuncia = tab === 'denuncia';
-  const isSinistro = tab === 'sinistro';
  
   tabAjuda.classList.toggle('active', isAjuda);
   tabDenuncia.classList.toggle('active', isDenuncia);
-  tabSinistro.classList.toggle('active', isSinistro);
  
   panelAjuda.classList.toggle('show', isAjuda);
   panelDenuncia.classList.toggle('show', isDenuncia);
-  panelSinistro.classList.toggle('show', isSinistro);
 }
  
 tabAjuda.addEventListener('click', () => setActiveTab('ajuda'));
 tabDenuncia.addEventListener('click', () => setActiveTab('denuncia'));
-tabSinistro.addEventListener('click', () => setActiveTab('sinistro'));
  
 // Aba "Ajuda" ativa por padrão — só é sobrescrita se a URL trouxer
 // contexto de denúncia (ver lerContextoDaURL logo abaixo).
@@ -201,20 +195,6 @@ function popularSelectAlugueis(){
   }
 }
 
-function popularSelectSinistros(){
-  const select = document.getElementById('sinistro-aluguel');
-  const elegiveis = window.SolicitacoesVizin.obterTodas()
-    .filter(s => ['retirado', 'devolvido', 'finalizado'].includes(s.statusApi))
-    .sort((a, b) => String(b.criadaEm || '').localeCompare(String(a.criadaEm || '')));
-
-  for (const aluguel of elegiveis) {
-    const option = document.createElement('option');
-    option.value = String(aluguel.id);
-    option.textContent = `${aluguel.produtoTitulo || 'Objeto'} — ${formatarDataCurta(aluguel.dataRetirada) || 'sem data'}`;
-    select.appendChild(option);
-  }
-}
- 
 function aplicarContexto(){
   if (temContexto) setActiveTab('denuncia');
  
@@ -252,7 +232,6 @@ contextoChipLimpar.addEventListener('click', () => {
 // preencher a lista. A pré-seleção vinda da URL (aluguelId) é reaplicada em seguida.
 (window.SolicitacoesVizin ? window.SolicitacoesVizin.pronto : Promise.resolve()).then(() => {
   popularSelectAlugueis();
-  popularSelectSinistros();
   if (contexto.aluguelId) aluguelIdInput.value = contexto.aluguelId;
 });
 aplicarContexto();
@@ -461,49 +440,78 @@ formDenuncia.addEventListener('submit', async (e) => {
   }
 });
 
-// ---------- Formulário: Sinistro ----------
-const formSinistro = document.getElementById('form-sinistro');
-const sinistroStatus = document.getElementById('sinistro-status');
-const sinistroBtn = document.getElementById('sinistro-submit-btn');
+// ---------- Meus chamados ----------
 
-formSinistro.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  clearStatus(sinistroStatus);
+// Classifica o texto de status vindo do back num dos 4 "grupos" visuais
+// (aberto / andamento / resolvido / rejeitado), só pela presença de
+// palavras-chave — assim a UI fica bonita mesmo sem um enum fixo de status.
+function classificarStatus(status) {
+  const s = (status || '').toLowerCase();
+  if (/resolvid|conclu[ií]d|finalizad|aceit/.test(s)) return 'resolvido';
+  if (/andamento|an[aá]lise|revis/.test(s)) return 'andamento';
+  if (/rejeit|recusad|negad|cancelad/.test(s)) return 'rejeitado';
+  return 'aberto';
+}
 
-  const aluguelEl = document.getElementById('sinistro-aluguel');
-  const descricaoEl = document.getElementById('sinistro-descricao');
-  const valorEl = document.getElementById('sinistro-valor');
-  const aluguelId = aluguelEl.value;
-  const descricao = descricaoEl.value.trim();
-  const valorTexto = valorEl.value.trim();
-  const valor = valorTexto === '' ? null : Number(valorTexto);
+// Formata qualquer data/hora ISO vinda do back (ex: "2026-09-20T14:23:00Z")
+// pro formato dd/mm/aaaa usado no resto da plataforma.
+function formatarDataChamado(dataStr) {
+  if (!dataStr) return '';
+  const d = new Date(dataStr);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('pt-BR');
+}
 
-  const aluguelInvalido = !aluguelId;
-  const descricaoInvalida = !descricao;
-  const valorInvalido = valor !== null && (!Number.isFinite(valor) || valor < 0);
-  showFieldError(document.getElementById('sinistro-aluguel-field'), aluguelInvalido);
-  showFieldError(document.getElementById('sinistro-descricao-field'), descricaoInvalida);
-  showFieldError(document.getElementById('sinistro-valor-field'), valorInvalido);
-  if (aluguelInvalido || descricaoInvalida || valorInvalido) return;
+function criarChamadoItem(chamado) {
+  const item = document.createElement('div');
+  item.className = 'chamado-item';
 
-  const payload = { aluguel_id: String(aluguelId), descricao };
-  if (valor !== null) payload.valor_solicitado = valor;
+  const top = document.createElement('div');
+  top.className = 'chamado-top';
 
-  sinistroBtn.disabled = true;
-  sinistroBtn.textContent = 'Enviando...';
-  try {
-    const criado = await window.ApiVizin.post('/suporte/sinistro', payload);
-    showStatus(sinistroStatus, 'success', `Sinistro registrado com sucesso. Status: ${criado.status || 'pendente'}.`);
-    showToast('Sinistro enviado ✔');
-    formSinistro.reset();
-    await carregarMeusChamados();
-  } catch (erro) {
-    showStatus(sinistroStatus, 'error', erro.message || 'Não foi possível registrar o sinistro.');
-  } finally {
-    sinistroBtn.disabled = false;
-    sinistroBtn.innerHTML = '<span>&#9992;</span> Enviar Sinistro';
+  const badges = document.createElement('div');
+  badges.className = 'chamado-badges';
+
+  const tipoBadge = document.createElement('span');
+  tipoBadge.className = `badge ${chamado.tipo === 'Ajuda' ? 'badge-tipo-ajuda' : 'badge-tipo-denuncia'}`;
+  tipoBadge.textContent = chamado.tipo;
+  badges.appendChild(tipoBadge);
+
+  const statusTexto = chamado.status || 'Aberto';
+  const statusBadge = document.createElement('span');
+  statusBadge.className = `badge badge-status-${classificarStatus(statusTexto)}`;
+  statusBadge.textContent = statusTexto;
+  badges.appendChild(statusBadge);
+
+  top.appendChild(badges);
+
+  const dataFormatada = formatarDataChamado(chamado.criado_em);
+  if (dataFormatada) {
+    const dataEl = document.createElement('span');
+    dataEl.className = 'chamado-data-topo';
+    dataEl.textContent = dataFormatada;
+    top.appendChild(dataEl);
   }
-});
+
+  item.appendChild(top);
+
+  const desc = document.createElement('p');
+  desc.className = 'chamado-desc';
+  desc.textContent = chamado.descricao || 'Sem assunto';
+  item.appendChild(desc);
+
+  if (chamado.protocolo) {
+    const meta = document.createElement('div');
+    meta.className = 'chamado-meta';
+    const protocoloEl = document.createElement('span');
+    protocoloEl.className = 'chamado-protocolo';
+    protocoloEl.textContent = `Protocolo: #${chamado.protocolo}`;
+    meta.appendChild(protocoloEl);
+    item.appendChild(meta);
+  }
+
+  return item;
+}
 
 async function carregarMeusChamados() {
   const lista = document.getElementById('meus-chamados-lista');
@@ -513,20 +521,34 @@ async function carregarMeusChamados() {
     const limit = 50;
     for (let page = 1; ; page++) {
       const resposta = await window.ApiVizin.get(`/suporte/me?page=${page}&limit=${limit}`);
-      chamados.push(...resposta.suporte.map(c => ({ ...c, tipo: 'Ajuda', descricao: c.assunto })),
-        ...resposta.denuncias.map(c => ({ ...c, tipo: 'Denúncia', descricao: c.assunto || c.motivo })),
-        ...resposta.sinistros.map(c => ({ ...c, tipo: 'Sinistro', descricao: c.descricao })));
-      const maiorTotal = Math.max(...Object.values(resposta.paginacao.totais));
+      chamados.push(
+        ...resposta.suporte.map(c => ({ ...c, tipo: 'Ajuda', descricao: c.assunto })),
+        ...resposta.denuncias.map(c => ({ ...c, tipo: 'Denúncia', descricao: c.assunto || c.motivo }))
+      );
+      // O sinistro foi removido do front — ignoramos resposta.sinistros e a
+      // contagem dele na paginação, considerando só os totais que exibimos.
+      const totais = resposta.paginacao.totais || {};
+      const maiorTotal = Math.max(totais.suporte || 0, totais.denuncias || 0);
       if (page * limit >= maiorTotal) break;
     }
     chamados.sort((a, b) => new Date(b.criado_em) - new Date(a.criado_em));
     lista.replaceChildren();
-    if (!chamados.length) { lista.textContent = 'Você ainda não abriu chamados.'; return; }
-    for (const chamado of chamados) {
-      const linha = document.createElement('p');
-      linha.textContent = `${chamado.tipo}: ${chamado.descricao || 'Sem assunto'} — ${chamado.status || 'Aberto'}${chamado.protocolo ? ` · ${chamado.protocolo}` : ''}`;
-      lista.appendChild(linha);
+    if (!chamados.length) {
+      const vazio = document.createElement('p');
+      vazio.className = 'chamados-vazio';
+      vazio.textContent = 'Você ainda não abriu chamados.';
+      lista.appendChild(vazio);
+      return;
     }
-  } catch (erro) { lista.textContent = erro.message || 'Não foi possível carregar seus chamados.'; }
+    for (const chamado of chamados) {
+      lista.appendChild(criarChamadoItem(chamado));
+    }
+  } catch (erro) {
+    lista.replaceChildren();
+    const erroEl = document.createElement('p');
+    erroEl.className = 'chamados-erro';
+    erroEl.textContent = erro.message || 'Não foi possível carregar seus chamados.';
+    lista.appendChild(erroEl);
+  }
 }
 carregarMeusChamados();

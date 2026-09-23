@@ -64,7 +64,7 @@ h1{
  
 .tabs{
   display:grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 14px;
   margin-bottom: 20px;
 }
@@ -117,13 +117,6 @@ h1{
   background: var(--red-bg);
 }
 #tab-denuncia.active .tab-title{ color: var(--red); }
-
-#tab-sinistro .tab-icon{ background: var(--blue-light); color: var(--blue); }
-#tab-sinistro.active{
-  border-color: var(--blue);
-  background: var(--blue-light);
-}
-#tab-sinistro.active .tab-title{ color: var(--blue); }
 
 @media (max-width: 560px){
   .tabs{ grid-template-columns: 1fr; }
@@ -386,10 +379,110 @@ h1{
  
 .panel-wrap{ display:none; }
 .panel-wrap.show{ display:block; }
+
+/* ================= MEUS CHAMADOS ================= */
+.chamados-lista{
+  display:flex;
+  flex-direction:column;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.chamado-item{
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display:flex;
+  flex-direction:column;
+  gap: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  transition: border-color .15s ease;
+}
+.chamado-item:hover{ border-color: #D8D8DE; }
+
+.chamado-top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.chamado-badges{
+  display:flex;
+  align-items:center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.badge{
+  display:inline-flex;
+  align-items:center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.badge-tipo-ajuda{ background: var(--purple-light); color: var(--purple-dark); }
+.badge-tipo-denuncia{ background: var(--red-light); color: var(--red); }
+
+.badge-status-aberto{ background: var(--gray-bg); color: var(--text-muted); }
+.badge-status-andamento{ background: var(--blue-light); color: var(--blue); }
+.badge-status-resolvido{ background: #E9F9EE; color: #1E7A3D; }
+.badge-status-rejeitado{ background: var(--red-bg); color: var(--red); }
+
+.chamado-data-topo{
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.chamado-desc{
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.chamado-meta{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.chamado-protocolo{
+  font-family: monospace;
+  font-weight: 700;
+  letter-spacing: .3px;
+}
+
+.chamados-vazio,
+.chamados-carregando{
+  color: var(--text-muted);
+  font-size: 14px;
+  padding: 4px 2px;
+}
+
+.chamados-erro{
+  color: var(--red);
+  font-size: 14px;
+  background: var(--red-bg);
+  border: 1px solid #F6C9C5;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+@media (max-width: 420px){
+  .chamado-top{ align-items:flex-start; }
+}
  
 @media (max-width: 420px){
   .tab-title{ font-size: 14px; }
   .tab-desc{ font-size: 11.5px; }
   .anexo-nome{ max-width: 140px; }
 }
- 

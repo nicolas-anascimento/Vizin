@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/assets/admin/admin-sidebar/admin-sidebar.css">
+    <link rel="stylesheet" href="/assets/admin/Usuarios/admin-shared.css">
+    <link rel="stylesheet" href="/assets/admin/Pagamentos/pagamentos.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <title>Pagamentos — Admin Vizin</title>
+</head>
+<body class="admin-body" data-page="pagamentos">
+
+    <div id="adminSidebarContainer"></div>
+
+    <main class="admin-main">
+
+        <div class="admin-topbar-mobile">
+            <button id="adminMenuToggle" aria-label="Abrir menu"><i class="bi bi-list"></i></button>
+        </div>
+
+        <header class="admin-page-header">
+            <h1>Gerenciamento de Pagamentos</h1>
+            <p>Gerencie transações e receitas da plataforma</p>
+        </header>
+
+        <!-- ================= CARDS DE ESTATÍSTICA ================= -->
+        <section class="admin-stats-grid">
+            <div class="admin-stat-card">
+                <span class="admin-stat-label">Receita Total</span>
+                <div class="admin-stat-valor" id="statReceitaTotal">—</div>
+                <span class="admin-stat-variacao" id="statReceitaVariacao"></span>
+            </div>
+            <div class="admin-stat-card">
+                <span class="admin-stat-label">Pagamentos Pendentes</span>
+                <div class="admin-stat-valor" id="statPendentes">—</div>
+                <span class="admin-stat-sublabel">Aguardando confirmação</span>
+            </div>
+            <div class="admin-stat-card">
+                <span class="admin-stat-label">Transações Falhadas</span>
+                <div class="admin-stat-valor alerta" id="statFalhadas">—</div>
+                <span class="admin-stat-sublabel">Requer atenção</span>
+            </div>
+        </section>
+
+        <!-- ================= GRÁFICOS ================= -->
+        <section class="admin-graficos-grid">
+            <div class="admin-grafico-card">
+                <h2>Receita Mensal</h2>
+                <div id="graficoReceitaMensal"></div>
+            </div>
+            <div class="admin-grafico-card">
+                <h2>Métodos de Pagamento</h2>
+                <div id="graficoMetodos"></div>
+            </div>
+        </section>
+
+        <!-- ================= BUSCA + FILTROS ================= -->
+        <div class="admin-filtros-container">
+
+            <section class="admin-toolbar">
+                <div class="admin-search-box">
+                    <i class="bi bi-search"></i>
+                    <input type="text" id="buscaTransacoes" placeholder="Buscar por ID, usuário ou método...">
+                </div>
+
+                <button class="admin-btn-filtro" id="btnFiltros" type="button">
+                    <i class="bi bi-funnel"></i> Filtros
+                </button>
+            </section>
+
+            <section class="admin-filtro-status" id="filtroStatusBar">
+                <span class="admin-filtro-status-label">Status:</span>
+                <div class="admin-filtro-pills">
+                    <button type="button" class="admin-filtro-pill active" data-status="todos">Todos</button>
+                    <button type="button" class="admin-filtro-pill" data-status="pago">Concluído</button>
+                    <button type="button" class="admin-filtro-pill" data-status="pendente">Pendente</button>
+                    <button type="button" class="admin-filtro-pill" data-status="falhou">Falhou</button>
+                    <button type="button" class="admin-filtro-pill" data-status="estornado">Estornado</button>
+                </div>
+            </section>
+
+        </div>
+
+        <!-- ================= TABELA ================= -->
+        <section class="admin-card">
+
+            <div class="admin-tabela-scroll">
+                <table class="admin-tabela">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Usuário</th>
+                            <th>Método</th>
+                            <th>Valor</th>
+                            <th>Data</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="corpoTabelaTransacoes">
+                        <!-- linhas inseridas via pagamentos.js -->
+                    </tbody>
+                </table>
+            </div>
+
+            <p id="tabelaEstadoVazio" class="admin-tabela-vazio" hidden>Nenhuma transação encontrada.</p>
+
+            <div class="admin-tabela-rodape">
+                <span id="infoPaginacao"></span>
+                <div class="admin-paginacao" id="paginacao"></div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <div id="toast" class="admin-toast"></div>
+
+    <script src="/assets/usuario/Login/api.js"></script>
+    <script src="/assets/admin/Pagamentos/pagamentos-api.js"></script>
+    <script src="/assets/admin/Pagamentos/pagamento-detalhes-admin.js"></script>
+    <script src="/assets/admin/admin-sidebar/admin-frame.js"></script>
+    <script src="/assets/admin/Pagamentos/pagamentos.js"></script>
+
+</body>
+</html>

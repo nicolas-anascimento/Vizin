@@ -10,5 +10,7 @@ export async function cleanupRequestUploads(req: Request): Promise<void> {
       : req.files
         ? Object.values(req.files).flat()
         : [];
-  await Promise.all(files.map((file) => fs.unlink(file.path).catch(() => undefined)));
+  await Promise.all(
+    files.map((file) => fs.unlink(file.path).catch(() => undefined)),
+  );
 }

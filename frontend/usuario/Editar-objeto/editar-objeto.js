@@ -26,7 +26,7 @@ try {
  
 /* ===================================================
    IDENTIFICAR QUAL OBJETO ESTÁ SENDO EDITADO
-   Espera uma URL do tipo: editar-objeto.html?id=123
+   Espera uma URL do tipo: /editar-objeto?id=<uuid>
    =================================================== */
 const params = new URLSearchParams(window.location.search);
 const objetoId = params.get("id");

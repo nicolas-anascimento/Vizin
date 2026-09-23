@@ -39,7 +39,13 @@ async function carregarAnuncios() {
             porPagina: POR_PAGINA
         });
 
-        estado.anuncios = (resposta.data || []).map(a => ({ ...a, proprietarioNome: a.usuarios?.nome || '—', categoria: a.categorias?.nome || '—', preco_dia: a.preco_por_dia, imagem: a.fotos_item?.[0]?.url, status: a.arquivado ? 'arquivado' : (a.disponivel ? 'ativo' : 'oculto') }));
+        // Ciclo de vida: ativo/removido/arquivado (ver admin-anuncio-acoes.js).
+        // "status" agora vem pronto do back como enum — não é mais derivado
+        // do boolean "disponivel" (que só dava pra representar 2 estados).
+        // Preserva o restante do objeto (`...a`) porque o modal "Ver anúncio"
+        // depende de campos como descricao/localizacao/fotos_item que vêm
+        // direto do back nessa mesma linha.
+        estado.anuncios = (resposta.data || []).map(a => ({ ...a, proprietarioNome: a.usuarios?.nome || '—', categoria: a.categorias?.nome || '—', preco_dia: a.preco_por_dia, imagem: a.fotos_item?.[0]?.url, status: a.status }));
         estado.total = resposta.total;
     } catch (err) {
         corpoTabela.innerHTML = `<tr><td colspan="8" class="admin-tabela-vazio">${err.message}</td></tr>`;
@@ -80,7 +86,7 @@ function formatarPreco(valor) {
 }
 
 function labelStatus(status) {
-    return { ativo: "Ativo", oculto: "Oculto", arquivado: "Arquivado" }[status] || status;
+    return { ativo: "Ativo", removido: "Removido", arquivado: "Arquivado" }[status] || status;
 }
 
 // Mesma prioridade que meus-objetos.js já usa do lado do usuário:
@@ -116,7 +122,8 @@ function renderizarTabela() {
             <td data-label="Status"><span class="admin-badge ${a.status}">${labelStatus(a.status)}</span></td>
             <td data-label="Ações">
                 <div class="admin-acoes">
-                    ${a.arquivado ? '' : '<button class="admin-acao-btn status" title="Alterar disponibilidade" data-acao="status"><i class="bi bi-shield-lock"></i></button>'}
+                    <button class="admin-acao-btn ver" title="Ver anúncio" data-acao="ver"><i class="bi bi-eye"></i></button>
+                    <button class="admin-acao-btn status" title="Alterar status" data-acao="status"><i class="bi bi-shield-lock"></i></button>
                     <button class="admin-acao-btn excluir" title="Excluir" data-acao="excluir"><i class="bi bi-trash"></i></button>
                 </div>
             </td>
@@ -156,7 +163,7 @@ inputBusca.addEventListener("input", () => {
 });
 
 // =====================================================
-// FILTRO DE STATUS (só Ativo/Removido agora)
+// FILTRO DE STATUS (Todos/Ativo/Removido)
 // =====================================================
 const btnFiltros = document.getElementById("btnFiltros");
 const filtroStatusBar = document.getElementById("filtroStatusBar");
@@ -205,7 +212,7 @@ paginacaoEl.addEventListener("click", (e) => {
 });
 
 // =====================================================
-// AÇÕES DA LINHA (ver / editar / status / excluir)
+// AÇÕES DA LINHA (ver / status / excluir)
 // =====================================================
 corpoTabela.addEventListener("click", (e) => {
     const btn = e.target.closest(".admin-acao-btn");
@@ -217,6 +224,10 @@ corpoTabela.addEventListener("click", (e) => {
     if (!anuncio) return;
 
     const acao = btn.dataset.acao;
+
+    if (acao === "ver") {
+        abrirModalVerAnuncio(anuncio);
+    }
 
     if (acao === "status") {
         abrirModalStatusAnuncio(anuncio, () => carregarAnuncios());

@@ -4,10 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Suporte e Denúncias</title>
-<link rel="stylesheet" href="suporte.css?v=8">
-<link rel="stylesheet" href="../header/header.css">
-<link rel="stylesheet" href="../footer/footer.css">
-<link rel="stylesheet" href="../Notificacoes/notificacoes-shared.css">
+<link rel="stylesheet" href="/assets/usuario/Suporte/suporte.css?v=8">
+<link rel="stylesheet" href="/assets/usuario/header/header.css">
+<link rel="stylesheet" href="/assets/usuario/footer/footer.css">
+<link rel="stylesheet" href="/assets/usuario/Notificacoes/notificacoes-shared.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
 </head>
 <body>
@@ -29,43 +29,6 @@
       <div class="tab-icon">&#9873;</div>
       <div class="tab-title">Denúncia</div>
       <div class="tab-desc">Reportar um problema ou comportamento inadequado</div>
-    </div>
-    <div class="tab-card" id="tab-sinistro">
-      <div class="tab-icon"><i class="bi bi-tools"></i></div>
-      <div class="tab-title">Sinistro</div>
-      <div class="tab-desc">Registrar uma ocorrência após a retirada do objeto</div>
-    </div>
-  </div>
-
-  <!-- FORMULÁRIO: SINISTRO -->
-  <div class="panel-wrap" id="panel-sinistro">
-    <div class="panel">
-      <form id="form-sinistro" novalidate>
-        <div class="field" id="sinistro-aluguel-field">
-          <label for="sinistro-aluguel">Aluguel relacionado</label>
-          <select id="sinistro-aluguel" name="aluguelId">
-            <option value="">Selecione um aluguel com retirada registrada</option>
-          </select>
-          <div class="field-error">Selecione o aluguel relacionado.</div>
-        </div>
-
-        <div class="field" id="sinistro-descricao-field">
-          <label for="sinistro-descricao">Descrição da ocorrência</label>
-          <textarea id="sinistro-descricao" name="descricao" maxlength="10000" placeholder="Descreva o que aconteceu e o estado do objeto."></textarea>
-          <div class="field-error">Descreva a ocorrência.</div>
-        </div>
-
-        <div class="field" id="sinistro-valor-field">
-          <label for="sinistro-valor">Valor solicitado (opcional)</label>
-          <input type="number" id="sinistro-valor" name="valorSolicitado" min="0" step="0.01" placeholder="0,00">
-          <div class="field-error">Informe um valor válido.</div>
-        </div>
-
-        <button type="submit" class="submit-btn purple" id="sinistro-submit-btn">
-          <span>&#9992;</span> Enviar Sinistro
-        </button>
-        <div class="status-msg" id="sinistro-status"></div>
-      </form>
     </div>
   </div>
  
@@ -206,23 +169,25 @@
 
 <section class="page" aria-labelledby="meus-chamados-titulo">
   <h2 id="meus-chamados-titulo">Meus chamados</h2>
-  <div id="meus-chamados-lista">Carregando...</div>
+  <div id="meus-chamados-lista" class="chamados-lista">
+    <p class="chamados-carregando">Carregando seus chamados...</p>
+  </div>
 </section>
 
 <div id="footer"></div>
  
 <div id="toast" class="toast">Copiado ✔</div>
  
-<script src="../header/frame.js"></script>
+<script src="/assets/usuario/header/frame.js"></script>
  
 <!-- Configuração e cliente da API: SEMPRE antes dos módulos compartilhados -->
-<script src="../utils/config.js"></script>
-<script src="../utils/api-client.js"></script>
+<script src="/assets/usuario/utils/config.js"></script>
+<script src="/assets/usuario/utils/api-client.js"></script>
  
-<script src="../Notificacoes/notificacoes-shared.js?v=10"></script>
+<script src="/assets/usuario/Notificacoes/notificacoes-shared.js?v=10"></script>
  
-<script src="../Notificacoes/solicitacoes-shared.js?v=9"></script>
+<script src="/assets/usuario/Notificacoes/solicitacoes-shared.js?v=9"></script>
  
-<script src="suporte.js?v=3"></script>
+<script src="/assets/usuario/Suporte/suporte.js?v=3"></script>
 </body>
 </html>

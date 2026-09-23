@@ -185,10 +185,64 @@ export function serializePayment(p: any): Record<string, unknown> {
 export function serializeReview(r: any): Record<string, unknown> {
   return { id: r.id, aluguel_id: r.aluguel_id, avaliador_id: r.avaliador_id, avaliado_id: r.avaliado_id, contexto: r.contexto, objetoId: r.item_id, nota: r.nota, comentario: r.comentario ?? "", criado_em: r.criado_em };
 }
-// Identifica remetente relativo ao usuário e adapta anexo e leitura para o chat.
-export function serializeMessage(m: any, userId: string): Record<string, unknown> {
-  const attachment = m.anexo ? { id: m.anexo.id, url: `/api/uploads/${m.anexo.id}`, name: m.anexo.nome, mimeType: m.anexo.mime, type: m.anexo.mime.startsWith("image/") ? "image" : m.anexo.mime.startsWith("video/") ? "video" : "file" } : null;
-  return { id: m.id, from: m.remetente_id === userId ? "me" : "them", type: attachment?.type ?? "text", text: m.conteudo, time: m.enviada_em, status: m.lida ? "read" : "sent", attachment };
+export interface SerializedMessage {
+  id: string;
+  conversation_id: string | null;
+  client_message_id: string | null;
+  sender: { id: string; name: string | null };
+  from: "me" | "them";
+  type: "text" | "image" | "video" | "file";
+  text: string;
+  content: string;
+  time: Date | string | null;
+  created_at: Date | string | null;
+  status: "read" | "sent";
+  attachment: {
+    id: string;
+    url: string;
+    name: string;
+    mimeType: string;
+    type: "image" | "video" | "file";
+  } | null;
+}
+
+type SerializableMessage = {
+  id: string;
+  conversa_id?: string | null;
+  cliente_id?: string | null;
+  remetente_id: string;
+  conteudo: string;
+  lida?: boolean | null;
+  enviada_em?: Date | string | null;
+  anexo?: { id: string; nome: string; mime: string } | null;
+  usuarios_mensagens_remetente_idTousuarios?: { id: string; nome: string } | null;
+};
+
+// DTO único usado pelo histórico REST e pelos eventos do Socket.IO.
+export function serializeMessage(m: SerializableMessage, userId: string): SerializedMessage {
+  const attachmentType: "image" | "video" | "file" = m.anexo?.mime.startsWith("image/")
+    ? "image"
+    : m.anexo?.mime.startsWith("video/")
+      ? "video"
+      : "file";
+  const attachment: SerializedMessage["attachment"] = m.anexo ? { id: m.anexo.id, url: `/api/uploads/${m.anexo.id}`, name: m.anexo.nome, mimeType: m.anexo.mime, type: attachmentType } : null;
+  return {
+    id: m.id,
+    conversation_id: m.conversa_id ?? null,
+    client_message_id: m.cliente_id ?? null,
+    sender: {
+      id: m.remetente_id,
+      name: m.usuarios_mensagens_remetente_idTousuarios?.nome ?? null,
+    },
+    from: m.remetente_id === userId ? "me" : "them",
+    type: attachment?.type ?? "text",
+    text: m.conteudo,
+    content: m.conteudo,
+    time: m.enviada_em ?? null,
+    created_at: m.enviada_em ?? null,
+    status: m.lida ? "read" : "sent",
+    attachment,
+  };
 }
 
 // Oculta CPF, email e telefone em respostas públicas; libera esses campos no perfil próprio.

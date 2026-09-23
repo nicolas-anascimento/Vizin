@@ -58,7 +58,7 @@
     background: var(--admin-surface);
     border: 1px solid var(--admin-borda);
     border-radius: 12px;
-    padding: 0 16px;
+    padding: 16px;
     height: 46px;
 }
 
@@ -207,8 +207,10 @@
 /* ================= BADGES ESPECÍFICOS DESTA TELA =================
    As classes base .admin-badge e .ativo já vêm de admin-shared.css.
 
-   Status (ciclo de vida do admin): só "removido" precisa de classe
-   própria — "ativo" reaproveita a verde que já existe em admin-shared.
+   Status (ciclo de vida do admin): "ativo" reaproveita a verde que já
+   existe em admin-shared. "Removido" e "arquivado" têm classe própria —
+   removido é vermelho (ação de moderação), arquivado é neutro/cinza
+   (não é penalidade, só saiu de circulação por já ter histórico).
 
    Disponibilidade: os 4 estados reais que meus-objetos.js já usa do
    lado do usuário (em_locacao > solicitação pendente > pausado/
@@ -216,6 +218,7 @@
    verde por semântica equivalente, mas com nome próprio pra ficar
    claro no HTML/JS que é outra coisa. */
 .admin-badge.removido{ color: var(--admin-vermelho-txt); background: var(--admin-vermelho-bg); }
+.admin-badge.arquivado{ color: var(--admin-texto-muted); background: var(--admin-bg); }
 
 .admin-badge.disponivel{ color: var(--admin-verde-txt); background: var(--admin-verde-bg); }
 .admin-badge.em-locacao{ color: #3B82C4; background: #E3F1FB; }
@@ -291,4 +294,131 @@
     .admin-tabela td[data-label="Ações"]::before{ display: none; }
 
     .admin-tabela td[data-label="Ações"]{ justify-content: flex-end; }
+}
+
+
+.admin-pagina-btn{
+    min-width: 34px;
+    height: 34px;
+    padding: 0 10px;
+    border-radius: 8px;
+    border: 1px solid var(--admin-borda);
+    background: var(--admin-surface);
+    color: var(--admin-texto);
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: .2s ease;
+}
+
+.admin-pagina-btn:hover:not(:disabled){
+    border-color: var(--admin-roxo-500);
+    color: var(--admin-roxo-500);
+}
+
+.admin-pagina-btn:disabled{
+    opacity: .45;
+    cursor: not-allowed;
+}
+
+.admin-pagina-btn.active{
+    background: var(--admin-roxo-500);
+    border-color: var(--admin-roxo-500);
+    color: #F2F2F2;
+}
+
+#infoPaginacao{
+    font-size: 13.5px;
+    color: var(--admin-texto-muted);
+}
+
+.admin-paginacao{
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* ================= BOTÃO "VER" NA COLUNA DE AÇÕES =================
+   Caso admin-shared.css não tenha essa variante (só definia .status e
+   .excluir antes) — cor neutra/azul, sem mexer no restante do padrão
+   visual de .admin-acao-btn que já vem de lá. */
+.admin-acao-btn.ver{
+    color: #3B82C4;
+}
+
+/* ================= MODAL "VER ANÚNCIO" =================
+   Reaproveita .admin-modal-overlay/.admin-modal (de admin-shared.css,
+   mesmo padrão dos modais de status/excluir) — só um pouco mais largo,
+   porque tem galeria + grid de dados + descrição. */
+.admin-modal-grande{
+    width: 100%;
+    max-width: 640px;
+}
+
+.admin-ver-anuncio-galeria{
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    margin: 14px 0;
+    padding-bottom: 4px;
+}
+
+.admin-ver-anuncio-foto{
+    width: 120px;
+    height: 90px;
+    min-width: 120px;
+    border-radius: 10px;
+    background-color: var(--admin-bg);
+    background-size: cover;
+    background-position: center;
+}
+
+.admin-ver-anuncio-sem-fotos{
+    font-size: 13.5px;
+    color: var(--admin-texto-muted);
+    margin: 14px 0;
+}
+
+.admin-ver-anuncio-grid{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 20px;
+    margin-bottom: 16px;
+}
+
+.admin-ver-anuncio-grid div{
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.admin-ver-anuncio-grid span{
+    font-size: 12px;
+    color: var(--admin-texto-muted);
+}
+
+.admin-ver-anuncio-grid strong{
+    font-size: 14px;
+    color: var(--admin-texto);
+}
+
+.admin-ver-anuncio-descricao span{
+    display: block;
+    font-size: 12px;
+    color: var(--admin-texto-muted);
+    margin-bottom: 4px;
+}
+
+.admin-ver-anuncio-descricao p{
+    font-size: 14px;
+    color: var(--admin-texto);
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+@media (max-width: 640px){
+    .admin-ver-anuncio-grid{
+        grid-template-columns: 1fr;
+    }
 }

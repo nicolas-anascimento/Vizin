@@ -178,6 +178,7 @@ model mensagens {
   id                                           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   conversa_id                                  String?    @db.Uuid
   conversa                                     conversas? @relation(fields: [conversa_id], references: [id], onDelete: Cascade)
+  cliente_id                                   String?    @db.Uuid
   anexo_id                                     String?    @unique @db.Uuid
   anexo                                        anexos?    @relation(fields: [anexo_id], references: [id])
   remetente_id                                 String     @db.Uuid
@@ -194,6 +195,7 @@ model mensagens {
   @@index([aluguel_id], map: "idx_mensagens_aluguel")
   @@index([destinatario_id], map: "idx_mensagens_destinatario")
   @@index([remetente_id], map: "idx_mensagens_remetente")
+  @@unique([remetente_id, cliente_id], map: "mensagens_remetente_cliente_key")
 }
 
 /// Avisos entregues ao usuário, com contexto e indicador de leitura.

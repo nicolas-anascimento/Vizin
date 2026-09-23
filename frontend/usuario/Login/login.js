@@ -41,7 +41,16 @@ if (LoginLink) {
 }
 
 // /cadastro reutiliza esta página e abre diretamente o formulário correto.
-if (new URLSearchParams(window.location.search).get("cadastro") === "1") {
+// O link "Cadastre-se" aponta pra "/cadastro" (sem query string), então
+// checamos o pathname; mantemos o "?cadastro=1" também aceito, caso o
+// back prefira resolver a rota /cadastro com um redirect pra
+// /login?cadastro=1 em vez de servir este mesmo arquivo direto em /cadastro.
+// TODO: alinhar com o back qual dos dois formatos a rota /cadastro vai usar.
+const querPaginaCadastro =
+    window.location.pathname === "/cadastro" ||
+    new URLSearchParams(window.location.search).get("cadastro") === "1";
+
+if (querPaginaCadastro) {
     container.classList.add("active");
 }
  
@@ -247,6 +256,30 @@ document.getElementById("btnStep2Next").addEventListener("click", () => {
     irParaEtapa(3);
 });
  
+// ================= ENTER SINCRONIZADO COM AS ETAPAS =================
+// Como as 3 etapas vivem dentro do MESMO <form>, apertar Enter em
+// qualquer campo dispara o "submit" nativo do formulário (o único
+// botão type="submit" é o da etapa 3) — mesmo estando nas etapas 1
+// ou 2. Isso fazia o Enter "pular" a validação da etapa atual e cair
+// direto na validação de CPF/WhatsApp da etapa 3.
+//
+// Aqui interceptamos o Enter nas etapas 1 e 2 e simulamos o clique
+// no mesmo botão "Próximo" que o usuário usaria, reaproveitando a
+// validação e o avanço de etapa (irParaEtapa) — assim Enter e os
+// botões ficam sempre sincronizados. Na etapa 3 deixamos o Enter
+// seguir o fluxo normal, disparando o submit de verdade.
+cadastroForm.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+
+    if (etapaAtual === 1) {
+        e.preventDefault();
+        document.getElementById("btnStep1Next").click();
+    } else if (etapaAtual === 2) {
+        e.preventDefault();
+        document.getElementById("btnStep2Next").click();
+    }
+});
+
 // ---------- ETAPA 3: CPF e WhatsApp ----------
 document.getElementById("btnStep3Back").addEventListener("click", () => {
     limparErroEtapa("registerErro");
@@ -338,7 +371,9 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
  
     try {
         // TODO: confirmar com o back-end o formato exato da resposta de sucesso
-        // do POST /login. Abaixo assumimos { token, usuario: { nome, email, cpf } }.
+        // do POST /login. Abaixo assumimos:
+        // { token: "...", usuario: { id, nome, email, tipo, avatarUrl, verificado } }
+        // (cpf não é usado aqui, não precisa vir na resposta).
         const resposta = await login(somenteNumeros(cpf), senha);
 
         localStorage.setItem("token", resposta.token);
@@ -360,4 +395,3 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
     }
  
 });
- 

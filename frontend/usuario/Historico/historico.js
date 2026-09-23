@@ -21,7 +21,7 @@ const usuarioLogado = JSON.parse(localStorage.getItem("usuario") || "null");
 
 // ================= FILTRO ATIVO =================
 // Pode chegar aqui já apontando pra uma aba específica — o link "Ver
-// solicitação" nas notificações leva pra Historico/index.html?tab=solicitacoes,
+// solicitação" nas notificações leva para /historico?tab=solicitacoes,
 // e o badge do ícone de Histórico no menu usa o mesmo link.
 const tabs = document.querySelectorAll(".historico-tab");
  

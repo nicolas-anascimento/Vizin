@@ -2,10 +2,12 @@ import path from "node:path";
 import type { RequestHandler } from "express";
 import prisma from "../config/database.ts";
 import { HttpError } from "../utils/httpError.ts";
-import { uuid, text } from "../utils/validation.ts";
+import { uuid } from "../utils/validation.ts";
 import { serializeMessage } from "../utils/serializers.ts";
 import { privateRoot } from "../middlewares/privateUpload.ts";
 import { pageHeaders, pagination } from "../utils/listPage.ts";
+import { chatMessageInclude, markChatRead, sendChatMessage } from "../services/chatService.ts";
+import { publishPersistedMessage, publishReadUpdate } from "../../realtime/realtimeService.ts";
 const include = { participantes: { include: { usuario: { select: { id:true,nome:true,foto_url:true,ativo:true } } } }, mensagens: { orderBy: { enviada_em: "desc" as const }, take:1, include:{anexo:true} } };
 // Busca conversa e verifica participação antes de expor mensagens ou alterar seu estado.
 async function conversation(id: unknown, userId: string) {
@@ -51,31 +53,20 @@ export const getConversationMessages: RequestHandler = async(req,res) => {
  const c=await conversation(req.params.id,req.user!.id);
  const limit=Math.min(100,Math.max(1,Number(req.query.limit??100)));
  if(!Number.isInteger(limit)) throw new HttpError(422,"Limite inválido");
- const rows=await prisma.mensagens.findMany({where:{conversa_id:c.id},include:{anexo:true},orderBy:{enviada_em:"desc"},take:limit,...(req.query.before?{cursor:{id:uuid(req.query.before)},skip:1}:{})});
+ const rows=await prisma.mensagens.findMany({where:{conversa_id:c.id},include:chatMessageInclude,orderBy:{enviada_em:"desc"},take:limit,...(req.query.before?{cursor:{id:uuid(req.query.before)},skip:1}:{})});
  res.json(rows.reverse().map(m=>serializeMessage(m,req.user!.id)));
 };
 // Valida destinatário e conteúdo ou anexo antes de criar mensagem.
 export const sendConversationMessage: RequestHandler = async(req,res) => {
- const c=await conversation(req.params.id,req.user!.id);
- const other=c.participantes.find(p=>p.usuario_id!==req.user!.id)!.usuario;
- const content=req.body?.text?text(req.body.text,"Mensagem",3000):"";
- const attachmentId=req.body?.attachmentId?uuid(req.body.attachmentId):null;
- if(!content && !attachmentId) throw new HttpError(422,"Mensagem vazia");
- const row=await prisma.$transaction(async tx=>{
-  // Lock both users in stable order to serialize block/send operations.
-  for(const uid of [req.user!.id,other.id].sort()) await tx.$queryRaw`SELECT id FROM usuarios WHERE id=${uid}::uuid FOR UPDATE`;
-  if(!other.ativo || await tx.bloqueios.count({where:{OR:[{usuario_id:req.user!.id,bloqueado_id:other.id},{usuario_id:other.id,bloqueado_id:req.user!.id}]}})) throw new HttpError(403,"Conversa bloqueada");
-  if(attachmentId && !await tx.anexos.findFirst({where:{id:attachmentId,usuario_id:req.user!.id,mensagem:null}})) throw new HttpError(403,"Anexo indisponível");
-  const m=await tx.mensagens.create({data:{conversa_id:c.id,remetente_id:req.user!.id,destinatario_id:other.id,conteudo:content,anexo_id:attachmentId},include:{anexo:true}});
-  await tx.conversas.update({where:{id:c.id},data:{atualizado_em:new Date()}});
-  await tx.notificacoes.create({data:{usuario_id:other.id,tipo:"mensagem",titulo:"Nova mensagem",mensagem:content.slice(0,140)||"Novo anexo",contexto:{conversaId:c.id,usuarioId:req.user!.id,...(c.objeto_id?{objetoId:c.objeto_id}:{})}}});
-  return m;
- }); res.status(201).json(serializeMessage(row,req.user!.id));
+ const result=await sendChatMessage({conversationId:req.params.id,senderId:req.user!.id,content:req.body?.text,attachmentId:req.body?.attachmentId,clientMessageId:req.body?.client_message_id ?? req.body?.clientMessageId});
+ publishPersistedMessage(result);
+ res.status(result.created?201:200).json(serializeMessage(result.message,req.user!.id));
 };
 // Marca mensagens recebidas como lidas na conversa autorizada.
 export const readConversation: RequestHandler = async(req,res)=>{
- const c=await conversation(req.params.id,req.user!.id);
- await prisma.$transaction([prisma.mensagens.updateMany({where:{conversa_id:c.id,destinatario_id:req.user!.id,lida:false},data:{lida:true}}),prisma.participantes_conversa.update({where:{conversa_id_usuario_id:{conversa_id:c.id,usuario_id:req.user!.id}},data:{lida_em:new Date()}})]);res.json({success:true});
+ const result=await markChatRead(req.params.id,req.user!.id);
+ publishReadUpdate(result);
+ res.json({success:true});
 };
 // Arquiva a conversa para o usuário que solicitou a ação.
 export const archiveConversation: RequestHandler = async(req,res)=>{

@@ -1,5 +1,6 @@
 import path from "node:path";
 import fs from "node:fs";
+import http from "node:http";
 import { fileURLToPath } from "node:url";
 import cookieParser from "cookie-parser";
 import express, { type RequestHandler } from "express";
@@ -12,6 +13,7 @@ import { paymentWebhook } from "./app/controllers/paymentsController.ts";
 import api from "./app/routes/api.ts";
 import web from "./app/routes/web.ts";
 import { uploadsRoot, privateWithdrawalRoot } from "./app/utils/files.ts";
+import { createRealtimeServer } from "./realtime/socket.ts";
 
 // Ponto de entrada: configura segurança, API, arquivos estáticos, tarefas periódicas e encerramento.
 const app = express();
@@ -117,9 +119,27 @@ app.get("/uploads/withdrawals/:name", requireAuth, async (req, res) => {
   res.sendFile(target);
 });
 for (const folder of ["items", "avatars"]) app.use(`/uploads/${folder}`, express.static(path.join(uploadsRoot, folder), { maxAge: env.NODE_ENV === "dev" ? 0 : "7d" }));
+app.use("/assets", (req, res, next) => {
+  // HTML é entregue exclusivamente pelas rotas web limpas.
+  let requestedPath: string;
+  try {
+    requestedPath = decodeURIComponent(req.path);
+  } catch {
+    res.sendStatus(400);
+    return;
+  }
+  if (path.extname(requestedPath).toLowerCase() === ".html") {
+    res.sendStatus(404);
+    return;
+  }
+  next();
+});
 app.use(
   "/assets",
-  express.static(frontendRoot, { maxAge: env.NODE_ENV === "dev" ? 0 : "1d" }),
+  express.static(frontendRoot, {
+    index: false,
+    maxAge: env.NODE_ENV === "dev" ? 0 : "1d",
+  }),
 );
 // Conecta rotas da API e páginas; os handlers de erro ficam por último.
 app.use("/api", api);
@@ -127,16 +147,19 @@ app.use("/", web);
 app.use(notFound);
 app.use(errorHandler);
 
-const server =
-  process.env.VIZIN_NO_LISTEN === "true"
-    ? null
-    : app.listen(env.PORT, () =>
-        console.log(`Vizin disponível em ${env.APP_URL}`),
-      );
+// Express e Socket.IO compartilham exatamente o mesmo servidor e a mesma porta.
+export const server = http.createServer(app);
+export const io = createRealtimeServer(server);
+const shouldListen = process.env.VIZIN_NO_LISTEN !== "true";
+if (shouldListen) {
+  server.listen(env.PORT, () =>
+    console.log(`Vizin disponível em ${env.APP_URL}`),
+  );
+}
 
 // O intervalo de um minuto evita sobrepor duas execuções de manutenção no mesmo processo.
 let maintenanceRunning = false;
-const maintenance = server
+const maintenance = shouldListen
   ? setInterval(() => {
       if (maintenanceRunning) return;
       maintenanceRunning = true;
@@ -155,7 +178,8 @@ maintenance?.unref();
 async function shutdown(signal: string): Promise<void> {
   if (maintenance) clearInterval(maintenance);
   console.log(`Encerrando por ${signal}...`);
-  server?.close(async () => {
+  // O Socket.IO também fecha o servidor HTTP ao qual está anexado.
+  io.close(async () => {
     await prisma.$disconnect();
     process.exit(0);
   });

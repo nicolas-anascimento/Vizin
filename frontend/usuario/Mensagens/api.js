@@ -38,12 +38,15 @@ const API = (() => {
       }
       return Promise.all(messages.map(privateMessage));
     },
-    async sendMessage(id, { text, attachment }) {
+    async sendMessage(id, { text, attachment, clientMessageId }) {
       const sent = await api.post(`/conversations/${enc(id)}/messages`, {
-        text: text || "", ...(attachment?.id ? { attachmentId: String(attachment.id) } : {})
+        text: text || "",
+        ...(attachment?.id ? { attachmentId: String(attachment.id) } : {}),
+        ...(clientMessageId ? { client_message_id: String(clientMessageId) } : {})
       });
       return privateMessage(sent);
     },
+    normalizeMessage: privateMessage,
     markAsRead: id => api.post(`/conversations/${enc(id)}/read`, {}),
     blockUser: conversationId => api.post(`/conversations/${enc(conversationId)}/block`, {}),
     reportConversation: (id, body) => api.post(`/conversations/${enc(id)}/report`, body),

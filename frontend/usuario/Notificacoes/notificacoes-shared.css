@@ -88,6 +88,20 @@ a.link-notificacoes[data-badge-count]:focus-visible::after {
 .toast-notificacao.show {
   transform: translateX(0);
 }
+
+/* Toast com destino: parece (e é) clicável */
+.toast-notificacao.clicavel {
+  cursor: pointer;
+}
+
+.toast-notificacao.clicavel:hover {
+  box-shadow: 0 10px 28px rgba(20, 20, 43, 0.26);
+}
+
+.toast-notificacao.clicavel:focus-visible {
+  outline: 2px solid #6f5fe0;
+  outline-offset: 2px;
+}
  
 .toast-notificacao-icone {
   width: 34px;
@@ -138,4 +152,3 @@ a.link-notificacoes[data-badge-count]:focus-visible::after {
     max-width: none;
   }
 }
- 

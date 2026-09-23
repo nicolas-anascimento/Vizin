@@ -3,7 +3,7 @@
    (depois de config.js, api-client.js, frame.js e logout.js), pois é ele quem:
    - Mantém o número de notificações não lidas em cima do sino do menu
    - Mantém o número de mensagens não lidas em cima do ícone de Mensagens
-   - Mostra o toast quando chega uma notificação nova
+   - Mostra o toast quando chega uma notificação nova (clicável: leva pra página certa)
    - Expõe window.NotificacoesVizin, usado pela página notificacoes.js
 
    API REAL: quem GERA as notificações é o back-end (solicitação, aprovação,
@@ -14,7 +14,7 @@
    Rotas: GET /notificacoes?limit=100 · PATCH /notificacoes/:id {lida:true} ·
           DELETE /notificacoes/:id · PATCH /notificacoes/ler-todas ·
           GET|PUT /usuarios/preferencias-notificacao
-   Sem WebSocket: polling a cada 20 s (o back adotou polling neste contrato).
+   Socket.IO antecipa novas notificações; polling a cada 20 s permanece como fallback.
    =================================================== */
 
 (function () {
@@ -113,6 +113,17 @@
     }
 
     const pronto = carregar().catch(err => console.error("Não foi possível carregar as notificações:", err));
+
+    // Socket.IO antecipa a atualização; o polling continua como fallback e reconciliação.
+    window.addEventListener("vizin:notification", (event) => {
+        const recebida = normalizar(event.detail || {});
+        if (!recebida.id || cache.some(n => n.id === recebida.id)) return;
+        cache.unshift(recebida);
+        if (!recebida.lida) totalNaoLidasServidor += 1;
+        primeiraCargaFeita = true;
+        avisarMudanca();
+        mostrarToastNotificacao(recebida);
+    });
 
     setInterval(() => { if (!document.hidden) carregar().catch(() => {}); }, INTERVALO_POLLING_MS);
     document.addEventListener("visibilitychange", () => {
@@ -319,7 +330,90 @@
         }
     }
  
+    // ================= DESTINO (DEEP LINK) POR TIPO =================
+    // Fonte única de "pra onde essa notificação leva": usada pelo toast
+    // (abaixo) e pelo "Ver detalhes" da página de Notificações
+    // (notificacoes.js), pra os dois nunca divergirem.
+    //
+    // Retorna a URL, ou null quando não há destino (ex.: "resposta_email"
+    // não carrega nenhum id, ou item antigo sem solicitacaoId).
+    const DESTINO_EM_ANDAMENTO = (id) => `/status-locacao?solicitacaoId=${enc(id)}`;
+    const DESTINO_HISTORICO = () => "/historico";
+
+    const TIPOS_EM_ANDAMENTO = new Set(["aluguel_aprovado", "retirada_confirmada", "lembrete", "problema_reportado"]);
+    const TIPOS_HISTORICO = new Set(["aluguel_rejeitado", "aluguel_cancelado", "devolucao_confirmada", "pagamento_liberado"]);
+
+    // Notificações de conta/administrativas: não dependem de solicitacaoId.
+    const TIPOS_CONTA = new Map([
+        ["bloqueio_conta", () => "/perfil"],
+        ["dados_atualizados_admin", () => "/perfil"],
+        ["anuncio_removido_admin", () => "/meus-objetos"]
+    ]);
+
+    // "avaliacao_recebida" não tem UM destino fixo: se eu era o proprietário
+    // da locação, a avaliação é sobre o OBJETO (página de Produto); se eu era
+    // o locatário, é sobre MIM (meu Perfil). Precisa do cache de solicitações;
+    // em páginas que não carregam solicitacoes-shared.js cai no Histórico.
+    function obterDestinoAvaliacao(notificacao) {
+        const Solicitacoes = window.SolicitacoesVizin;
+        if (!notificacao.solicitacaoId || !Solicitacoes) return DESTINO_HISTORICO();
+
+        const solicitacao = Solicitacoes.obterPorId(notificacao.solicitacaoId);
+        if (!solicitacao) return DESTINO_HISTORICO();
+
+        return solicitacao.souProprietario
+            ? `/produto?id=${solicitacao.produtoId}#avaliacoes`
+            : `/perfil#avaliacoes-secao`;
+    }
+
+    function obterDestino(notificacao) {
+        if (notificacao.tipo === "avaliacao_recebida") return obterDestinoAvaliacao(notificacao);
+        if (TIPOS_CONTA.has(notificacao.tipo)) return TIPOS_CONTA.get(notificacao.tipo)();
+
+        if (TIPOS_EM_ANDAMENTO.has(notificacao.tipo)) {
+            return notificacao.solicitacaoId ? DESTINO_EM_ANDAMENTO(notificacao.solicitacaoId) : null;
+        }
+        if (TIPOS_HISTORICO.has(notificacao.tipo)) return DESTINO_HISTORICO();
+
+        if (notificacao.tipo === "mensagem") {
+            // Com conversaId, a página de Mensagens abre direto a conversa.
+            return notificacao.conversaId
+                ? `/mensagens?conversaId=${enc(notificacao.conversaId)}`
+                : "/mensagens";
+        }
+        return null;
+    }
+
+    // Só o toast: uma solicitação nova leva pra aba Solicitações do Histórico
+    // (é onde o proprietário aprova/recusa). Na página de Notificações esse
+    // tipo tem tratamento próprio, por isso não entra em obterDestino().
+    function obterDestinoDoToast(notificacao) {
+        if (notificacao.tipo === "solicitacao_aluguel") return "/historico?tab=solicitacoes";
+        return obterDestino(notificacao);
+    }
+
     // ================= TOAST DE NOTIFICAÇÃO NOVA =================
+    async function abrirDestinoDoToast(toast) {
+        const notificacao = toast._notificacao;
+        const destino = toast._destino;
+        if (!notificacao || !destino) return;
+
+        toast.classList.remove("show");
+        clearTimeout(toast._timeoutId);
+
+        // Abrir a notificação já a marca como lida (limpa o badge). Espera um
+        // pouco pelo PATCH pra ele não ser cancelado pela navegação, mas sem
+        // travar o clique se a rede estiver lenta.
+        if (!notificacao.lida) {
+            await Promise.race([
+                marcarComoLida(notificacao.id),
+                new Promise(resolve => setTimeout(resolve, 400))
+            ]);
+        }
+
+        window.location.href = destino;
+    }
+
     function mostrarToastNotificacao(notificacao) {
         let toast = document.getElementById("toast-notificacao");
  
@@ -339,14 +433,37 @@
             `;
             document.body.appendChild(toast);
  
-            toast.querySelector(".toast-notificacao-fechar").addEventListener("click", () => {
+            toast.querySelector(".toast-notificacao-fechar").addEventListener("click", (e) => {
+                e.stopPropagation(); // fechar não pode disparar a navegação
                 toast.classList.remove("show");
+            });
+
+            // Clicar no toast leva pra página da notificação.
+            toast.addEventListener("click", () => abrirDestinoDoToast(toast));
+            toast.addEventListener("keydown", (e) => {
+                if (e.target !== toast) return;
+                if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    abrirDestinoDoToast(toast);
+                }
             });
         }
  
         toast.querySelector(".toast-notificacao-icone i").className = `bi ${iconePorTipo(notificacao.tipo)}`;
         toast.querySelector(".toast-notificacao-titulo").textContent = notificacao.titulo;
         toast.querySelector(".toast-notificacao-desc").textContent = notificacao.descricao;
+
+        // Guarda pra onde o clique leva (null = toast só informativo).
+        toast._notificacao = notificacao;
+        toast._destino = obterDestinoDoToast(notificacao);
+        toast.classList.toggle("clicavel", !!toast._destino);
+        if (toast._destino) {
+            toast.setAttribute("role", "link");
+            toast.tabIndex = 0;
+        } else {
+            toast.removeAttribute("role");
+            toast.removeAttribute("tabindex");
+        }
  
         tocarSom("notificacao");
  
@@ -372,6 +489,7 @@
         contarNaoLidas,
         iconePorTipo,
         mostrarToastNotificacao,
+        obterDestino,
         tocarSom,
         usuarioAtual,          // compatibilidade (e-mail); prefira ids
         carregarPreferencias,

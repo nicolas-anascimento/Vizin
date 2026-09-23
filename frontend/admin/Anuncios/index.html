@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="../admin-sidebar/admin-sidebar.css">
-    <link rel="stylesheet" href="../Usuarios/admin-shared.css">
-    <link rel="stylesheet" href="anuncios.css">
+    <link rel="stylesheet" href="/assets/admin/admin-sidebar/admin-sidebar.css">
+    <link rel="stylesheet" href="/assets/admin/Usuarios/admin-shared.css">
+    <link rel="stylesheet" href="/assets/admin/Anuncios/anuncios.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
     <title>Anúncios — Admin Vizin</title>
 </head>
@@ -14,6 +14,10 @@
     <div id="adminSidebarContainer"></div>
 
     <main class="admin-main">
+
+        <div class="admin-topbar-mobile">
+            <button id="adminMenuToggle" aria-label="Abrir menu"><i class="bi bi-list"></i></button>
+        </div>
 
         <header class="admin-page-header admin-page-header-com-acao">
             <div>
@@ -40,6 +44,7 @@
                 <div class="admin-filtro-pills">
                     <button type="button" class="admin-filtro-pill active" data-status="todos">Todos</button>
                     <button type="button" class="admin-filtro-pill" data-status="ativo">Ativo</button>
+                    <button type="button" class="admin-filtro-pill" data-status="removido">Removido</button>
                     <button type="button" class="admin-filtro-pill" data-status="arquivado">Arquivado</button>
                 </div>
             </section>
@@ -81,11 +86,11 @@
 
     <div id="toast" class="admin-toast"></div>
 
-    <script src="../../usuario/Login/api.js"></script>
-    <script src="admin-api.js"></script>
-    <script src="admin-anuncio-acoes.js"></script>
-    <script src="../admin-sidebar/admin-frame.js"></script>
-    <script src="anuncios.js"></script>
+    <script src="/assets/usuario/Login/api.js"></script>
+    <script src="/assets/admin/Anuncios/admin-api.js"></script>
+    <script src="/assets/admin/Anuncios/admin-anuncio-acoes.js"></script>
+    <script src="/assets/admin/admin-sidebar/admin-frame.js"></script>
+    <script src="/assets/admin/Anuncios/anuncios.js"></script>
 
 </body>
 </html>

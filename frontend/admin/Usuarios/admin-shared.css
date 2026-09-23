@@ -45,6 +45,7 @@
 }
 
 .admin-badge.ativo{ color: var(--admin-verde-txt); background: var(--admin-verde-bg); }
+.admin-badge.inativo{ color: var(--admin-vermelho-txt); background: var(--admin-vermelho-bg); }
 .admin-badge.suspenso{ color: var(--admin-ambar-txt); background: var(--admin-ambar-bg); }
 .admin-badge.banido{ color: var(--admin-vermelho-txt); background: var(--admin-vermelho-bg); }
 

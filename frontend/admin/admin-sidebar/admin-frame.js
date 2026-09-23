@@ -3,7 +3,7 @@
  * ------------------------------------------------------------------
  * Equivalente ao frame.js do site do usuário, só que para o painel
  * admin:
- *   1) injeta a sidebar (admin-sidebar/index.html) dentro de
+ *   1) injeta a sidebar servida em /partials/admin-sidebar dentro de
  *      #adminSidebarContainer e marca o item ativo usando o
  *      atributo data-page da <body> de cada página
  *      (ex: <body class="admin-body" data-page="usuarios">);
@@ -14,13 +14,8 @@
  *      poder mostrar avisos sem precisar declarar essa div sozinho
  *      (se a página já tiver a div, essa função reaproveita ela).
  *
- * CORRIGIDO: o fetch apontava para "../Admin-Sidebar/index.html"
- * (maiúsculo), mas a pasta real é "admin-sidebar" (minúsculo, é o
- * mesmo nome usado no <link> do CSS) — em servidor Linux isso
- * quebraria por diferença de maiúsculas/minúsculas.
- *
- * Não reaproveita o frame.js do usuário porque ele já busca
- * ../header/index.html e ../footer/index.html — se fosse incluído
+ * Não reaproveita o frame.js do usuário porque ele busca os fragmentos
+ * de header e footer — se fosse incluído
  * aqui também, tentaria injetar esses elementos em páginas do admin
  * que não têm #header/#footer.
  * ------------------------------------------------------------------
@@ -56,9 +51,9 @@
     const container = document.getElementById("adminSidebarContainer");
     if (!container) return;
 
-    fetch("../admin-sidebar/index.html")
+    fetch("/partials/admin-sidebar")
         .then(r => {
-            if (!r.ok) throw new Error(`Erro ${r.status} ao buscar admin-sidebar/index.html`);
+            if (!r.ok) throw new Error(`Erro ${r.status} ao buscar a sidebar administrativa`);
             return r.text();
         })
         .then(html => {
@@ -66,6 +61,7 @@
             marcarLinkAtivo();
             preencherPerfilAdmin();
             ligarLogout();
+            ligarGavetaMobile();
         })
         .catch(err => console.error("Falha ao carregar sidebar do admin:", err));
 
@@ -159,6 +155,21 @@
             }
 
             window.location.href = "/login";
+        });
+    }
+
+    // ================= GAVETA NO MOBILE =================
+    function ligarGavetaMobile() {
+        document.addEventListener("click", (e) => {
+            if (e.target.closest("#adminMenuToggle")) {
+                document.body.classList.toggle("admin-sidebar-aberta");
+                return;
+            }
+
+            // Fecha ao clicar fora (overlay) ou num link do menu
+            if (e.target.closest("#adminSidebarOverlay") || e.target.closest(".admin-nav-link")) {
+                document.body.classList.remove("admin-sidebar-aberta");
+            }
         });
     }
 
