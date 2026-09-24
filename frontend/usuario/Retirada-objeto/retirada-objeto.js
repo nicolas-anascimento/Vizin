@@ -177,6 +177,37 @@ function parseDataISOLocal(dataStr) {
     const [ano, mes, dia] = partes;
     return new Date(ano, mes - 1, dia);
 }
+
+const demoRetiradaCard = document.getElementById("demo-retirada-card");
+const btnDemoRetirada = document.getElementById("btn-demo-retirada");
+const demoRetiradaEstado = document.getElementById("demo-retirada-estado");
+function atualizarDemoRetirada() {
+    if (!demoRetiradaCard || !btnDemoRetirada) return;
+    const atual = RetiradaVizin.obterStatus(aluguelId);
+    const podeLiberar = atual.modoDemo && atual.codigoBloqueio === "retirada_data_futura" && atual.podeLiberarRetiradaDemo;
+    const foiLiberada = atual.modoDemo && atual.retiradaDemoLiberada;
+    demoRetiradaCard.hidden = !podeLiberar && !foiLiberada;
+    document.getElementById("demo-retirada-data").textContent = atual.dataRetirada
+        ? `Retirada contratual: ${atual.dataRetirada.split("-").reverse().join("/")}` : "";
+    btnDemoRetirada.hidden = !podeLiberar;
+    if (foiLiberada && demoRetiradaEstado) demoRetiradaEstado.textContent = "Retirada liberada para demonstração. As fotos e confirmações continuam obrigatórias.";
+}
+
+btnDemoRetirada?.addEventListener("click", async () => {
+    if (btnDemoRetirada.disabled) return;
+    btnDemoRetirada.disabled = true;
+    btnDemoRetirada.textContent = "Liberando...";
+    if (demoRetiradaEstado) demoRetiradaEstado.textContent = "";
+    try {
+        await RetiradaVizin.liberarRetiradaDemo(aluguelId);
+        atualizarDemoRetirada();
+        mostrarToast("Retirada liberada para demonstração. Envie suas fotos normalmente.");
+    } catch (erro) {
+        btnDemoRetirada.disabled = false;
+        btnDemoRetirada.textContent = "Liberar retirada para demonstração";
+        if (demoRetiradaEstado) demoRetiradaEstado.textContent = erro.message || "Não foi possível liberar a retirada.";
+    }
+});
  
 (function mostrarPrazo() {
     if (!solicitacao || !solicitacao.dataRetirada) return;
@@ -367,6 +398,7 @@ window.addEventListener("beforeunload", (e) => {
  
 // ================= STATUS DAS DUAS PARTES (vem do back) =================
 function renderizarStatus() {
+    atualizarDemoRetirada();
     const status = RetiradaVizin.obterStatus(aluguelId);
     const statusLista = document.getElementById("status-lista");
     statusLista.innerHTML = "";
@@ -506,6 +538,7 @@ function acompanharOutraParte() {
 // e reabri a página, pula direto pro estado de aguardando/confirmado.
 try {
     await RetiradaVizin.carregar(aluguelId);
+    atualizarDemoRetirada();
 } catch (erro) {
     console.error("Não foi possível carregar o status da retirada:", erro);
     mostrarToast(erro.message || "Não foi possível carregar o status da retirada.", "erro");

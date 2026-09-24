@@ -649,3 +649,4 @@
     transition: none !important;
   }
 }
+.demo-retirada-card{margin:14px 0;padding:18px;border:1px dashed #8c78b8;background:#faf8ff}.demo-retirada-card[hidden],.demo-retirada-card button[hidden]{display:none}.demo-retirada-card h2{margin:0 0 8px;font-size:1.1rem}.demo-retirada-card p{margin:8px 0}.demo-retirada-nota{font-size:.9rem;color:#5d5868}

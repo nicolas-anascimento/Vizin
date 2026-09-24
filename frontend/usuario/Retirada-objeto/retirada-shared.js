@@ -38,6 +38,11 @@ const RetiradaVizin = (function () {
         return {
             solicitacaoId: String(dto.solicitacao_id),
             status: dto.status,               // status da solicitação (fonte de verdade da etapa)
+            dataRetirada: dto.data_retirada || null,
+            codigoBloqueio: dto.codigo_bloqueio || null,
+            modoDemo: dto.modo_demo === true,
+            retiradaDemoLiberada: dto.retirada_demo_liberada === true,
+            podeLiberarRetiradaDemo: dto.pode_liberar_retirada_demo === true,
             locatario: parte(dto.locatario),
             proprietario: parte(dto.proprietario),
             concluidoEm: dto.concluido_em || null
@@ -54,6 +59,11 @@ const RetiradaVizin = (function () {
         const estado = normalizar(dto);
         cache.set(String(aluguelId), estado);
         return estado;
+    }
+
+    async function liberarRetiradaDemo(aluguelId) {
+        await Api.post(`/solicitacoes/${enc(aluguelId)}/retirada/demo`, {});
+        return carregar(aluguelId);
     }
 
     // Leitura síncrona da última carga (estado "nada enviado" se ainda não carregou).
@@ -76,7 +86,7 @@ const RetiradaVizin = (function () {
         return s.locatario.enviado && s.proprietario.enviado;
     }
 
-    return { carregar, obterStatus, enviarFotos, ambosConcluidos };
+    return { carregar, liberarRetiradaDemo, obterStatus, enviarFotos, ambosConcluidos };
 })();
 
 window.RetiradaVizin = RetiradaVizin;

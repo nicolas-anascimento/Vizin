@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/assets/usuario/Produto/fluxo-aluguel.css?v=8">
-    <link rel="stylesheet" href="/assets/usuario/Retirada-objeto/retirada-objeto.css">
+    <link rel="stylesheet" href="/assets/usuario/Retirada-objeto/retirada-objeto.css?v=demo-1">
     <link rel="stylesheet" href="/assets/usuario/header/header.css">
     <link rel="stylesheet" href="/assets/usuario/footer/footer.css">
     <link rel="stylesheet" href="/assets/usuario/Notificacoes/notificacoes-shared.css">
@@ -50,6 +50,14 @@
             <i class="bi bi-hourglass-split"></i>
             <span id="prazo-texto"></span>
         </div>
+
+        <section class="card demo-retirada-card" id="demo-retirada-card" hidden aria-labelledby="demo-retirada-titulo">
+            <h2 id="demo-retirada-titulo">Modo de demonstração</h2>
+            <p id="demo-retirada-data"></p>
+            <button type="button" class="btn btn-primary" id="btn-demo-retirada">Liberar retirada para demonstração</button>
+            <p class="demo-retirada-nota">Esta ação ignora apenas a restrição de data neste ambiente de demonstração. A data original do aluguel não será alterada.</p>
+            <p id="demo-retirada-estado" role="status" aria-live="polite"></p>
+        </section>
  
         <div class="card produto-mini-card">
             <img id="produto-mini-imagem" src="" alt="">
@@ -183,8 +191,8 @@
  
     <script src="/assets/usuario/Notificacoes/solicitacoes-shared.js?v=9"></script>
  
-    <script src="/assets/usuario/Retirada-objeto/retirada-shared.js?v=2"></script>
+    <script src="/assets/usuario/Retirada-objeto/retirada-shared.js?v=demo-1"></script>
  
-    <script src="/assets/usuario/Retirada-objeto/retirada-objeto.js?v=2"></script>
+    <script src="/assets/usuario/Retirada-objeto/retirada-objeto.js?v=demo-1"></script>
 </body>
 </html>
