@@ -201,14 +201,20 @@
   font-family: inherit;
 }
  
-.conta-field-senha {
+/* O wrapper envolve só o input (sem o label acima dele), então
+   "top: 50%" abaixo sempre acompanha a altura real do input em vez de
+   um valor fixo em pixel que dependia da altura do label. */
+.conta-input-wrap {
   position: relative;
 }
  
 .conta-field-senha i {
   position: absolute;
+  top: 50%;
   right: 12px;
-  top: 41px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
   cursor: pointer;
   color: var(--texto-fraco, #999);
 }
@@ -249,4 +255,40 @@
 .card + .card {
   margin-top: 16px;
 }
+
+.btn-senha{
+    position: relative;
+    width: 100%;
+    height: 45px;
+    background: transparent;
+    border-radius: 30px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    border: 2px solid #F27C38;
+    overflow: hidden;
+    z-index: 1;
+    color: #F2F2F2;
+}
  
+.btn-senha::before{
+    content: "";
+    position: absolute;
+    height: 300%;
+    width: 100%;
+    background: linear-gradient(#381D73, #F27C38, #381D73, #F27C38);
+    top: -100%;
+    left: 0;
+    z-index: -1;
+    transition: .5s;
+}
+ 
+.btn-senha:hover:before{
+    top: 0;
+}
+ 
+.btn-senha:disabled{
+    opacity: .6;
+    cursor: not-allowed;
+    pointer-events: none;
+}

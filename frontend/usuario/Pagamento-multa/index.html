@@ -5,14 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Reaproveita o mesmo CSS de Finalizar-pagamento (checkout normal do
          aluguel) — é a mesma tela, só muda o que está sendo cobrado.
-         Ajuste o caminho abaixo se a pasta de Finalizar-pagamento tiver
-         outro nome no seu projeto. -->
+         Ajuste o caminho do finalizar-pagamento.css abaixo se a pasta de
+         Finalizar-pagamento tiver outro nome no seu projeto. -->
     <link rel="stylesheet" href="/assets/usuario/Produto/fluxo-aluguel.css">
     <link rel="stylesheet" href="/assets/usuario/utils/pagamento-gateway.css">
     <link rel="stylesheet" href="/assets/usuario/utils/checkout.css">
     <link rel="stylesheet" href="/assets/usuario/header/header.css">
     <link rel="stylesheet" href="/assets/usuario/footer/footer.css">
     <link rel="stylesheet" href="/assets/usuario/Notificacoes/notificacoes-shared.css">
+    <link rel="stylesheet" href="/assets/usuario/Finalizar-pagamento/finalizar-pagamento.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
     <title>Pagar Multa</title>
 </head>
@@ -29,7 +30,7 @@
              solicitacoes-shared.js) — aqui fica visível já na hora de pagar,
              sem precisar ter passado pelo Histórico antes. Some nas telas
              de erro/sucesso (ver mostrarTela em pagamento-multa.js). -->
-        <div class="banner-prazo" id="banner-bloqueio">
+        <div class="banner-prazo" id="banner-bloqueio" style="display:none;">
             <i class="bi bi-lock"></i>
             <span>Enquanto essa multa não for paga, você não pode solicitar novos aluguéis nem aprovar locações nos seus próprios objetos.</span>
         </div>
@@ -47,6 +48,14 @@
                 <div class="card" id="tela-pagamento" style="display:none;">
                     <h1 class="pagamento-titulo">Pagar Multa por Atraso</h1>
                     <p class="pagamento-subtitulo">Escolha o método de pagamento</p>
+
+                    <section id="pagamento-demo" class="pagamento-demo" hidden aria-labelledby="pagamento-demo-titulo">
+                        <h2 id="pagamento-demo-titulo">Modo de demonstração</h2>
+                        <p>O gateway de pagamento real não está ativo neste ambiente.</p>
+                        <button type="button" id="btn-pagamento-demo">Continuar em modo demonstração</button>
+                        <small>Nenhuma cobrança real será realizada.</small>
+                        <p id="pagamento-demo-estado" role="status" aria-live="polite"></p>
+                    </section>
 
                     <div class="metodos-grid">
                         <button type="button" class="metodo-btn" id="metodo-pix" data-metodo="pix">
@@ -117,49 +126,34 @@
 
                         <form id="form-cartao" novalidate>
 
-                            <!-- Cartões já cadastrados em Forma de Pagamento -->
-                            <div id="cartoes-salvos-secao" style="display:none;">
-                                <div id="cartoes-salvos-lista" class="cartoes-salvos-lista"></div>
-                                <div class="field">
-                                    <label>CVV do cartão selecionado</label>
-                                    <div id="cartao-salvo-cvv" class="campo-seguro"></div>
-                                </div>
-                                <button type="button" class="btn-link" id="btn-usar-outro-cartao">+ Usar outro cartão</button>
+                            <div class="field">
+                                <label>Número do Cartão</label>
+                                <div id="cartao-numero" class="campo-seguro"></div>
+                                <span class="field-erro" id="erro-cartao-numero"></span>
                             </div>
 
-                            <!-- Digitação manual: aparece se não houver cartão salvo, ou se o usuário escolher "usar outro cartão" -->
-                            <div id="campos-cartao-novo">
-                                <button type="button" class="btn-link" id="btn-usar-cartao-salvo" style="display:none;">← Usar um cartão salvo</button>
+                            <div class="field">
+                                <label for="cartao-nome">Nome no Cartão</label>
+                                <input type="text" id="cartao-nome" placeholder="NOME COMO ESTÁ NO CARTÃO" required>
+                                <span class="field-erro" id="erro-cartao-nome"></span>
+                            </div>
 
+                            <div class="field">
+                                <label for="cartao-cpf">CPF do titular</label>
+                                <input type="text" id="cartao-cpf" placeholder="000.000.000-00" maxlength="14" inputmode="numeric" autocomplete="off" required>
+                                <span class="field-erro" id="erro-cartao-cpf"></span>
+                            </div>
+
+                            <div class="row-2">
                                 <div class="field">
-                                    <label>Número do Cartão</label>
-                                    <div id="cartao-numero" class="campo-seguro"></div>
-                                    <span class="field-erro" id="erro-cartao-numero"></span>
+                                    <label>Validade</label>
+                                    <div id="cartao-validade" class="campo-seguro"></div>
+                                    <span class="field-erro" id="erro-cartao-validade"></span>
                                 </div>
-
                                 <div class="field">
-                                    <label for="cartao-nome">Nome no Cartão</label>
-                                    <input type="text" id="cartao-nome" placeholder="NOME COMO ESTÁ NO CARTÃO" required>
-                                    <span class="field-erro" id="erro-cartao-nome"></span>
-                                </div>
-
-                                <div class="field">
-                                    <label for="cartao-cpf">CPF do titular</label>
-                                    <input type="text" id="cartao-cpf" placeholder="000.000.000-00" maxlength="14" inputmode="numeric" autocomplete="off" required>
-                                    <span class="field-erro" id="erro-cartao-cpf"></span>
-                                </div>
-
-                                <div class="row-2">
-                                    <div class="field">
-                                        <label>Validade</label>
-                                        <div id="cartao-validade" class="campo-seguro"></div>
-                                        <span class="field-erro" id="erro-cartao-validade"></span>
-                                    </div>
-                                    <div class="field">
-                                        <label>CVV</label>
-                                        <div id="cartao-cvv" class="campo-seguro"></div>
-                                        <span class="field-erro" id="erro-cartao-cvv"></span>
-                                    </div>
+                                    <label>CVV</label>
+                                    <div id="cartao-cvv" class="campo-seguro"></div>
+                                    <span class="field-erro" id="erro-cartao-cvv"></span>
                                 </div>
                             </div>
 
@@ -180,7 +174,7 @@
                          mensagem preenchidos (ver preencherResumo em
                          pagamento-multa.js). Ajuste o caminho do href se a
                          pasta de Suporte tiver outro nome no seu projeto. -->
-                    <p style="text-align:center; margin-top:12px;">
+                    <p class="suporte-ajuda">
                         <a href="#" id="link-suporte" class="btn-link">Acha que essa cobrança está errada? Fale com o Suporte</a>
                     </p>
                 </div>
@@ -207,35 +201,53 @@
 
             <!-- RESUMO DA MULTA -->
             <div class="pagamento-sidebar" id="pagamento-sidebar">
-                <div class="card">
-                    <h2>Resumo da Multa</h2>
+                <div class="resumo-ticket">
 
-                    <div class="resumo-produto">
-                        <img id="resumo-imagem" src="" alt="">
-                        <div>
-                            <p class="resumo-produto-nome" id="resumo-produto-nome"></p>
-                            <p class="resumo-produto-categoria" id="resumo-produto-categoria"></p>
+                    <div class="resumo-topo">
+                        <h2 class="resumo-titulo">Resumo da multa</h2>
+
+                        <div class="resumo-produto">
+                            <img id="resumo-imagem" src="" alt="">
+                            <div class="resumo-produto-info">
+                                <p class="resumo-produto-nome" id="resumo-produto-nome"></p>
+                                <p class="resumo-produto-categoria" id="resumo-produto-categoria"></p>
+                            </div>
+                        </div>
+
+                        <!-- dias de atraso × valor por dia -->
+                        <div class="resumo-rota resumo-rota-calculo">
+                            <div class="rota-ponto">
+                                <span class="rota-rotulo">Dias de atraso</span>
+                                <strong id="resumo-dias-atraso"></strong>
+                            </div>
+                            <div class="rota-trilho">
+                                <span class="rota-duracao" aria-hidden="true">×</span>
+                            </div>
+                            <div class="rota-ponto rota-ponto-fim">
+                                <span class="rota-rotulo">Valor por dia</span>
+                                <strong id="resumo-valor-dia"></strong>
+                            </div>
                         </div>
                     </div>
 
-                    <hr>
+                    <div class="resumo-picote" aria-hidden="true"></div>
 
-                    <div class="resumo-linha"><span>Dias de atraso:</span><span id="resumo-dias-atraso"></span></div>
-                    <div class="resumo-linha"><span>Valor por dia:</span><span id="resumo-valor-dia"></span></div>
+                    <div class="resumo-base">
+                        <div class="resumo-linha resumo-total-linha">
+                            <span>Total da multa</span>
+                            <span id="resumo-total"></span>
+                        </div>
 
-                    <hr>
+                        <div class="resumo-linha resumo-linha-detalhe"><span>Parcela da plataforma</span><span id="resumo-plataforma"></span></div>
+                        <div class="resumo-linha resumo-linha-detalhe"><span>Parcela do proprietário</span><span id="resumo-proprietario"></span></div>
+                        <div class="resumo-linha resumo-linha-detalhe"><span>Situação</span><span class="resumo-status" id="resumo-status"></span></div>
 
-                    <div class="resumo-linha resumo-total-linha">
-                        <span>Total da multa:</span>
-                        <span id="resumo-total"></span>
+                        <div class="dica-box dica-box-info">
+                            <i class="bi bi-info-circle"></i>
+                            <span><strong>Sobre esta cobrança:</strong> este valor é referente ao atraso na devolução do objeto. Assim que o pagamento for confirmado, a locação segue normalmente para a etapa de avaliação.</span>
+                        </div>
                     </div>
-                    <div class="resumo-linha"><span>Parcela da plataforma:</span><span id="resumo-plataforma"></span></div>
-                    <div class="resumo-linha"><span>Parcela do proprietário:</span><span id="resumo-proprietario"></span></div>
-                    <div class="resumo-linha"><span>Situação:</span><span id="resumo-status"></span></div>
 
-                    <div class="dica-box">
-    <strong>ℹ️ Sobre esta cobrança:</strong> este valor é referente ao atraso na devolução do objeto. Assim que o pagamento for confirmado, a locação segue normalmente para a etapa de avaliação.
-</div>
                 </div>
             </div>
 
@@ -255,9 +267,9 @@
     <script src="/assets/usuario/utils/api-client.js"></script>
     <script src="/assets/usuario/Notificacoes/notificacoes-shared.js"></script>
     <script src="/assets/usuario/Notificacoes/solicitacoes-shared.js"></script>
-    <script src="/assets/usuario/utils/pagamentos-api.js"></script>
+    <script src="/assets/usuario/utils/pagamentos-api.js?v=demo-1"></script>
     <script src="/assets/usuario/utils/pagamento-gateway.js"></script>
-    <script src="/assets/usuario/utils/checkout-shared.js"></script>
+    <script src="/assets/usuario/utils/checkout-shared.js?v=demo-1"></script>
     <script src="/assets/usuario/Pagamento-multa/pagamento-multa.js?v=2"></script>
 </body>
 </html>

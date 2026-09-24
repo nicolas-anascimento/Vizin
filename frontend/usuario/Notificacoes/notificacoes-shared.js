@@ -49,13 +49,6 @@
         return todas;
     }
 
-    // Mantido só por compatibilidade com telas antigas — identificação de
-    // usuário agora é por id (ver SolicitacoesVizin.usuarioId()).
-    function usuarioAtual() {
-        const usuario = JSON.parse(localStorage.getItem("usuario") || "null");
-        return usuario?.email || "convidado";
-    }
-
     // ================= NORMALIZAÇÃO =================
     function normalizar(n) {
         const iso = n.data || n.criado_em || null;
@@ -81,7 +74,6 @@
 
     // ================= CARGA (polling) =================
     async function carregar() {
-        if (!localStorage.getItem("token")) return;
         if (carregando) return carregando;
 
         carregando = (async () => {
@@ -184,35 +176,31 @@
     // ================= PREFERÊNCIAS DE NOTIFICAÇÃO =================
     // Persistidas no back (GET/PUT /usuarios/preferencias-notificacao). Eventos
     // críticos de transação (dinheiro, bloqueio, disputa) não são desligáveis.
-    const PREFERENCIAS_PADRAO = {
-        solicitacao_recebida: true,
-        solicitacao_respondida: true,
-        lembretes_aluguel: true,
-        avaliacao_recebida: true,
-        mensagens: true,
-        novidades: false
-    };
-
-    let preferenciasCache = { ...PREFERENCIAS_PADRAO };
+    let preferenciasCache = null;
 
     async function carregarPreferencias() {
-        if (!localStorage.getItem("token")) return preferenciasCache;
         const dados = await Api.get("/usuarios/preferencias-notificacao");
-        preferenciasCache = { ...PREFERENCIAS_PADRAO, ...(dados?.preferencias || dados || {}) };
-        return preferenciasCache;
+        const preferencias = dados?.preferencias || dados;
+        if (!preferencias || typeof preferencias !== "object" || Array.isArray(preferencias)) {
+            throw new Error("Resposta de preferências inválida");
+        }
+        preferenciasCache = { ...preferencias };
+        return { ...preferenciasCache };
     }
 
     function obterPreferencias() {
-        return { ...preferenciasCache };
+        return preferenciasCache ? { ...preferenciasCache } : null;
     }
 
     async function salvarPreferencias(prefs) {
         const dados = await Api.put("/usuarios/preferencias-notificacao", prefs);
-        preferenciasCache = { ...PREFERENCIAS_PADRAO, ...prefs, ...(dados?.preferencias || {}) };
-        return preferenciasCache;
+        const preferencias = dados?.preferencias || dados;
+        if (!preferencias || typeof preferencias !== "object" || Array.isArray(preferencias)) {
+            throw new Error("Resposta de preferências inválida");
+        }
+        preferenciasCache = { ...preferencias };
+        return { ...preferenciasCache };
     }
-
-    carregarPreferencias().catch(() => { /* usa os padrões */ });
 
     // ================= ÍCONE POR TIPO =================
     function iconePorTipo(tipo) {
@@ -224,6 +212,7 @@
             case "aluguel_aprovado": return "bi-check-lg";
             case "aluguel_rejeitado": return "bi-x-lg";
             case "retirada_confirmada": return "bi-camera-fill";
+            case "retirada_atrasada": return "bi-exclamation-triangle-fill";
             case "devolucao_confirmada": return "bi-arrow-counterclockwise";
             case "pagamento_liberado": return "bi-cash-coin";
             case "avaliacao_recebida": return "bi-star-fill";
@@ -340,7 +329,7 @@
     const DESTINO_EM_ANDAMENTO = (id) => `/status-locacao?solicitacaoId=${enc(id)}`;
     const DESTINO_HISTORICO = () => "/historico";
 
-    const TIPOS_EM_ANDAMENTO = new Set(["aluguel_aprovado", "retirada_confirmada", "lembrete", "problema_reportado"]);
+    const TIPOS_EM_ANDAMENTO = new Set(["aluguel_aprovado", "retirada_confirmada", "retirada_atrasada", "lembrete", "problema_reportado"]);
     const TIPOS_HISTORICO = new Set(["aluguel_rejeitado", "aluguel_cancelado", "devolucao_confirmada", "pagamento_liberado"]);
 
     // Notificações de conta/administrativas: não dependem de solicitacaoId.
@@ -491,11 +480,9 @@
         mostrarToastNotificacao,
         obterDestino,
         tocarSom,
-        usuarioAtual,          // compatibilidade (e-mail); prefira ids
         carregarPreferencias,
         obterPreferencias,
-        salvarPreferencias,
-        PREFERENCIAS_PADRAO
+        salvarPreferencias
     };
 
     // Atalho global simples, pra scripts de outras páginas (ex: script.js da

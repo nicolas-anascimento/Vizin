@@ -13,6 +13,7 @@ import {
 } from "./realtimeService.ts";
 import type { ConversationPayload, SocketErrorPayload } from "./types.ts";
 import type { RealtimeSocket } from "./socket.ts";
+import { consumeRateLimit } from "../app/middlewares/rateLimit.ts";
 
 function socketError(
   error: unknown,
@@ -28,9 +29,6 @@ function socketError(
 }
 
 export function registerChatSocket(socket: RealtimeSocket): void {
-  let messageWindowStartedAt = Date.now();
-  let messagesInWindow = 0;
-
   socket.on("chat:join", async (payload) => {
     try {
       const conversation = await getChatConversation(
@@ -56,13 +54,8 @@ export function registerChatSocket(socket: RealtimeSocket): void {
   socket.on("message:send", async (payload) => {
     const clientMessageId = payload?.client_message_id;
     try {
-      const now = Date.now();
-      if (now - messageWindowStartedAt >= 60_000) {
-        messageWindowStartedAt = now;
-        messagesInWindow = 0;
-      }
-      messagesInWindow += 1;
-      if (messagesInWindow > 30) {
+      const limit = consumeRateLimit(`chat-message:user:${socket.data.userId}`, 60_000, 30);
+      if (!limit.allowed) {
         throw new HttpError(429, "Muitas mensagens; aguarde um instante", "limite_mensagens");
       }
       uuid(clientMessageId, "Mensagem do cliente");

@@ -84,16 +84,11 @@
     window.PagamentosAPI = {
         ApiError,
 
-        // ---- Cartões salvos ----
-        listarCartoes: () => requisitar("GET", "/cartoes"),
-        adicionarCartao: (tokenCartao) => requisitar("POST", "/cartoes", { token_cartao: tokenCartao }),
-        tornarCartaoPadrao: (id) => requisitar("PATCH", `/cartoes/${enc(id)}/padrao`),
-        removerCartao: (id) => requisitar("DELETE", `/cartoes/${enc(id)}`),
-
         // ---- Cobranças (o back é a fonte de todos os valores) ----
         obterCobrancaAluguel: (solicitacaoId) => requisitar("GET", `/solicitacoes/${enc(solicitacaoId)}/pagamento`),
         obterConfirmacaoAluguel: (solicitacaoId) => requisitar("GET", `/solicitacoes/${enc(solicitacaoId)}/confirmacao-pagamento`),
         obterCobrancaMulta: (solicitacaoId) => requisitar("GET", `/solicitacoes/${enc(solicitacaoId)}/multa`),
+        obterConfiguracaoPublica: () => requisitar("GET", "/configuracao-publica"),
 
         // ---- Pagamentos ----
         // tipo: "aluguel" | "multa". A chave de idempotência evita cobrança em
@@ -103,6 +98,12 @@
                 ? `/solicitacoes/${enc(solicitacaoId)}/multa/pagamentos`
                 : `/solicitacoes/${enc(solicitacaoId)}/pagamentos`;
             return requisitar("POST", caminho, corpo, { "Idempotency-Key": chaveIdempotencia });
+        },
+        pagarEmModoDemo: (tipo, solicitacaoId, chaveIdempotencia) => {
+            const caminho = tipo === "multa"
+                ? `/solicitacoes/${enc(solicitacaoId)}/multa/pagamentos/demo`
+                : `/solicitacoes/${enc(solicitacaoId)}/pagamentos/demo`;
+            return requisitar("POST", caminho, {}, { "Idempotency-Key": chaveIdempotencia });
         },
         obterPagamento: (pagamentoId) => requisitar("GET", `/pagamentos/${enc(pagamentoId)}`)
     };

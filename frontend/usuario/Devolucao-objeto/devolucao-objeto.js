@@ -1,11 +1,3 @@
-// ================= PROTEGER PÁGINA =================
-if (!localStorage.getItem("token")) {
-    window.location.href = "/login";
-}
-
-// ================= USUÁRIO LOGADO =================
-const usuarioLogado = JSON.parse(localStorage.getItem("usuario") || "null");
-
 // Precisa existir já aqui em cima: se a página é recarregada com as fotos já
 // enviadas, o fluxo abaixo chama mostrarAguardando() -> acompanharOutraParte()
 // bem cedo (antes da seção "TROCA DE ESTADOS"), e essa função usa essa
@@ -70,7 +62,7 @@ const produto = {
     id: solicitacao.produtoId,
     titulo: solicitacao.produtoTitulo,
     categoria: solicitacao.produtoCategoria || "",
-    imagem: solicitacao.imagemProduto || "../img/sem-imagem.jpg",
+    imagem: solicitacao.imagemProduto || "/assets/usuario/img/sem-imagem.jpg",
     proprietario: { nome: solicitacao.proprietarioNome || "Proprietário" }
 };
 

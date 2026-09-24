@@ -1,28 +1,4 @@
-// ================= PROTEGER PÁGINA =================
-if (!localStorage.getItem("token")) {
- 
-    sessionStorage.setItem(
-        "mensagemLogin",
-        "Você precisa estar logado para acessar essa página."
-    );
- 
-    window.location.href = "/login";
- 
-}
- 
-// Protegido contra JSON corrompido em localStorage.usuario.
 let usuarioLogado = null;
- 
-try {
- 
-    usuarioLogado = JSON.parse(localStorage.getItem("usuario") || "null");
- 
-} catch (erro) {
- 
-    console.error("Dados de usuário corrompidos no localStorage:", erro);
-    localStorage.removeItem("usuario");
- 
-}
  
 /* ===================================================
    IDENTIFICAR QUAL OBJETO ESTÁ SENDO EDITADO
@@ -131,6 +107,7 @@ let photoPreviewURLs = [];
    1) CARREGAR OS DADOS ATUAIS DO OBJETO
    =================================================== */
 async function carregarObjeto() {
+  usuarioLogado = await (window.SessaoVizin?.pronto ?? Promise.resolve(usuarioLogado));
   await window.CategoriasVizin.carregar(document.getElementById("categoria"));
   // As solicitações do usuário (cache do back) alimentam a trava de locação/pendência.
   if (window.SolicitacoesVizin) await window.SolicitacoesVizin.pronto;
@@ -580,7 +557,7 @@ form.addEventListener("submit", async (e) => {
   btnSubmit.textContent = "Salvando...";
  
   try {
-    // Fotos existentes seguem como URLs (imagens_mantidas); as novas são reduzidas no
+    // Fotos existentes seguem como UUIDs (fotos_mantidas); as novas são reduzidas no
     // navegador e sobem por multipart. O back define a foto principal a partir da ordem
     // (mantidas primeiro, depois as novas).
     //

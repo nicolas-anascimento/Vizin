@@ -12,6 +12,7 @@ import { nonEmptyString } from "../utils/strings.ts";
 import { pageHeaders, pagination } from "../utils/listPage.ts";
 import { assertRentalUnblocked, currentRentalBlock } from "../services/rentalBlocking.ts";
 import { requestFinancial } from "./paymentsController.ts";
+import { createNotification, createNotifications } from "../services/notificationPreferences.ts";
 
 // Reúne as relações necessárias para montar o DTO da solicitação, incluindo objeto, participantes, pagamentos e multa.
 export const rentalInclude = {
@@ -113,14 +114,12 @@ export const createRentalRequest: RequestHandler = async (req, res) => {
       include: rentalInclude,
     });
     // A notificação ao proprietário é criada na mesma transação: só existe se a solicitação existir.
-    await tx.notificacoes.create({
-      data: {
+    await createNotification(tx, {
         usuario_id: item.usuario_id,
         contexto: { aluguelId: created.id, objetoId: item.id, solicitacaoId: created.id, usuarioId: req.user!.id },
         tipo: "solicitacao",
         titulo: "Nova solicitação de aluguel",
         mensagem: `Você recebeu uma solicitação para ${item.titulo}.`,
-      },
     });
     return created;
   }, { isolationLevel: "Serializable" });
@@ -198,7 +197,7 @@ export const updateRentalStatus: RequestHandler = async (req, res) => {
       if (pending.length) {
         await tx.alugueis.updateMany({ where: { id: { in: pending.map(row => row.id) }, status: "pendente" }, data: { status: "recusado", atualizado_em: new Date() } });
         await tx.eventos_aluguel.createMany({ data: pending.map(row => ({ aluguel_id: row.id, status: "recusado", motivo: "Conflito com solicitação aprovada" })) });
-        await tx.notificacoes.createMany({ data: pending.map(row => ({ usuario_id: row.locatario_id, tipo: "aluguel_rejeitado", titulo: "Solicitação não aprovada", mensagem: "O objeto foi reservado para o mesmo período.", contexto: { solicitacao_id: row.id, aluguelId: row.id } })) });
+        await createNotifications(tx, pending.map(row => ({ usuario_id: row.locatario_id, tipo: "aluguel_rejeitado", titulo: "Solicitação não aprovada", mensagem: "O objeto foi reservado para o mesmo período.", contexto: { solicitacao_id: row.id, aluguelId: row.id } })));
       }
     }
     // Pagamentos reais devem ser resolvidos no provedor antes de concluir o cancelamento local.
@@ -212,14 +211,12 @@ export const updateRentalStatus: RequestHandler = async (req, res) => {
     if (req.baseUrl.startsWith("/api/admin")) await audit(tx, req.user!.id, "alterar_status", "aluguel", rental.id, { status });
     const result = await tx.alugueis.findUniqueOrThrow({ where: { id: rental.id }, include: rentalInclude });
     const target = rental.locador_id === req.user!.id ? rental.locatario_id : rental.locador_id;
-    await tx.notificacoes.create({
-      data: {
+    await createNotification(tx, {
         usuario_id: target,
         contexto: { aluguelId: rental.id, objetoId: rental.item_id, solicitacaoId: rental.id },
         tipo: ({aprovado:"aluguel_aprovado",recusado:"aluguel_rejeitado",cancelado:"aluguel_cancelado",finalizado:"devolucao_confirmada"} as Record<string,string>)[status] ?? "aluguel",
         titulo: "Status do aluguel atualizado",
         mensagem: `O aluguel de ${rental.itens.titulo} está ${status}.`,
-      },
     });
     return result;
   });

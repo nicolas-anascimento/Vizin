@@ -1,5 +1,6 @@
 import prisma from "../config/database.ts";
 import { HttpError } from "../utils/httpError.ts";
+import { createNotification } from "./notificationPreferences.ts";
 import { text, uuid } from "../utils/validation.ts";
 
 export const chatMessageInclude = {
@@ -141,8 +142,7 @@ export async function sendChatMessage(input: SendChatMessageInput) {
       where: { id: conversation.id },
       data: { atualizado_em: new Date() },
     });
-    const notification = await tx.notificacoes.create({
-      data: {
+    const notification = await createNotification(tx, {
         usuario_id: recipient.id,
         tipo: "mensagem",
         titulo: "Nova mensagem",
@@ -154,7 +154,6 @@ export async function sendChatMessage(input: SendChatMessageInput) {
             ? { objetoId: conversation.objeto_id }
             : {}),
         },
-      },
     });
     return { message, notification, created: true };
   });

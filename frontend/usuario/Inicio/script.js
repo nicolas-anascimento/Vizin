@@ -1,25 +1,3 @@
-// ================= PROTEGER HOME =================
-if (!localStorage.getItem("token")) {
- 
-    // Guarda um aviso pra tela de Login mostrar (ex: via toast lá),
-    // já que aqui o redirecionamento é imediato e o usuário não teria
-    // tempo de entender por que "caiu" na tela de login.
-    sessionStorage.setItem(
-        "mensagemLogin",
-        "Você precisa estar logado para acessar essa página."
-    );
- 
-    window.location.href = "/login";
- 
-}
- 
-// ================= AUTENTICAÇÃO (uso futuro nas chamadas à API) =================
-// Isso só anexa o token que o front já tem nas requisições - não substitui
-// a validação do token do lado do back-end.
-function tokenAutenticacao() {
-    return localStorage.getItem("token");
-}
-
 // ================= BOTÃO ANUNCIAR =================
 const btnAdicionar = document.querySelector('.btn-adicionar');
  
@@ -84,7 +62,7 @@ async function carregarObjetos() {
             categoriaSlug: obj.categoria?.slug || obj.categoria_slug || obj.categoria || "",
             preco: obj.preco_dia ?? obj.preco ?? obj.preco_por_dia,
             localizacao: obj.localizacao,
-            imagem: obj.imagem || "../img/sem-imagem.jpg",
+            imagem: obj.imagem || "/assets/usuario/img/sem-imagem.jpg",
             media: avaliacao.media,
             totalAvaliacoes: avaliacao.total
         };
@@ -334,7 +312,7 @@ function criarCardObjeto(obj) {
     // em loop caso a imagem de fallback também falhe.
     img.addEventListener('error', function aoFalhar() {
         img.removeEventListener('error', aoFalhar);
-        img.src = '../img/sem-imagem.jpg';
+        img.src = '/assets/usuario/img/sem-imagem.jpg';
     });
  
     imgContainer.appendChild(img);
@@ -505,29 +483,10 @@ function mostrarToast(mensagem, tipo = "sucesso") {
 // ================= BOAS VINDAS =================
 const boasVindas = document.getElementById("boasVindas");
  
-// Protegido contra JSON corrompido em localStorage.usuario (ex: dado
-// truncado ou editado manualmente) — sem isso, um JSON.parse
-// quebrado derrubava o script inteiro e travava busca, filtros etc.
-let usuario = null;
- 
-try {
- 
-    usuario = JSON.parse(localStorage.getItem("usuario") || "null");
- 
-} catch (erro) {
- 
-    console.error("Dados de usuário corrompidos no localStorage:", erro);
-    localStorage.removeItem("usuario");
- 
-}
- 
-if (usuario && boasVindas) {
- 
+window.SessaoVizin?.pronto.then(usuario => {
+    if (!usuario || !boasVindas) return;
     boasVindas.textContent = "👋 Bem-vindo(a), ";
- 
     const nomeUsuario = document.createElement("strong");
     nomeUsuario.textContent = usuario.nome;
- 
     boasVindas.appendChild(nomeUsuario);
- 
-}
+});

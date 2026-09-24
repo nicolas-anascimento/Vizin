@@ -1,4 +1,5 @@
 /* Layout compartilhado pelas cobranças de locação e multa. */
+.pagamento-demo{margin:1rem 0;padding:1rem;border:1px dashed #8b93a1;border-radius:12px;background:#f6f7f9}.pagamento-demo h2{margin:0 0 .4rem;font-size:1.1rem}.pagamento-demo p{margin:.4rem 0}.pagamento-demo button{display:block;width:100%;padding:.8rem 1rem;border:0;border-radius:8px;background:#374151;color:#fff;font:inherit;font-weight:700;cursor:pointer}.pagamento-demo button:disabled{opacity:.65;cursor:wait}.pagamento-demo small{display:block;margin-top:.5rem;color:#596273}.confirmado-demo{padding:.65rem 1rem;border-radius:8px;background:#fff7dd;color:#624800;font-weight:600}
 .pagamento-grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:start}
 .pagamento-main,.pagamento-sidebar{min-width:0}
 .pagamento-titulo{font-size:1.7rem;margin-bottom:8px}
@@ -21,3 +22,4 @@
 .spinner{display:inline-block;width:16px;height:16px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:checkout-spin .8s linear infinite}@keyframes checkout-spin{to{transform:rotate(360deg)}}
 @media(max-width:800px){.pagamento-grid{grid-template-columns:1fr}.pagamento-sidebar{order:-1}}
 @media(max-width:480px){.metodos-grid,.row-2{grid-template-columns:1fr}}
+.pagamento-demo{margin:1rem 0;padding:1rem;border:1px dashed #8b93a1;border-radius:12px;background:#f6f7f9}.pagamento-demo h2{margin:0 0 .4rem;font-size:1.1rem}.pagamento-demo p{margin:.4rem 0}.pagamento-demo button{display:block;width:100%;padding:.8rem 1rem;border:0;border-radius:8px;background:#374151;color:#fff;font:inherit;font-weight:700;cursor:pointer}.pagamento-demo button:disabled{opacity:.65;cursor:wait}.pagamento-demo small{display:block;margin-top:.5rem;color:#596273}.confirmado-demo{padding:.65rem 1rem;border-radius:8px;background:#fff7dd;color:#624800;font-weight:600}

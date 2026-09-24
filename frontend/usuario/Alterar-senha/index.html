@@ -19,31 +19,37 @@
         <a class="conta-voltar" href="/minha-conta"><i class="bi bi-arrow-left"></i> Voltar para Minha conta</a>
  
         <h1 class="conta-titulo-pagina">Alterar senha</h1>
-        <p class="conta-subtitulo-pagina">Depois de salvar, você continuará conectado neste dispositivo, mas recomendamos sair dos demais.</p>
+        <p class="conta-subtitulo-pagina">Depois de salvar, todas as sessões serão encerradas e você precisará entrar novamente.</p>
  
         <div class="card">
             <form id="formAlterarSenha">
                 <div class="conta-field conta-field-senha">
                     <label for="senhaAtual">Senha atual</label>
-                    <input type="password" id="senhaAtual" required autocomplete="current-password">
-                    <i class="bi bi-eye-slash toggle-senha" id="toggleSenhaAtual"></i>
+                    <div class="conta-input-wrap">
+                        <input type="password" id="senhaAtual" required autocomplete="current-password">
+                        <i class="bi bi-eye-slash toggle-senha" id="toggleSenhaAtual"></i>
+                    </div>
                 </div>
  
                 <div class="conta-field conta-field-senha">
                     <label for="senhaNova">Nova senha</label>
-                    <input type="password" id="senhaNova" required autocomplete="new-password">
-                    <i class="bi bi-eye-slash toggle-senha" id="toggleSenhaNova"></i>
+                    <div class="conta-input-wrap">
+                        <input type="password" id="senhaNova" required autocomplete="new-password">
+                        <i class="bi bi-eye-slash toggle-senha" id="toggleSenhaNova"></i>
+                    </div>
                 </div>
  
                 <div class="conta-field conta-field-senha">
                     <label for="senhaConfirmar">Confirmar nova senha</label>
-                    <input type="password" id="senhaConfirmar" required autocomplete="new-password">
-                    <i class="bi bi-eye-slash toggle-senha" id="toggleSenhaConfirmar"></i>
+                    <div class="conta-input-wrap">
+                        <input type="password" id="senhaConfirmar" required autocomplete="new-password">
+                        <i class="bi bi-eye-slash toggle-senha" id="toggleSenhaConfirmar"></i>
+                    </div>
                 </div>
  
                 <p id="mensagemSenha" class="conta-mensagem"></p>
  
-                <button type="submit" class="btn" id="btnSalvarSenha">Salvar nova senha</button>
+                <button type="submit" class="btn-senha" id="btnSalvarSenha">Salvar nova senha</button>
             </form>
         </div>
  
@@ -53,6 +59,6 @@
  
     <script src="/assets/usuario/header/frame.js"></script>
     <script src="/assets/usuario/Login/api.js"></script>
-    <script src="/assets/usuario/Alterar-senha.js/alterar-senha.js"></script>
+    <script src="/assets/usuario/Alterar-senha/alterar-senha.js"></script>
 </body>
 </html>

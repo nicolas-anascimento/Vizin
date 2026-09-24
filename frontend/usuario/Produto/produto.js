@@ -1,25 +1,5 @@
-// ================= PROTEGER PÁGINA =================
-if (!localStorage.getItem("token")) {
-    window.location.href = "/login";
-    throw new Error("Redirecionando para login: usuário não autenticado.");
-}
-
-// A checagem acima só roda uma vez, no carregamento. Se a pessoa fizer
-// logout em outra aba (ou o token for limpo por expiração) enquanto está
-// no meio de preencher as datas aqui, antes ela só ia descobrir que não
-// está mais logada ao clicar em "Solicitar Aluguel" e cair num alert seco
-// — diferente do resto do site (Histórico, Notificações), que redireciona
-// pro Login sozinho assim que a sessão cai. O evento nativo "storage" só
-// dispara nas OUTRAS abas (nunca na que fez a mudança), que é exatamente o
-// cenário aqui.
-window.addEventListener("storage", (e) => {
-    if (e.key === "token" && !e.newValue) {
-        window.location.href = "/login?sessao_expirada=1";
-    }
-});
-
 // ================= USUÁRIO LOGADO =================
-const usuarioLogado = JSON.parse(localStorage.getItem("usuario") || "null");
+let usuarioLogado = null;
 
 // Ids de solicitação agora são UUID: a ordem "mais recente primeiro" vem da
 // data de criação (vinda do back), não do id.
@@ -50,6 +30,7 @@ function normalizarProduto(obj) {
 // mora dentro desta função async, chamada uma vez lá no fim do arquivo,
 // depois que `obterPorId` resolve de verdade contra a API.
 async function iniciarPaginaProduto() {
+usuarioLogado = await (window.SessaoVizin?.pronto ?? Promise.resolve(usuarioLogado));
 
 // ================= PRODUTO (vindo do módulo compartilhado) =================
 const produto = window.ObjetosVizin ? normalizarProduto(await window.ObjetosVizin.obterPorId(produtoId)) : null;
@@ -63,7 +44,7 @@ if (!produto) {
             <p style="color:var(--texto-suave); margin-bottom:20px;">
                 Este objeto não foi encontrado ou não está mais disponível.
             </p>
-            <a href="/inicio" class="btn btn-secondary" style="text-decoration:none;">
+            <a href="/home" class="btn btn-secondary" style="text-decoration:none;">
                 Ver outros objetos disponíveis
             </a>
         </div>`;

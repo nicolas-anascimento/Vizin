@@ -33,10 +33,8 @@
     let timerPix = null;
     let seguimentoPix = null;
     let seguimentoCartao = null;
-    let modoCartao = "novo";       // "novo" | "salvo"
-    let cartaoSalvoId = null;
-    let cartoesSalvos = [];
     let rotuloPagar = "Pagar";
+    let demoEmProcessamento = false;
 
     // ================= UTILITÁRIOS =================
     function mostrarToast(mensagem, tipo = "sucesso") {
@@ -50,6 +48,46 @@
         toast.innerText = mensagem;
         toast.className = `toast show ${tipo}`;
         setTimeout(() => toast.classList.remove("show"), 2500);
+    }
+
+    async function configurarPagamentoDemo() {
+        const area = $("pagamento-demo");
+        const botao = $("btn-pagamento-demo");
+        const estado = $("pagamento-demo-estado");
+        if (!area || !botao || !API.obterConfiguracaoPublica) return;
+        try {
+            const config = await API.obterConfiguracaoPublica();
+            if (config?.pagamentos_demo !== true) return;
+            area.hidden = false;
+        } catch (_) { return; }
+        botao.addEventListener("click", async () => {
+            if (demoEmProcessamento || finalizado) return;
+            demoEmProcessamento = true;
+            botao.disabled = true;
+            botao.textContent = "Processando demonstração...";
+            if (estado) estado.textContent = "";
+            try {
+                const storageKey = `vizin_demo_${cfg.tipo}_${cfg.solicitacaoId}`;
+                let operationKey = sessionStorage.getItem(storageKey);
+                if (!operationKey) {
+                    operationKey = gerarChave();
+                    sessionStorage.setItem(storageKey, operationKey);
+                }
+                const pagamento = await API.pagarEmModoDemo(cfg.tipo, cfg.solicitacaoId, operationKey);
+                if (pagamento?.status !== "aprovado" || pagamento?.ambiente !== "simulado") {
+                    throw new Error("O backend não confirmou a aprovação demonstrativa.");
+                }
+                if (estado) estado.textContent = "Pagamento demonstrativo confirmado. Nenhuma cobrança real foi realizada.";
+                finalizar(pagamento);
+            } catch (erro) {
+                botao.disabled = false;
+                botao.textContent = "Continuar em modo demonstração";
+                if (estado) estado.textContent = erro.message || "Não foi possível concluir a demonstração. Tente novamente.";
+                else mostrarToast(erro.message || "Não foi possível concluir a demonstração.", "erro");
+            } finally {
+                demoEmProcessamento = false;
+            }
+        });
     }
 
     function gerarChave() {
@@ -316,100 +354,16 @@
         mostrarToast("Código PIX copiado");
     }
 
-    // ================= CARTÕES SALVOS =================
-    async function carregarCartoesSalvos() {
-        try {
-            cartoesSalvos = await API.listarCartoes();
-        } catch (erro) {
-            console.error(erro);
-            cartoesSalvos = []; // sem lista, a pessoa ainda pode pagar digitando um cartão
-        }
-        renderizarCartoesSalvos();
-    }
-
-    function criarOpcaoCartao(cartao) {
-        const label = document.createElement("label");
-        label.className = "cartao-salvo-opcao";
-
-        const radio = document.createElement("input");
-        radio.type = "radio";
-        radio.name = "cartao-salvo-radio";
-        radio.value = cartao.id;
-        radio.addEventListener("change", () => selecionarCartaoSalvo(cartao.id));
-
-        const icone = document.createElement("div");
-        icone.className = "cartao-salvo-icone";
-        const i = document.createElement("i");
-        i.className = "bi bi-credit-card-fill";
-        icone.appendChild(i);
-
-        const info = document.createElement("div");
-        info.className = "cartao-salvo-info";
-        const numero = document.createElement("p");
-        numero.className = "cartao-salvo-numero";
-        numero.textContent = `${cartao.bandeira} •••• ${cartao.ultimos_digitos}`;
-        const validade = document.createElement("p");
-        validade.className = "cartao-salvo-validade";
-        validade.textContent = `Validade ${cartao.validade}`;
-        info.append(numero, validade);
-
-        label.append(radio, icone, info);
-
-        if (cartao.padrao) {
-            const badge = document.createElement("span");
-            badge.className = "cartao-salvo-badge-padrao";
-            badge.textContent = "Padrão";
-            label.appendChild(badge);
-        }
-        return label;
-    }
-
-    function renderizarCartoesSalvos() {
-        if (cartoesSalvos.length === 0) {
-            modoCartao = "novo";
-            cartaoSalvoId = null;
-            el.cartoesSalvosSecao.style.display = "none";
-            el.camposCartaoNovo.style.display = "block";
-            el.btnUsarCartaoSalvo.style.display = "none";
-        } else {
-            modoCartao = "salvo";
-            el.cartoesSalvosLista.innerHTML = "";
-            cartoesSalvos.forEach(c => el.cartoesSalvosLista.appendChild(criarOpcaoCartao(c)));
-            el.cartoesSalvosSecao.style.display = "block";
-            el.camposCartaoNovo.style.display = "none";
-            el.btnUsarCartaoSalvo.style.display = "inline-block";
-            const inicial = cartoesSalvos.find(c => c.padrao) || cartoesSalvos[0];
-            selecionarCartaoSalvo(inicial.id);
-            return; // selecionarCartaoSalvo já prepara o CVV
-        }
-        prepararCartao();
-    }
-
-    function selecionarCartaoSalvo(id) {
-        cartaoSalvoId = id;
-        el.cartoesSalvosLista.querySelectorAll(".cartao-salvo-opcao").forEach(opcao => {
-            const radio = opcao.querySelector('input[type="radio"]');
-            radio.checked = radio.value === id;
-            opcao.classList.toggle("selecionado", radio.value === id);
-        });
-        esconderErroCartao();
-        prepararCartao();
-    }
-
-    // Monta os campos seguros certos pro modo atual — mas só se a aba de
-    // cartão estiver visível (iframes não devem ser montados em área oculta).
+    // Monta os campos seguros do cartão — mas só se a aba de cartão estiver
+    // visível (iframes não devem ser montados em área oculta).
     function prepararCartao() {
         if (el.conteudoCartao.style.display !== "block") return;
         try {
-            if (modoCartao === "salvo" && cartaoSalvoId) {
-                G.montarCvvCartaoSalvo("cartao-salvo-cvv");
-            } else {
-                G.montarCamposNovoCartao({
-                    idNumero: "cartao-numero",
-                    idValidade: "cartao-validade",
-                    idCvv: "cartao-cvv"
-                });
-            }
+            G.montarCamposNovoCartao({
+                idNumero: "cartao-numero",
+                idValidade: "cartao-validade",
+                idCvv: "cartao-cvv"
+            });
         } catch (erro) {
             console.error(erro);
             mostrarErroGeralCartao(erro.message);
@@ -455,50 +409,39 @@
         e.preventDefault();
         if (emProcessamento || finalizado) return;
         if (sessionStorage.getItem(`${chaveTentativa()}_cartao_desconhecido`) && !corpoCartaoPendente) {
-            mostrarErroGeralCartao("Resultado anterior desconhecido. Consulte o status da locação ou contate o suporte antes de iniciar outro pagamento.");
+            mostrarErroGeralCartao("Há um pagamento anterior em andamento ou com resultado desconhecido. Consulte o status da locação antes de iniciar outro.");
             return;
         }
         esconderErroCartao();
 
-        const salvo = modoCartao === "salvo" && Boolean(cartaoSalvoId);
-        let titular = "";
-        let cpf = "";
-
-        if (!salvo) {
-            // Número, validade e CVV são validados pelo próprio SDK ao tokenizar
-            // (estão dentro de iframes — não temos acesso ao valor). Aqui só o que é nosso.
-            titular = $("cartao-nome").value.trim();
-            cpf = $("cartao-cpf")?.value || "";
-            let valido = true;
-            if (!titular) {
-                definirErroCampo("cartao-nome", "erro-cartao-nome", "Informe o nome como está no cartão.");
-                valido = false;
-            }
-            if (!G.validarCpf(cpf)) {
-                definirErroCampo("cartao-cpf", "erro-cartao-cpf", "CPF inválido.");
-                valido = false;
-            }
-            if (!valido) return;
+        // Número, validade e CVV são validados pelo próprio SDK ao tokenizar
+        // (estão dentro de iframes — não temos acesso ao valor). Aqui só o que é nosso.
+        const titular = $("cartao-nome").value.trim();
+        const cpf = $("cartao-cpf")?.value || "";
+        let valido = true;
+        if (!titular) {
+            definirErroCampo("cartao-nome", "erro-cartao-nome", "Informe o nome como está no cartão.");
+            valido = false;
         }
+        if (!G.validarCpf(cpf)) {
+            definirErroCampo("cartao-cpf", "erro-cartao-cpf", "CPF inválido.");
+            valido = false;
+        }
+        if (!valido) return;
 
         definirProcessando(true);
 
         try {
             if (!corpoCartaoPendente) {
-                const tk = salvo
-                    ? await G.tokenizarCartaoSalvo(cartaoSalvoId)
-                    : await G.tokenizarCartaoNovo({ titular, cpf });
+                const tk = await G.tokenizarCartaoNovo({ titular, cpf });
                 chaveCartao = gerarChave();
                 corpoCartaoPendente = {
                     metodo: "cartao", token_cartao: tk.token,
                     payment_method_id: tk.paymentMethodId || undefined,
-                    cartao_id: salvo ? cartaoSalvoId : undefined,
                     device_id: G.obterDeviceId()
                 };
             }
             const pagamento = await API.criarPagamento(cfg.tipo, cfg.solicitacaoId, corpoCartaoPendente, chaveCartao);
-            corpoCartaoPendente = null;
-            sessionStorage.removeItem(`${chaveTentativa()}_cartao_desconhecido`);
             resolverPagamentoCartao(pagamento);
         } catch (erro) {
             tratarErroCartao(erro);
@@ -507,8 +450,12 @@
 
     function resolverPagamentoCartao(pagamento) {
         if (pagamento.status === "aprovado") {
+            concluirTentativaCartao();
             finalizar(pagamento);
         } else if (pagamento.status === "pendente") {
+            // Mantém a chave e o corpo em memória para qualquer repetição na
+            // mesma página e bloqueia uma chave nova se houver recarga.
+            sessionStorage.setItem(`${chaveTentativa()}_cartao_desconhecido`, "1");
             // Em análise pelo emissor/antifraude (ou aguardando o desafio 3DS):
             // o botão continua travado e consultamos o status até sair de "pendente".
             const desafio3ds = pagamento.acao_necessaria?.tipo === "3ds" && pagamento.acao_necessaria.url;
@@ -518,7 +465,10 @@
             seguimentoCartao = acompanhar(pagamento.pagamento_id, {
                 limiteMs: (desafio3ds ? 5 : 2) * 60 * 1000,
                 aoFinalizar: (final) => {
-                    if (final.status === "aprovado") finalizar(final);
+                    if (final.status === "aprovado") {
+                        concluirTentativaCartao();
+                        finalizar(final);
+                    }
                     else falharCartao(final.mensagem);
                 },
                 aoLimite: () => {
@@ -532,11 +482,15 @@
         }
     }
 
+    function concluirTentativaCartao() {
+        chaveCartao = null;
+        corpoCartaoPendente = null;
+        sessionStorage.removeItem(`${chaveTentativa()}_cartao_desconhecido`);
+    }
+
     function falharCartao(mensagem) {
         fecharDesafio3ds();
-        chaveCartao = null;
-        corpoCartaoPendente = null; // resultado definitivo
-        sessionStorage.removeItem(`${chaveTentativa()}_cartao_desconhecido`);
+        concluirTentativaCartao(); // resultado definitivo
         definirProcessando(false);
         mostrarErroGeralCartao(mensagem || "O cartão foi recusado pela operadora. Verifique os dados ou tente outro cartão.");
         prepararCartao(); // token é de uso único: remonta os campos pra digitar de novo
@@ -561,10 +515,7 @@
 
         // Erro de tokenização (nada foi enviado ao back, os campos seguem preenchidos)
         const campos = erro.campos || {};
-        if (modoCartao === "salvo" && cartaoSalvoId) {
-            // no modo "cartão salvo" os campos com erro inline estão ocultos
-            mostrarErroGeralCartao(campos.cvv || erro.message || "Confira o CVV e tente novamente.");
-        } else if (Object.keys(campos).length > 0) {
+        if (Object.keys(campos).length > 0) {
             definirErroCampo("cartao-numero", "erro-cartao-numero", campos.numero);
             definirErroCampo("cartao-validade", "erro-cartao-validade", campos.validade);
             definirErroCampo("cartao-cvv", "erro-cartao-cvv", campos.cvv);
@@ -599,11 +550,7 @@
             btnPagar: $("btn-pagar-cartao"),
             erroGeral: $("cartao-erro-geral"),
             erroGeralTexto: $("cartao-erro-geral-texto"),
-            acoesErro: $("cartao-acoes-erro"),
-            cartoesSalvosSecao: $("cartoes-salvos-secao"),
-            cartoesSalvosLista: $("cartoes-salvos-lista"),
-            camposCartaoNovo: $("campos-cartao-novo"),
-            btnUsarCartaoSalvo: $("btn-usar-cartao-salvo")
+            acoesErro: $("cartao-acoes-erro")
         };
 
         el.btnPagar.textContent = rotuloPagar;
@@ -621,26 +568,13 @@
             prepararCartao(); // remonta os campos seguros (limpa o que foi digitado)
         });
 
-        $("btn-usar-outro-cartao")?.addEventListener("click", () => {
-            modoCartao = "novo";
-            cartaoSalvoId = null;
-            el.cartoesSalvosSecao.style.display = "none";
-            el.camposCartaoNovo.style.display = "block";
-            el.btnUsarCartaoSalvo.style.display = cartoesSalvos.length > 0 ? "inline-block" : "none";
-            esconderErroCartao();
-            prepararCartao();
-        });
-
-        el.btnUsarCartaoSalvo.addEventListener("click", renderizarCartoesSalvos);
-
         G.ligarMascaraCpf($("cartao-cpf"));
+        configurarPagamentoDemo();
 
         // Não deixa fechar a aba no meio de um pagamento sem avisar.
         window.addEventListener("beforeunload", (ev) => {
             if (emProcessamento) { ev.preventDefault(); ev.returnValue = ""; }
         });
-
-        carregarCartoesSalvos();
     }
 
     window.CheckoutVizin = { iniciar, pararTudo, mostrarToast };

@@ -336,18 +336,30 @@ const productDto=(r:any)=>({id:r.itens.id,titulo:r.itens.titulo,categoria:r.iten
 export const rentalPaymentSummary:RequestHandler=async(req,res)=>{const rental=await resolveRental(req);assertPayable(rental,req.user!.id);res.json({produto:productDto(rental),...contractedPrice(rental),data_retirada:rental.data_inicio.toISOString().slice(0,10),data_devolucao:rental.data_fim.toISOString().slice(0,10),prazo_restante_segundos:Math.max(0,Math.floor((paymentDeadline(rental).getTime()-Date.now())/1000))});};
 // Confirma ao locatário o pagamento já registrado e apresenta datas e total efetivamente pago.
 export const rentalPaymentConfirmation:RequestHandler=async(req,res)=>{
- const rental=await prisma.alugueis.findUnique({where:{id:uuid(req.params.id)},select:{locatario_id:true,status:true,data_inicio:true,data_fim:true,itens:{select:{id:true,titulo:true}},pagamentos:{where:{tipo:"aluguel",status:"pago"},select:{valor:true},orderBy:{criado_em:"desc"},take:1}}});
+ const rental=await prisma.alugueis.findUnique({where:{id:uuid(req.params.id)},select:{locatario_id:true,status:true,data_inicio:true,data_fim:true,itens:{select:{id:true,titulo:true}},pagamentos:{where:{tipo:"aluguel",status:"pago"},select:{valor:true,gateway:true},orderBy:{criado_em:"desc"},take:1}}});
  if(!rental)throw new HttpError(404,"Solicitação não encontrada.","nao_encontrada");
  if(rental.locatario_id!==req.user!.id)throw new HttpError(403,"A solicitação não pertence a você.","nao_pertence");
  if(!["pago","retirado","devolvido","finalizado"].includes(rental.status ?? ""))throw new HttpError(409,"A solicitação ainda não está paga.","nao_paga");
  const payment=rental.pagamentos[0];
  if(!payment)throw new HttpError(409,"A solicitação ainda não está paga.","nao_paga");
- res.json({produto:{id:rental.itens.id,titulo:rental.itens.titulo},data_retirada:rental.data_inicio.toISOString().slice(0,10),data_devolucao:rental.data_fim.toISOString().slice(0,10),dias:rentalDays(rental.data_inicio,rental.data_fim),total_pago:Number(payment.valor)});
+ res.json({produto:{id:rental.itens.id,titulo:rental.itens.titulo},data_retirada:rental.data_inicio.toISOString().slice(0,10),data_devolucao:rental.data_fim.toISOString().slice(0,10),dias:rentalDays(rental.data_inicio,rental.data_fim),total_pago:Number(payment.valor),pagamento_demonstrativo:payment.gateway==="demo"});
 };
 // Mostra a multa persistida ou seu cálculo atual para a solicitação do locatário.
 export const fineSummary:RequestHandler=async(req,res)=>{const rental=await resolveRental(req);const full=await prisma.alugueis.findUniqueOrThrow({where:{id:rental.id},include:{devolucoes:true,multa:true}});res.json({produto:productDto(rental),...finePrice(full)});};
 // Endpoint do contrato atual: valida método, diferencia aluguel de multa e devolve o DTO público.
 export const createContractPayment:RequestHandler=async(req,res)=>{const method=req.body?.metodo;if(!["pix","cartao"].includes(method))throw new HttpError(422,"Método inválido");if(!simulated() && typeof req.body?.token_cartao==="string" && req.body.token_cartao.startsWith("tok_demo_"))throw new HttpError(422,"Token de demonstração não é aceito no gateway real","token_demo_invalido");const tipo=req.path.includes("/multa/")?"multa":"aluguel";let payment=await createPayment(req,method,true,tipo);if(payment.gateway==="demo" && payment.metodo==="cartao" && payment.status==="pendente"){const token=req.body?.token_cartao;payment=token==="tok_demo_pending"?payment:await applyPayment(payment.id,token==="tok_demo_refused"?"falhou":"pago");}res.json(serializePublicPayment(payment));};
+// Cria/aprova uma cobrança demonstrativa pelo mesmo fluxo de validação e idempotência, sem chamar provedor externo.
+export const createDemoPayment:RequestHandler=async(req,res)=>{
+ if(!simulated())throw new HttpError(403,"Pagamento demonstrativo indisponível neste ambiente","demo_indisponivel");
+ rejectCardSecrets(req.body);
+ const tipo=req.path.includes("/multa/")?"multa":"aluguel";
+ const rental=await resolveRental(req);
+ const prepared=await preparePayment(req,"pix",true,tipo,rental);
+ if(prepared.payment.gateway!=="demo")throw new HttpError(409,"Já existe uma cobrança de outro ambiente para esta solicitação","gateway_divergente");
+ let payment=await submitPayment(req,prepared,rental,tipo);
+ if(payment.status==="pendente")payment=await applyPayment(payment.id,"pago");
+ res.json(serializePublicPayment(payment));
+};
 // Alias legado para gerar PIX; preserva os campos de resposta esperados pelo cliente anterior.
 export const generatePix:RequestHandler=async(req,res)=>{const payment=await createPayment(req,"pix");res.json({success:true,...serializePayment(payment),pagamento_id:payment.id,pedido_id:payment.aluguel_id});};
 // Alias legado para pagamento por token de cartão, com simulação restrita ao ambiente demo.

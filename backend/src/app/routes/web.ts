@@ -21,7 +21,7 @@ const adminPage = (folder: string) =>
 const loginPage = userPage("Login");
 const guestOrHome: RequestHandler = (req, res, next) => {
   if (req.user) {
-    res.redirect(req.user.tipo === "admin" ? "/admin" : "/inicio");
+    res.redirect(req.user.tipo === "admin" ? "/admin" : "/home");
     return;
   }
   loginPage(req, res, next);
@@ -30,7 +30,7 @@ const guestOrHome: RequestHandler = (req, res, next) => {
 // Páginas públicas.
 router.get("/", (req, res) => {
   res.redirect(
-    req.user ? (req.user.tipo === "admin" ? "/admin" : "/inicio") : "/login",
+    req.user ? (req.user.tipo === "admin" ? "/admin" : "/home") : "/login",
   );
 });
 router.get("/login", guestOrHome);
@@ -62,7 +62,7 @@ const authenticatedPages: Record<string, RequestHandler> = {
   "/produto": userPage("Produto"),
   "/perfil": userPage("Perfil"),
   "/minha-conta": userPage("Minha-conta"),
-  "/alterar-senha": userPage("Alterar-senha.js"),
+  "/alterar-senha": userPage("Alterar-senha"),
   "/excluir-conta": userPage("Excluir-conta"),
   "/preferencias": userPage("Preferencias"),
   "/privacidade": userPage("Privacidade"),
@@ -85,8 +85,6 @@ const authenticatedPages: Record<string, RequestHandler> = {
   "/finalizar-pagamento": userPage("Finalizar-pagamento"),
   "/pagamento-confirmado": userPage("Pagamento-confirmado"),
   "/pagamento-multa": userPage("Pagamento-multa"),
-  "/formas-de-pagamento": userPage("Forma-de pagamento"),
-  "/forma-de-pagamento": userPage("Forma-de pagamento"),
 };
 
 for (const [route, page] of Object.entries(authenticatedPages)) {

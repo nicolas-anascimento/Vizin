@@ -1,10 +1,3 @@
-// ================= PROTEGER PÁGINA =================
-if (!localStorage.getItem("token")) {
-    sessionStorage.setItem("mensagemLogin", "Você precisa estar logado para verificar sua conta.");
-    window.location.href = "/login";
-    throw new Error("Redirecionando para login: usuário não autenticado.");
-}
- 
 // Status somente do servidor; o cache dura apenas até a próxima consulta.
 let estadoVerificacao = { status: "nao_verificado" };
 function obterEstadoVerificacao() { return estadoVerificacao; }

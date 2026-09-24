@@ -36,7 +36,7 @@ async function carregarUsuarios() {
         estado.usuarios = resposta.dados
             .map(u => ({ ...u, status: u.ativo ? 'ativo' : 'inativo', dataCadastro: u.criado_em }));
     } catch (err) {
-        corpoTabela.innerHTML = `<tr><td colspan="6" class="admin-tabela-vazio">${err.message}</td></tr>`;
+        corpoTabela.innerHTML = `<tr><td colspan="6" class="admin-tabela-vazio">${escAdmin(err.message)}</td></tr>`;
         infoPaginacao.textContent = '';
         paginacaoEl.innerHTML = '';
         return;

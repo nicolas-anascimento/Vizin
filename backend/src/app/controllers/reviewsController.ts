@@ -6,6 +6,7 @@ import { serializeReview } from "../utils/serializers.ts";
 import { HttpError } from "../utils/httpError.ts";
 import { nonEmptyString } from "../utils/strings.ts";
 import { pageHeaders, pagination } from "../utils/listPage.ts";
+import { createNotification } from "../services/notificationPreferences.ts";
 
 // Valida participante, etapa da locação, contexto e nota antes de criar uma avaliação.
 export const createReview: RequestHandler = async (req, res) => {
@@ -24,9 +25,7 @@ export const createReview: RequestHandler = async (req, res) => {
     const created = await tx.avaliacoes.create({
       data: { aluguel_id: rental.id, avaliador_id: req.user!.id, avaliado_id: target, contexto: req.user!.id === rental.locatario_id ? "objeto" : "usuario", item_id: req.user!.id === rental.locatario_id ? rental.item_id : null, nota: score, comentario: nonEmptyString(req.body?.comentario) },
     });
-    await tx.notificacoes.create({
-      data: { contexto: { aluguelId: rental.id, objetoId: rental.item_id }, usuario_id: target, tipo: "avaliacao", titulo: "Nova avaliação", mensagem: `Você recebeu uma avaliação de ${score} estrela${score === 1 ? "" : "s"}.` },
-    });
+    await createNotification(tx, { contexto: { aluguelId: rental.id, objetoId: rental.item_id }, usuario_id: target, tipo: "avaliacao", titulo: "Nova avaliação", mensagem: `Você recebeu uma avaliação de ${score} estrela${score === 1 ? "" : "s"}.` });
     return created;
   });
   res.status(201).json({ success: true, avaliacao: serializeReview(review) });

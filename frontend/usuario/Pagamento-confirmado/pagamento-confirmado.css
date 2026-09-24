@@ -40,6 +40,8 @@
   margin: 0 0 24px;
 }
 
+.confirmado-demo { padding: 10px 14px; border-radius: 8px; background: #fff7dd; color: #624800; font-size: 13px; font-weight: 600; }
+
 .confirmado-resumo {
   background: var(--fundo);
   border-radius: 14px;

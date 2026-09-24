@@ -1,10 +1,3 @@
-// ================= PROTEGER PÁGINA =================
-if (!localStorage.getItem("token")) {
-    window.location.href = "/login";
-}
-
-const usuarioLogado = JSON.parse(localStorage.getItem("usuario") || "null");
-
 // ================= LER SOLICITAÇÃO =================
 const params = new URLSearchParams(window.location.search);
 const solicitacaoId = params.get("solicitacaoId");
@@ -82,7 +75,7 @@ document.getElementById("pergunta-comentario").textContent = textosAvaliacao.per
 document.getElementById("comentario").placeholder = textosAvaliacao.placeholder;
 
 // ================= PREENCHER CABEÇALHO =================
-document.getElementById("produto-mini-imagem").src = solicitacao.imagemProduto || "../img/sem-imagem.jpg";
+document.getElementById("produto-mini-imagem").src = solicitacao.imagemProduto || "/assets/usuario/img/sem-imagem.jpg";
 document.getElementById("produto-mini-nome").textContent = solicitacao.produtoTitulo;
 const nomeEscapado = String(nomeOutraParte).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 document.getElementById("produto-mini-outraparte").innerHTML = meuPapel === "locatario"

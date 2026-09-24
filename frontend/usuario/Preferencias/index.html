@@ -19,7 +19,7 @@
         <a class="conta-voltar" href="/perfil"><i class="bi bi-arrow-left"></i> Voltar ao perfil</a>
  
         <h1 class="conta-titulo-pagina">Notificações</h1>
-        <p class="conta-subtitulo-pagina">Escolha como quer ser avisado sobre a atividade da sua conta.</p>
+        <p class="conta-subtitulo-pagina">Escolha quais avisos opcionais quer receber dentro do VIZIN.</p>
  
         <div class="card">
             <h2>Aluguéis</h2>
@@ -30,7 +30,7 @@
                     <p>Quando alguém pede pra alugar um objeto seu.</p>
                 </div>
                 <label class="conta-toggle">
-                    <input type="checkbox" data-pref="solicitacao_recebida">
+                    <input type="checkbox" data-pref="solicitacao_recebida" disabled>
                     <span class="conta-toggle-track"></span>
                 </label>
             </div>
@@ -41,7 +41,7 @@
                     <p>Quando um pedido seu é respondido.</p>
                 </div>
                 <label class="conta-toggle">
-                    <input type="checkbox" data-pref="solicitacao_respondida">
+                    <input type="checkbox" data-pref="solicitacao_respondida" disabled>
                     <span class="conta-toggle-track"></span>
                 </label>
             </div>
@@ -52,7 +52,7 @@
                     <p>Avisos próximos das datas combinadas.</p>
                 </div>
                 <label class="conta-toggle">
-                    <input type="checkbox" data-pref="lembretes_aluguel">
+                    <input type="checkbox" data-pref="lembretes_aluguel" disabled>
                     <span class="conta-toggle-track"></span>
                 </label>
             </div>
@@ -67,7 +67,7 @@
                     <p>Quando alguém avalia você ou um objeto seu.</p>
                 </div>
                 <label class="conta-toggle">
-                    <input type="checkbox" data-pref="avaliacao_recebida">
+                    <input type="checkbox" data-pref="avaliacao_recebida" disabled>
                     <span class="conta-toggle-track"></span>
                 </label>
             </div>
@@ -78,7 +78,7 @@
                     <p>Novas mensagens de outros usuários.</p>
                 </div>
                 <label class="conta-toggle">
-                    <input type="checkbox" data-pref="mensagens">
+                    <input type="checkbox" data-pref="mensagens" disabled>
                     <span class="conta-toggle-track"></span>
                 </label>
             </div>
@@ -89,14 +89,14 @@
                     <p>Dicas, novidades da plataforma e ofertas.</p>
                 </div>
                 <label class="conta-toggle">
-                    <input type="checkbox" data-pref="novidades">
+                    <input type="checkbox" data-pref="novidades" disabled>
                     <span class="conta-toggle-track"></span>
                 </label>
             </div>
         </div>
  
         <div class="card">
-            <h2>Canais</h2>
+            <h2>Avisos obrigatórios</h2>
  
             <div class="conta-linha-opcao">
                 <div class="conta-linha-texto">
@@ -122,8 +122,8 @@
     <script src="/assets/usuario/utils/config.js"></script>
     <script src="/assets/usuario/utils/api-client.js"></script>
 
-    <script src="/assets/usuario/Notificacoes/notificacoes-shared.js?v=10"></script>
+    <script src="/assets/usuario/Notificacoes/notificacoes-shared.js?v=11"></script>
 
-    <script src="/assets/usuario/Preferencias/preferencias.js?v=12"></script>
+    <script src="/assets/usuario/Preferencias/preferencias.js?v=13"></script>
 </body>
 </html>

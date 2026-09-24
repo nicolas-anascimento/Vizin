@@ -1,7 +1,3 @@
-if (!localStorage.getItem("token")) {
-    window.location.href = "/login";
-}
- 
 const { obterTodas, marcarComoLida, excluir, iconePorTipo, obterDestino } = window.NotificacoesVizin;
  
 const listaNaoLidasEl = document.getElementById("lista-nao-lidas");

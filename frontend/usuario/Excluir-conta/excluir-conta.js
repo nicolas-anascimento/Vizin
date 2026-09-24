@@ -1,12 +1,3 @@
-// ================= PROTEGER PÁGINA =================
-if (!localStorage.getItem("token")) {
-    sessionStorage.setItem("mensagemLogin", "Você precisa estar logado para acessar sua conta.");
-    window.location.href = "/login";
-}
- 
-const usuarioSalvo = JSON.parse(localStorage.getItem("usuario") || "null") || {};
-const emailUsuario = usuarioSalvo.email || "";
- 
 // ================= CHECAGEM DE BLOQUEIOS =================
 // Mesma ideia já usada em "excluir objeto com locação ativa": não deixa a
 // pessoa excluir a conta se isso puder deixar outra pessoa na mão (aluguel
@@ -24,15 +15,15 @@ function calcularBloqueiosExclusao() {
         const STATUS_EM_ANDAMENTO = ["aprovado", "pago", "retirado", "aguardando_devolucao"];
  
         const aluguéisComoLocatario = todas.filter(s =>
-            s.solicitanteEmail === emailUsuario && STATUS_EM_ANDAMENTO.includes(s.status)
+            s.souSolicitante && STATUS_EM_ANDAMENTO.includes(s.status)
         ).length;
  
         const aluguéisComoProprietario = todas.filter(s =>
-            s.proprietarioEmail === emailUsuario && STATUS_EM_ANDAMENTO.includes(s.status)
+            s.souProprietario && STATUS_EM_ANDAMENTO.includes(s.status)
         ).length;
  
         const pedidosPendentes = todas.filter(s =>
-            s.proprietarioEmail === emailUsuario && s.status === "pendente"
+            s.souProprietario && s.status === "pendente"
         ).length;
  
         if (aluguéisComoLocatario > 0) {
@@ -92,7 +83,7 @@ toggleSenhaExclusao.addEventListener("click", () => {
     toggleSenhaExclusao.classList.toggle("bi-eye-slash", visivel);
     toggleSenhaExclusao.classList.toggle("bi-eye", !visivel);
 });
- 
+
 // ================= MODAL DE CONFIRMAÇÃO FINAL =================
 const modal = document.getElementById("modal-confirmar-exclusao");
  
@@ -109,7 +100,7 @@ btnExcluir.addEventListener("click", () => {
     // isso permitiria testar se a senha está certa sem excluir a conta.
     abrirModal();
 });
- 
+
 document.getElementById("modal-exclusao-confirmar").addEventListener("click", async () => {
     const botaoModal = document.getElementById("modal-exclusao-confirmar");
     botaoModal.disabled = true;

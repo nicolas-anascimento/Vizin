@@ -1,31 +1,4 @@
-// ================= PROTEGER PÁGINA =================
-if (!localStorage.getItem("token")) {
- 
-    // Mesmo padrão usado na Início: guarda o motivo pra tela de Login
-    // mostrar, já que o redirecionamento aqui é imediato.
-    sessionStorage.setItem(
-        "mensagemLogin",
-        "Você precisa estar logado para acessar essa página."
-    );
- 
-    window.location.href = "/login";
- 
-}
- 
-// Protegido contra JSON corrompido em localStorage.usuario — sem isso, um
-// JSON.parse quebrado derrubava o script inteiro e a página nem renderizava.
 let usuarioLogado = null;
- 
-try {
- 
-    usuarioLogado = JSON.parse(localStorage.getItem("usuario") || "null");
- 
-} catch (erro) {
- 
-    console.error("Dados de usuário corrompidos no localStorage:", erro);
-    localStorage.removeItem("usuario");
- 
-}
  
 // ================= RENDER DOS CARDS =================
 const listaContainer = document.getElementById("lista-meus-objetos");
@@ -33,6 +6,7 @@ const emptyState = document.getElementById("empty-state");
  
 // Objetos do usuário logado, vindos da API (por id do dono, não por e-mail).
 async function carregarMeusObjetos() {
+    usuarioLogado = await (window.SessaoVizin?.pronto ?? Promise.resolve(usuarioLogado));
     const meuId = window.SolicitacoesVizin?.usuarioId?.() || usuarioLogado?.id;
     if (!meuId || !window.ObjetosVizin) return [];
     return window.ObjetosVizin.obterDoProprietario(meuId);
@@ -69,7 +43,7 @@ function criarCardMeuObjeto(obj) {
  
     img.addEventListener("error", function aoFalhar() {
         img.removeEventListener("error", aoFalhar);
-        img.src = "../img/sem-imagem.jpg";
+        img.src = "/assets/usuario/img/sem-imagem.jpg";
     });
  
     card.appendChild(img);

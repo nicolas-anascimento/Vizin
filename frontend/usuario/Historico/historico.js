@@ -1,24 +1,3 @@
-// ================= PROTEGER PÁGINA =================
-if (!localStorage.getItem("token")) {
-    window.location.href = "/login";
-}
- 
-const usuarioLogado = JSON.parse(localStorage.getItem("usuario") || "null");
-
-// NOTA (pendência aberta pela migração de objetos-shared.js pra API real):
-// window.ObjetosVizin.obterPorId(...) agora devolve uma Promise, mas
-// montarHistorico() (mais abaixo) ainda o chama de forma síncrona, dentro
-// de um .map() comum. Isso não quebra a página — `produtoAtual` vira a
-// Promise em si, `produtoAtual?.imagens?.length` dá undefined (falsy), e o
-// código já tem um fallback pra esse caso — mas o efeito prático é que o
-// Histórico deixou de mostrar a galeria completa de fotos do objeto,
-// caindo sempre na foto única guardada na própria solicitação
-// (`imagemProduto`). Corrigir direito exige tornar montarHistorico() (e
-// quem a chama) assíncrona — não fiz essa mudança maior aqui agora porque
-// este arquivo inteiro já está marcado (comentário abaixo) para ser
-// substituído por GET /api/alugueis/historico quando esse módulo ganhar
-// seu próprio back-end, então o retrabalho seria duplicado.
-
 // ================= FILTRO ATIVO =================
 // Pode chegar aqui já apontando pra uma aba específica — o link "Ver
 // solicitação" nas notificações leva para /historico?tab=solicitacoes,
@@ -161,7 +140,7 @@ function montarHistorico() {
             const produtoAtual = window.ObjetosVizin ? window.ObjetosVizin.obterDoCache(s.produtoId) : null; // só se já foi carregado; senão usa a foto da solicitação
             const imagens = (produtoAtual?.imagens?.length)
                 ? produtoAtual.imagens
-                : [s.imagemProduto || "../img/sem-imagem.jpg"];
+                : [s.imagemProduto || "/assets/usuario/img/sem-imagem.jpg"];
 
             // Fotos de retirada/devolução (carregadas do back), mostradas no
             // card assim que cada etapa é concluída pelas duas partes.

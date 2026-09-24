@@ -1,8 +1,3 @@
-// ================= PROTEGER PÁGINA =================
-if (!localStorage.getItem("token")) {
-    window.location.href = "/login";
-}
- 
 // ================= HELPER: escapar texto p/ evitar quebra de HTML =================
 function escaparHTMLPerfil(texto) {
     const div = document.createElement('div');
@@ -490,7 +485,7 @@ function renderizarObjetosAnunciados(objetosCompletos) {
         // objeto — escapado antes de ir pro innerHTML (mesmo cuidado já
         // tomado com nome/comentário de avaliações).
         const tituloSeguro = escaparHTMLPerfil(obj.titulo);
-        const imagem = (obj.imagens && obj.imagens[0]) || obj.imagem || "../img/sem-imagem.jpg";
+        const imagem = (obj.imagens && obj.imagens[0]) || obj.imagem || "/assets/usuario/img/sem-imagem.jpg";
         const precoFormatado = Number(obj.preco_dia || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
  
         const card = document.createElement("a");

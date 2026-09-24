@@ -1,9 +1,3 @@
-// ================= PROTEGER PÁGINA =================
-if (!localStorage.getItem("token")) {
-    sessionStorage.setItem("mensagemLogin", "Você precisa estar logado para acessar sua conta.");
-    window.location.href = "/login";
-}
- 
 // ================= HELPER (mesma regra de força de senha do cadastro em Login/login.js) =================
 // Validação de formato só como primeira camada de UX — a regra "de
 // verdade" precisa estar espelhada no back-end.
@@ -74,13 +68,18 @@ form.addEventListener("submit", async (e) => {
     try {
         // O back-end valida a senha atual e a regra da senha nova, e
         // idealmente invalida os outros tokens/sessões ativos por segurança.
-        await alterarSenha(senhaAtual, senhaNova);
+        const resposta = await alterarSenha(senhaAtual, senhaNova);
  
-        mostrarMensagem("Senha alterada com sucesso!", "sucesso");
+        mostrarMensagem("Senha alterada. Entre novamente com a nova senha.", "sucesso");
         form.reset();
+        if (resposta?.loginNecessario) {
+            localStorage.removeItem("token");
+            localStorage.removeItem("usuario");
+            sessionStorage.setItem("mensagemLogin", "Senha alterada com sucesso. Entre novamente.");
+        }
  
         setTimeout(() => {
-            window.location.href = "/alterar-senha";
+            window.location.href = resposta?.loginNecessario ? "/login" : "/minha-conta";
         }, 1200);
  
     } catch (err) {

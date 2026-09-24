@@ -204,7 +204,26 @@ test("API → PostgreSQL/PostGIS: contratos e fluxos críticos",async t=>{
   const s=await api("/suporte/ajuda","POST",{assunto:"Ajuda",mensagem:"Mensagem"},renterCookie);assert.equal(s.status,201);assert.ok(await prisma.suportes.findUnique({where:{id:s.data.id}}));
   assert.equal((await api("/usuarios/privacidade","PUT",{perfilPublico:false},renterCookie)).status,200);
   assert.equal((await api(`/usuarios/${renterId}`)).status,404);
+  assert.equal((await api("/usuarios/preferencias-notificacao")).status,401);
+  assert.equal((await api("/usuarios/preferencias-notificacao","PUT",{mensagens:false})).status,401);
+  const defaults=(await api("/usuarios/preferencias-notificacao","GET",undefined,renterCookie)).data;
+  assert.equal(defaults.mensagens,true);assert.equal(defaults.novidades,false);
+  assert.equal((await api("/usuarios/preferencias-notificacao","PUT",{mensagens:"sim"},renterCookie)).status,422);
+  assert.equal((await api("/usuarios/preferencias-notificacao","PUT",{desconhecida:true},renterCookie)).status,422);
   assert.equal((await api("/usuarios/preferencias-notificacao","PUT",{mensagens:false},renterCookie)).status,200);
+  assert.equal((await api("/usuarios/preferencias-notificacao","GET",undefined,renterCookie)).data.mensagens,false);
+  assert.equal((await api("/usuarios/preferencias-notificacao","GET",undefined,ownerCookie)).data.mensagens,true);
+
+  const c=await api("/conversations","POST",{userId:ownerId,produtoId:itemId},renterCookie);
+  await api("/usuarios/preferencias-notificacao","PUT",{mensagens:false},ownerCookie);
+  const beforeMessages=await prisma.mensagens.count({where:{conversa_id:c.data.id}});
+  const beforeNotifications=await prisma.notificacoes.count({where:{usuario_id:ownerId,tipo:"mensagem"}});
+  assert.equal((await api(`/conversations/${c.data.id}/messages`,"POST",{text:"Sem alerta"},renterCookie)).status,201);
+  assert.equal(await prisma.mensagens.count({where:{conversa_id:c.data.id}}),beforeMessages+1);
+  assert.equal(await prisma.notificacoes.count({where:{usuario_id:ownerId,tipo:"mensagem"}}),beforeNotifications);
+  await api("/usuarios/preferencias-notificacao","PUT",{mensagens:true},ownerCookie);
+  assert.equal((await api(`/conversations/${c.data.id}/messages`,"POST",{text:"Com alerta"},renterCookie)).status,201);
+  assert.equal(await prisma.notificacoes.count({where:{usuario_id:ownerId,tipo:"mensagem"}}),beforeNotifications+1);
   const data=(await api("/usuarios/me/exportar","GET",undefined,renterCookie)).data;assert.equal(data.perfil.senha_hash,undefined);assert.equal(data.alugueis.length>0,true);
  });
  await t.test("admin exige privilégio e revisa identidade",async()=>{

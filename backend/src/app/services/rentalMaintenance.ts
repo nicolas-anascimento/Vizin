@@ -2,6 +2,7 @@ import { HttpError } from "../utils/httpError.ts";
 import { paymentDeadline, PAYMENT_TIME_ZONE } from "./paymentRules.ts";
 import prisma from "../config/database.ts";
 import { businessDate } from "../utils/dates.ts";
+import { createNotifications } from "./notificationPreferences.ts";
 /*
  * Executa a manutenção ao consultar locações e, periodicamente, pelo servidor.
  * Procura vencimentos em lotes de 100 para limitar memória e tamanho das consultas.
@@ -38,7 +39,7 @@ export async function maintainRentals(processFinancialOperations = false): Promi
   while (true) {
    const batch = await prisma.alugueis.findMany({ where: { status, ...(event.startsWith("retirada") ? { data_inicio: date } : { data_fim: date }) }, select: { id: true, locador_id: true, locatario_id: true }, orderBy: { id: "asc" }, take: 100, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}) });
    if (!batch.length) break;
-   await prisma.notificacoes.createMany({ skipDuplicates: true, data: batch.flatMap(r => [r.locador_id,r.locatario_id].map(usuario_id => ({ usuario_id, chave: `${r.id}:${event}:${usuario_id}`, tipo: "lembrete", titulo: event.startsWith("retirada") ? "Lembrete de retirada" : "Lembrete de devolução", mensagem: event.endsWith("hoje") ? "A etapa está prevista para hoje." : "A etapa está prevista para amanhã.", contexto: { solicitacao_id: r.id, evento: event } }))) });
+   await createNotifications(prisma, batch.flatMap(r => [r.locador_id,r.locatario_id].map(usuario_id => ({ usuario_id, chave: `${r.id}:${event}:${usuario_id}`, tipo: "lembrete", titulo: event.startsWith("retirada") ? "Lembrete de retirada" : "Lembrete de devolução", mensagem: event.endsWith("hoje") ? "A etapa está prevista para hoje." : "A etapa está prevista para amanhã.", contexto: { solicitacao_id: r.id, evento: event } }))), true);
    cursor = batch[batch.length - 1]!.id;
    if (batch.length < 100) break;
   }
@@ -50,7 +51,7 @@ export async function maintainRentals(processFinancialOperations = false): Promi
   if (r.atraso_notificado === kind) continue;
   await prisma.$transaction(async tx => {
    const changed = await tx.alugueis.updateMany({ where: { id: r.id, status: r.status, atraso_notificado: r.atraso_notificado }, data: { atraso_notificado: kind } });
-   if (changed.count) await tx.notificacoes.createMany({ data: [r.locador_id, r.locatario_id].map(usuario_id => ({ usuario_id, tipo: kind === "devolucao" ? "bloqueio_conta" : "lembrete", titulo: "Aluguel em atraso", mensagem: `Existe atraso na ${kind}.`, contexto: { solicitacao_id: r.id, aluguelId: r.id, objetoId: r.item_id } })) });
+   if (changed.count) await tx.notificacoes.createMany({ data: [r.locador_id, r.locatario_id].map(usuario_id => ({ usuario_id, tipo: kind === "devolucao" ? "bloqueio_conta" : "retirada_atrasada", titulo: "Aluguel em atraso", mensagem: `Existe atraso na ${kind}.`, contexto: { solicitacao_id: r.id, aluguelId: r.id, objetoId: r.item_id } })) });
   });
  }
  // A chamada leve encerra aqui; o ciclo periódico continua com estornos e conciliação.

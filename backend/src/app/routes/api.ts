@@ -24,9 +24,12 @@ import { listCategories } from "../controllers/itemsController.ts";
 import { requireAuth } from "../middlewares/auth.ts";
 import { createRentalReport } from "../controllers/rentalReportsController.ts";
 import { listItemReviews } from "../controllers/reviewsController.ts";
+import { simulated } from "../services/paymentGateway.ts";
 
 const router = Router();
 router.get("/saude", (_req, res) => res.json({ status: "ok", servico: "vizin-api" }));
+// Só expõe o modo público necessário para renderizar checkout demonstrativo; nenhum segredo financeiro é retornado.
+router.get("/configuracao-publica", (_req, res) => res.json({ pagamentos_demo: simulated() }));
 router.use("/login", login);
 router.use("/contas", accounts);
 router.use("/usuarios", users);

@@ -67,10 +67,6 @@
     // ================= IDENTIDADE =================
     async function carregarIdentidade() {
         if (usuarioId) return usuarioId;
-
-        const guardado = JSON.parse(localStorage.getItem("usuario") || "null");
-        if (guardado?.id) { usuarioId = String(guardado.id); return usuarioId; }
-
         const me = await Api.get("/usuarios/me");
         const id = me?.id ?? me?.usuario?.id ?? null;
         usuarioId = id ? String(id) : null;
@@ -148,7 +144,6 @@
     }
 
     async function atualizar() {
-        if (!localStorage.getItem("token")) return;
         if (atualizando) return atualizando;
 
         atualizando = (async () => {

@@ -5,6 +5,7 @@ import prisma from "../config/database.ts";
 import { HttpError } from "../utils/httpError.ts";
 import { nonEmptyString } from "../utils/strings.ts";
 import { pageHeaders, pagination } from "../utils/listPage.ts";
+import { createNotification } from "../services/notificationPreferences.ts";
 
 // Lista mensagens do usuário respeitando o relacionamento entre remetente e destinatário.
 export const listMessages: RequestHandler = async (req, res) => {
@@ -41,7 +42,7 @@ export const sendMessage: RequestHandler = async (req, res) => {
     const chave = [rental.locador_id,rental.locatario_id].sort().join(":")+":"+rental.item_id;
     const c = await tx.conversas.upsert({ where:{chave},update:{atualizado_em:new Date()},create:{chave,objeto_id:rental.item_id,participantes:{create:[{usuario_id:rental.locador_id},{usuario_id:rental.locatario_id}]}} });
     const created = await tx.mensagens.create({ data: { conversa_id: c.id, aluguel_id: rental.id, remetente_id: req.user!.id, destinatario_id: target, conteudo: content } });
-    await tx.notificacoes.create({ data: { usuario_id: target, contexto:{aluguelId:rental.id,objetoId:rental.item_id,conversaId:c.id}, tipo: "mensagem", titulo: "Nova mensagem", mensagem: content.slice(0, 140) } });
+    await createNotification(tx, { usuario_id: target, contexto:{aluguelId:rental.id,objetoId:rental.item_id,conversaId:c.id}, tipo: "mensagem", titulo: "Nova mensagem", mensagem: content.slice(0, 140) });
     return created;
   });
   res.status(201).json({ success: true, mensagem: serializeMessage(message,req.user!.id) });

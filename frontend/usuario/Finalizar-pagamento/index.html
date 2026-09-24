@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="/assets/usuario/header/header.css">
     <link rel="stylesheet" href="/assets/usuario/footer/footer.css">
     <link rel="stylesheet" href="/assets/usuario/Notificacoes/notificacoes-shared.css">
+    <link rel="stylesheet" href="/assets/usuario/Finalizar-pagamento/finalizar-pagamento.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
     <title>Finalizar Pagamento</title>
 </head>
@@ -39,6 +40,14 @@
                 <div class="card" id="tela-pagamento" style="display:none;">
                     <h1 class="pagamento-titulo">Finalizar Pagamento</h1>
                     <p class="pagamento-subtitulo">Escolha o método de pagamento</p>
+
+                    <section id="pagamento-demo" class="pagamento-demo" hidden aria-labelledby="pagamento-demo-titulo">
+                        <h2 id="pagamento-demo-titulo">Modo de demonstração</h2>
+                        <p>O gateway de pagamento real não está ativo neste ambiente.</p>
+                        <button type="button" id="btn-pagamento-demo">Continuar em modo demonstração</button>
+                        <small>Nenhuma cobrança real será realizada.</small>
+                        <p id="pagamento-demo-estado" role="status" aria-live="polite"></p>
+                    </section>
  
                     <div class="metodos-grid">
                         <button type="button" class="metodo-btn" id="metodo-pix" data-metodo="pix">
@@ -109,49 +118,34 @@
  
                         <form id="form-cartao" novalidate>
  
-                            <!-- Cartões já cadastrados em Forma de Pagamento -->
-                            <div id="cartoes-salvos-secao" style="display:none;">
-                                <div id="cartoes-salvos-lista" class="cartoes-salvos-lista"></div>
-                                <div class="field">
-                                    <label>CVV do cartão selecionado</label>
-                                    <div id="cartao-salvo-cvv" class="campo-seguro"></div>
-                                </div>
-                                <button type="button" class="btn-link" id="btn-usar-outro-cartao">+ Usar outro cartão</button>
+                            <div class="field">
+                                <label>Número do Cartão</label>
+                                <div id="cartao-numero" class="campo-seguro"></div>
+                                <span class="field-erro" id="erro-cartao-numero"></span>
                             </div>
  
-                            <!-- Digitação manual: aparece se não houver cartão salvo, ou se o usuário escolher "usar outro cartão" -->
-                            <div id="campos-cartao-novo">
-                                <button type="button" class="btn-link" id="btn-usar-cartao-salvo" style="display:none;">← Usar um cartão salvo</button>
+                            <div class="field">
+                                <label for="cartao-nome">Nome no Cartão</label>
+                                <input type="text" id="cartao-nome" placeholder="NOME COMO ESTÁ NO CARTÃO" required>
+                                <span class="field-erro" id="erro-cartao-nome"></span>
+                            </div>
  
-                                <div class="field">
-                                    <label>Número do Cartão</label>
-                                    <div id="cartao-numero" class="campo-seguro"></div>
-                                    <span class="field-erro" id="erro-cartao-numero"></span>
-                                </div>
- 
-                                <div class="field">
-                                    <label for="cartao-nome">Nome no Cartão</label>
-                                    <input type="text" id="cartao-nome" placeholder="NOME COMO ESTÁ NO CARTÃO" required>
-                                    <span class="field-erro" id="erro-cartao-nome"></span>
-                                </div>
- 
-                                <div class="field">
-                                    <label for="cartao-cpf">CPF do titular</label>
-                                    <input type="text" id="cartao-cpf" placeholder="000.000.000-00" maxlength="14" inputmode="numeric" autocomplete="off" required>
-                                    <span class="field-erro" id="erro-cartao-cpf"></span>
-                                </div>
+                            <div class="field">
+                                <label for="cartao-cpf">CPF do titular</label>
+                                <input type="text" id="cartao-cpf" placeholder="000.000.000-00" maxlength="14" inputmode="numeric" autocomplete="off" required>
+                                <span class="field-erro" id="erro-cartao-cpf"></span>
+                            </div>
 
-                                <div class="row-2">
-                                    <div class="field">
-                                        <label>Validade</label>
-                                        <div id="cartao-validade" class="campo-seguro"></div>
-                                        <span class="field-erro" id="erro-cartao-validade"></span>
-                                    </div>
-                                    <div class="field">
-                                        <label>CVV</label>
-                                        <div id="cartao-cvv" class="campo-seguro"></div>
-                                        <span class="field-erro" id="erro-cartao-cvv"></span>
-                                    </div>
+                            <div class="row-2">
+                                <div class="field">
+                                    <label>Validade</label>
+                                    <div id="cartao-validade" class="campo-seguro"></div>
+                                    <span class="field-erro" id="erro-cartao-validade"></span>
+                                </div>
+                                <div class="field">
+                                    <label>CVV</label>
+                                    <div id="cartao-cvv" class="campo-seguro"></div>
+                                    <span class="field-erro" id="erro-cartao-cvv"></span>
                                 </div>
                             </div>
  
@@ -201,43 +195,59 @@
  
             <!-- RESUMO DO PEDIDO -->
             <div class="pagamento-sidebar" id="pagamento-sidebar">
-                <div class="card">
-                    <h2>Resumo do Pedido</h2>
- 
-                    <div class="resumo-produto">
-                        <img id="resumo-imagem" src="" alt="">
-                        <div>
-                            <p class="resumo-produto-nome" id="resumo-produto-nome"></p>
-                            <p class="resumo-produto-categoria" id="resumo-produto-categoria"></p>
+                <div class="resumo-ticket">
+
+                    <div class="resumo-topo">
+                        <h2 class="resumo-titulo">Resumo do pedido</h2>
+
+                        <div class="resumo-produto">
+                            <img id="resumo-imagem" src="" alt="">
+                            <div class="resumo-produto-info">
+                                <p class="resumo-produto-nome" id="resumo-produto-nome"></p>
+                                <p class="resumo-produto-categoria" id="resumo-produto-categoria"></p>
+                            </div>
+                        </div>
+
+                        <div class="resumo-rota">
+                            <div class="rota-ponto">
+                                <span class="rota-rotulo">Retirada</span>
+                                <strong id="resumo-retirada"></strong>
+                            </div>
+                            <div class="rota-trilho">
+                                <span class="rota-duracao" id="resumo-periodo"></span>
+                            </div>
+                            <div class="rota-ponto rota-ponto-fim">
+                                <span class="rota-rotulo">Devolução</span>
+                                <strong id="resumo-devolucao"></strong>
+                            </div>
                         </div>
                     </div>
- 
-                    <hr>
- 
-                    <div class="resumo-linha"><span><i class="bi bi-calendar3"></i> Período:</span><span id="resumo-periodo"></span></div>
-                    <div class="resumo-linha"><span>Data de Retirada:</span><span id="resumo-retirada"></span></div>
-                    <div class="resumo-linha"><span>Data de Devolução:</span><span id="resumo-devolucao"></span></div>
-                    <div class="resumo-linha"><span>Preço por dia:</span><span id="resumo-preco-dia"></span></div>
-                    <div class="resumo-linha"><span>Subtotal:</span><span id="resumo-subtotal"></span></div>
-                    <div class="resumo-linha"><span>Taxa de serviço:</span><span id="resumo-taxa-servico"></span></div>
- 
-                    <hr>
- 
-                    <div class="resumo-linha resumo-total-linha">
-                        <span>Total:</span>
-                        <span id="resumo-total"></span>
+
+                    <div class="resumo-picote" aria-hidden="true"></div>
+
+                    <div class="resumo-base">
+                        <div class="resumo-linha"><span>Preço por dia</span><span id="resumo-preco-dia"></span></div>
+                        <div class="resumo-linha"><span>Subtotal</span><span id="resumo-subtotal"></span></div>
+                        <div class="resumo-linha"><span>Taxa de serviço</span><span id="resumo-taxa-servico"></span></div>
+
+                        <div class="resumo-linha resumo-total-linha">
+                            <span>Total</span>
+                            <span id="resumo-total"></span>
+                        </div>
+
+                        <div class="dica-box">
+                            <i class="bi bi-shield-check"></i>
+                            <span><strong>Pagamento:</strong> o pagamento é processado pela plataforma. Em cancelamentos elegíveis, o reembolso é solicitado conforme as regras da locação.</span>
+                        </div>
                     </div>
- 
-                    <div class="dica-box">
-    <strong>Pagamento:</strong> O pagamento é processado pela plataforma. Em cancelamentos elegíveis, o reembolso é solicitado conforme as regras da locação.
-</div>
+
                 </div>
             </div>
- 
+
         </div>
- 
+
     </div>
- 
+
     <div id="footer"></div>
  
     <div id="toast" class="toast">Copiado ✔</div>
@@ -250,9 +260,9 @@
     <script src="/assets/usuario/utils/api-client.js"></script>
     <script src="/assets/usuario/Notificacoes/notificacoes-shared.js"></script>
     <script src="/assets/usuario/Notificacoes/solicitacoes-shared.js"></script>
-    <script src="/assets/usuario/utils/pagamentos-api.js"></script>
+    <script src="/assets/usuario/utils/pagamentos-api.js?v=demo-1"></script>
     <script src="/assets/usuario/utils/pagamento-gateway.js"></script>
-    <script src="/assets/usuario/utils/checkout-shared.js"></script>
+    <script src="/assets/usuario/utils/checkout-shared.js?v=demo-1"></script>
     <script src="/assets/usuario/Finalizar-pagamento/finalizar-pagamento.js?v=15"></script>
 </body>
 </html>

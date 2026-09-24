@@ -13,7 +13,7 @@ test("redirect pós autenticação usa o tipo devolvido pelo backend", async()=>
  const context=vm.createContext({});
  new vm.Script(source).runInContext(context);
  assert.equal(vm.runInContext("destinoAposAutenticacao({ tipo: 'admin' })",context),"/admin");
- assert.equal(vm.runInContext("destinoAposAutenticacao({ tipo: 'usuario' })",context),"/inicio");
+ assert.equal(vm.runInContext("destinoAposAutenticacao({ tipo: 'usuario' })",context),"/home");
 });
 test("frontend admin usa contratos canônicos de usuário e objeto", async()=>{
  const userApi=await readFile(new URL("../../../frontend/admin/Usuarios/admin-api.js",import.meta.url),"utf8");
@@ -23,6 +23,53 @@ test("frontend admin usa contratos canônicos de usuário e objeto", async()=>{
  assert.match(itemApi,/\{ disponivel,/);
  assert.doesNotMatch(itemApi,/\{ status,/);
  assert.match(itemApi,/\/objetos\/\$\{encodeURIComponent\(id\)\}/);
+});
+test("rotas limpas e sessão por cookie não dependem do cache local", async()=>{
+ const web=await readFile(new URL("../app/routes/web.ts",import.meta.url),"utf8");
+ assert.match(web,/"\/alterar-senha": userPage\("Alterar-senha"\)/);
+ assert.doesNotMatch(web,/Forma-de pagamento|Alterar-senha\.js/);
+ const files=["Perfil/perfil.js","Inicio/script.js","Produto/produto.js","Historico/historico.js","Mensagens/app.js","Notificacoes/notificacoes.js"];
+ for(const file of files){
+  const source=await readFile(new URL(`../../../frontend/usuario/${file}`,import.meta.url),"utf8");
+  assert.doesNotMatch(source,/if\s*\(\s*!localStorage\.getItem\(["']token["']\)\s*\)/,file);
+ }
+});
+test("chat reconecta, reentra na room e sincroniza o histórico REST",async()=>{
+ const source=await readFile(new URL("../../../frontend/usuario/Mensagens/app.js",import.meta.url),"utf8");
+ assert.match(source,/realtimeSocket\.emit\("chat:join"/);
+ assert.match(source,/synchronizeAfterReconnect/);
+ assert.match(source,/await API\.getMessages\(conversationId\)/);
+ assert.match(source,/client_message_id/);
+});
+test("checkout preserva a operação lógica de cartão enquanto o resultado não é definitivo",async()=>{
+ const source=await readFile(new URL("../../../frontend/usuario/utils/checkout-shared.js",import.meta.url),"utf8");
+ assert.match(source,/pagamento\.status === "pendente"[\s\S]*cartao_desconhecido/);
+ assert.match(source,/concluirTentativaCartao\(\)[\s\S]*chaveCartao = null/);
+ assert.match(source,/mesma operação/);
+});
+test("produtores opcionais consultam a política de preferências antes de notificar",async()=>{
+ const files=[
+  "app/services/chatService.ts",
+  "app/controllers/messagesController.ts",
+  "app/controllers/reviewsController.ts",
+  "app/controllers/rentalsController.ts",
+  "app/services/rentalMaintenance.ts",
+ ];
+ for(const file of files){
+  const source=await readFile(new URL(`../${file}`,import.meta.url),"utf8");
+  assert.match(source,/createNotification(?:s)?\(/,file);
+ }
+ const realtime=await readFile(new URL("../realtime/realtimeService.ts",import.meta.url),"utf8");
+ assert.match(realtime,/if\s*\(result\.notification\)[\s\S]*notification:new/);
+});
+test("tela de preferências aguarda o backend e restaura o switch quando salvar falha",async()=>{
+ const html=await readFile(new URL("../../../frontend/usuario/Preferencias/index.html",import.meta.url),"utf8");
+ const script=await readFile(new URL("../../../frontend/usuario/Preferencias/preferencias.js",import.meta.url),"utf8");
+ assert.equal((html.match(/data-pref="[^"]+" disabled/g)??[]).length,6);
+ assert.match(script,/prefsAtuais\s*=\s*await[\s\S]*carregarPreferencias/);
+ assert.match(script,/salvarPreferencias\(\{ \[chave\]: valorNovo \}\)/);
+ assert.match(script,/toggle\.checked\s*=\s*valorAnterior/);
+ assert.doesNotMatch(script,/localStorage|sessionStorage/);
 });
 test("CPF formatado é normalizado e dígitos inválidos são rejeitados",()=>{
  assert.equal(cpf("529.982.247-25"),"52998224725");

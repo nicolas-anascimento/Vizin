@@ -13,7 +13,7 @@ import { rateLimit } from "../middlewares/rateLimit.ts";
 import { getMyRentalBlock } from "../controllers/rentalsController.ts";
 import { listReceivedReviews } from "../controllers/reviewsController.ts";
 const router = Router();
-router.post("/", rateLimit({ windowMs: 60 * 60_000, max: 10 }), register);
+router.post("/", rateLimit({ windowMs: 60 * 60_000, max: 10, identity: "ip", scope: "register" }), register);
 router.get("/me", requireAuth, ownProfile);
 router.get("/me/bloqueio", requireAuth, getMyRentalBlock);
 router.patch("/me", requireAuth, updateProfile);

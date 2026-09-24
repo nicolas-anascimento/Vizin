@@ -9,6 +9,10 @@ import { HttpError } from "../utils/httpError.ts";
 import { password, email, text, boolean } from "../utils/validation.ts";
 import { cookieOptions } from "./authController.ts";
 import { removeUploadByUrl } from "../utils/files.ts";
+import {
+  getNotificationPreferences,
+  validateNotificationPreferencesPatch,
+} from "../services/notificationPreferences.ts";
 
 // Exige senha atual antes de alterações sensíveis da conta.
 async function verifyPassword(id: string, value: unknown) {
@@ -137,21 +141,31 @@ export function preferences(
   const keys =
     field === "privacidade"
       ? ["perfilPublico"]
-      : [
-          "solicitacao_recebida",
-          "solicitacao_respondida",
-          "lembretes_aluguel",
-          "avaliacao_recebida",
-          "mensagens",
-          "novidades",
-          "canal_whatsapp",
-        ];
+      : [];
   return async (req, res) => {
     const user = await prisma.usuarios.findUniqueOrThrow({
       where: { id: req.user!.id },
     });
     if (req.method === "GET") {
-      res.json(user[field]);
+      res.json(field === "preferencias"
+        ? await getNotificationPreferences(prisma, user.id)
+        : user[field]);
+      return;
+    }
+    if (field === "preferencias") {
+      let patch;
+      try {
+        patch = validateNotificationPreferencesPatch(req.body);
+      } catch (error) {
+        throw new HttpError(422, error instanceof Error ? error.message : "Preferências inválidas");
+      }
+      const data = await prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM usuarios WHERE id=${user.id}::uuid FOR UPDATE`;
+        const merged = { ...(await getNotificationPreferences(tx, user.id)), ...patch };
+        await tx.usuarios.update({ where: { id: user.id }, data: { preferencias: merged } });
+        return merged;
+      });
+      res.json(data);
       return;
     }
     const data: Record<string, boolean> = {

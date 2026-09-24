@@ -1,0 +1,786 @@
+/* =====================================================================
+   FINALIZAR PAGAMENTO — visual da página
+   Carregar DEPOIS de fluxo-aluguel.css, pagamento-gateway.css e checkout.css.
+   Tudo aqui é prefixado com .page-container para ganhar dos estilos antigos
+   sem precisar de !important.
+   ===================================================================== */
+
+.page-container {
+  --pg-linha: #ececf1;
+  --pg-fundo-suave: #f7f5ff;
+  --pg-erro: #dc2626;
+  --pg-erro-fundo: #fef2f2;
+  --pg-aviso: #8a5a00;
+  --pg-aviso-fundo: #fff6e0;
+  --pg-sombra: 0 1px 2px rgba(20, 20, 43, 0.05), 0 10px 28px rgba(20, 20, 43, 0.07);
+  max-width: 1120px;
+}
+
+/* ================= LAYOUT ================= */
+.page-container .pagamento-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 28px;
+  align-items: start;
+}
+
+.page-container .pagamento-sidebar {
+  position: sticky;
+  top: 96px;
+}
+
+.page-container .pagamento-main .card {
+  padding: 32px;
+  border-radius: 20px;
+  box-shadow: var(--pg-sombra);
+}
+
+.page-container .pagamento-titulo {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--texto);
+}
+
+.page-container .pagamento-subtitulo {
+  margin: 4px 0 22px;
+  font-size: 14.5px;
+  color: var(--texto-suave);
+}
+
+/* ================= BANNER DE PRAZO ================= */
+.page-container .banner-prazo {
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  border-radius: 14px;
+  border: 1px solid #f4dc9c;
+  background: var(--pg-aviso-fundo);
+  color: var(--pg-aviso);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.page-container .banner-prazo i {
+  flex: none;
+  font-size: 20px;
+}
+
+.page-container .banner-prazo strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.page-container .banner-prazo.banner-urgente {
+  background: var(--pg-erro-fundo);
+  border-color: #f9c9c9;
+  color: #991b1b;
+}
+
+/* ================= MÉTODOS DE PAGAMENTO ================= */
+.page-container .metodos-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.page-container .metodo-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  gap: 2px;
+  padding: 18px;
+  background: #fff;
+  color: var(--texto);
+  border: 1.5px solid var(--borda);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.page-container .metodo-btn > i {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  background: var(--roxo-claro);
+  color: var(--roxo);
+  font-size: 20px;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.page-container .metodo-nome {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.page-container .metodo-desc {
+  font-size: 12.5px;
+  color: var(--texto-suave);
+}
+
+.page-container .metodo-btn:hover {
+  border-color: #c9bdfa;
+}
+
+/* estado selecionado — cobre as classes mais comuns que o checkout-shared.js pode usar */
+.page-container .metodo-btn.ativo,
+.page-container .metodo-btn.active,
+.page-container .metodo-btn.selecionado,
+.page-container .metodo-btn.selected,
+.page-container .metodo-btn[aria-pressed="true"] {
+  border-color: var(--roxo);
+  background: var(--pg-fundo-suave);
+  box-shadow: 0 0 0 3px rgba(109, 73, 242, 0.14);
+}
+
+.page-container .metodo-btn.ativo > i,
+.page-container .metodo-btn.active > i,
+.page-container .metodo-btn.selecionado > i,
+.page-container .metodo-btn.selected > i,
+.page-container .metodo-btn[aria-pressed="true"] > i {
+  background: var(--roxo);
+  color: #fff;
+}
+
+.page-container .metodo-btn.ativo::after,
+.page-container .metodo-btn.active::after,
+.page-container .metodo-btn.selecionado::after,
+.page-container .metodo-btn.selected::after,
+.page-container .metodo-btn[aria-pressed="true"]::after {
+  content: "";
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--roxo) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' d='M3.5 8.5l3 3 6-6.5'/%3E%3C/svg%3E") center / 12px no-repeat;
+}
+
+.page-container .metodo-vazio {
+  margin: 20px 0 4px;
+  padding: 14px;
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--texto-suave);
+  border: 1.5px dashed var(--borda);
+  border-radius: 12px;
+}
+
+.page-container .metodo-conteudo hr {
+  border: 0;
+  border-top: 1px solid var(--pg-linha);
+  margin: 26px 0 22px;
+}
+
+.page-container .metodo-conteudo h2 {
+  font-size: 18px;
+  font-weight: 800;
+  margin-bottom: 16px;
+}
+
+/* ================= PIX ================= */
+.page-container .pix-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.page-container .qr-placeholder {
+  width: 216px;
+  height: 216px;
+  padding: 10px;
+  background: #fff;
+  border: 1.5px solid var(--borda);
+  border-radius: 18px;
+}
+
+.page-container .pix-timer {
+  margin: 16px 0 22px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--roxo-claro);
+  color: var(--roxo-hover);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.page-container .pix-timer strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.page-container .pix-codigo-label {
+  align-self: flex-start;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--texto);
+}
+
+.page-container .pix-codigo-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.page-container .pix-codigo-row input {
+  flex: 1;
+  min-width: 0;
+  height: 46px;
+  padding: 0 14px;
+  border: 1.5px solid var(--borda);
+  border-radius: 12px;
+  background: #fafafa;
+  color: var(--texto-suave);
+  font-size: 13px;
+  text-overflow: ellipsis;
+}
+
+.page-container .btn-copiar {
+  flex: none;
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 12px;
+  background: var(--roxo);
+  color: #fff;
+  font-size: 17px;
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+
+.page-container .btn-copiar:hover {
+  background: var(--roxo-hover);
+}
+
+.page-container .pix-instrucoes {
+  align-self: stretch;
+  margin: 22px 0 0;
+  padding: 16px 18px 16px 36px;
+  background: #fafafa;
+  border-radius: 14px;
+  font-size: 13.5px;
+  line-height: 1.8;
+  color: var(--texto-suave);
+}
+
+.page-container .pix-instrucoes strong {
+  color: var(--texto);
+}
+
+.page-container #pix-carregando,
+.page-container .pix-aguardando {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 18px;
+  font-size: 13.5px;
+  color: var(--texto-suave);
+}
+
+/* o .spinner do fluxo-aluguel.css é branco (feito pra dentro de botão) — aqui precisa ser roxo */
+.page-container #pix-carregando .spinner,
+.page-container .pix-aguardando .spinner {
+  flex: none;
+  border-color: var(--roxo-claro);
+  border-top-color: var(--roxo);
+}
+
+.page-container .pix-expirado {
+  text-align: center;
+  padding: 8px 0 0;
+}
+
+.page-container .pix-expirado > i {
+  font-size: 40px;
+  color: var(--pg-erro);
+}
+
+.page-container .pix-expirado p {
+  margin: 8px 0 18px;
+  font-size: 14px;
+  color: var(--texto-suave);
+}
+
+/* ================= CARTÃO ================= */
+.page-container .field {
+  margin-bottom: 16px;
+}
+
+.page-container .field label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--texto);
+}
+
+.page-container .field input,
+.page-container .campo-seguro {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 1.5px solid var(--borda);
+  border-radius: 12px;
+  background: #fff;
+  font-size: 15px;
+  color: var(--texto);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.page-container .field input::placeholder {
+  color: var(--texto-fraco);
+}
+
+.page-container .field input:focus,
+.page-container .campo-seguro:focus-within {
+  outline: none;
+  border-color: var(--roxo);
+  box-shadow: 0 0 0 3px rgba(109, 73, 242, 0.14);
+}
+
+.page-container .field-erro {
+  display: block;
+  margin-top: 5px;
+  font-size: 12.5px;
+  color: var(--pg-erro);
+}
+
+.page-container .field-erro:empty {
+  display: none;
+}
+
+.page-container .row-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.page-container .alerta-erro {
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 18px;
+  padding: 13px 16px;
+  border-radius: 12px;
+  border: 1px solid #f9c9c9;
+  background: var(--pg-erro-fundo);
+  color: #991b1b;
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.page-container .alerta-erro i {
+  flex: none;
+  margin-top: 1px;
+}
+
+.page-container .metodo-actions {
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-top: 14px;
+}
+
+.page-container .btn-link {
+  background: none;
+  border: none;
+  padding: 6px;
+  color: var(--roxo);
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.page-container .btn-link:hover {
+  text-decoration: underline;
+}
+
+.page-container #btn-pagar-cartao {
+  margin-top: 6px;
+  padding: 15px 22px;
+  font-size: 15.5px;
+}
+
+.page-container .seguranca-msg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 24px;
+  font-size: 12.5px;
+  color: var(--texto-fraco);
+}
+
+/* ================= TELAS DE ESTADO (erro / expirado / carregando) ================= */
+.page-container .pagamento-main .tela-estado {
+  text-align: center;
+  padding: 56px 32px;
+}
+
+.page-container .tela-estado-icone {
+  display: grid;
+  place-items: center;
+  width: 68px;
+  height: 68px;
+  margin: 0 auto 18px;
+  border-radius: 50%;
+  font-size: 28px;
+}
+
+.page-container .tela-estado-erro {
+  background: var(--pg-erro-fundo);
+  color: var(--pg-erro);
+}
+
+.page-container .tela-estado-aviso {
+  background: var(--pg-aviso-fundo);
+  color: #c77800;
+}
+
+.page-container .tela-estado-titulo {
+  margin-bottom: 8px;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.page-container .tela-estado-texto {
+  max-width: 440px;
+  margin: 0 auto 26px;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--texto-suave);
+}
+
+.page-container .tela-estado-texto:last-child {
+  margin-bottom: 0;
+}
+
+/* =====================================================================
+   RESUMO DO PEDIDO — ticket de locação
+   Duas metades (viagem + valores) separadas por um picote, como um
+   comprovante destacável.
+   ===================================================================== */
+.page-container .resumo-ticket {
+  background: #fff;
+  border-radius: 22px;
+  box-shadow: var(--pg-sombra);
+}
+
+.page-container .resumo-topo {
+  padding: 24px 24px 22px;
+}
+
+.page-container .resumo-titulo {
+  margin: 0 0 16px;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--texto);
+}
+
+/* produto */
+.page-container .resumo-produto {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.page-container .resumo-produto img {
+  flex: none;
+  width: 76px;
+  height: 76px;
+  object-fit: cover;
+  border-radius: 16px;
+  background: #f0eef7;
+  box-shadow: inset 0 0 0 1px rgba(20, 20, 43, 0.06);
+}
+
+.page-container .resumo-produto-info {
+  min-width: 0;
+}
+
+.page-container .resumo-produto-nome {
+  font-size: 15.5px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--texto);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.page-container .resumo-produto-categoria {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--tag-categoria-bg);
+  color: var(--tag-categoria-cor);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.page-container .resumo-produto-categoria:empty {
+  display: none;
+}
+
+/* trajeto: retirada ──[3 dias]── devolução */
+.page-container .resumo-rota {
+  display: grid;
+  grid-template-columns: auto minmax(48px, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: var(--pg-fundo-suave);
+}
+
+.page-container .rota-ponto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.page-container .rota-ponto-fim {
+  text-align: right;
+}
+
+.page-container .rota-rotulo {
+  font-size: 12px;
+  color: var(--texto-suave);
+}
+
+.page-container .rota-ponto strong {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--texto);
+  font-variant-numeric: tabular-nums;
+}
+
+.page-container .rota-trilho {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+}
+
+.page-container .rota-trilho::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 4px 50%, var(--roxo) 0 3.5px, transparent 4px),
+    radial-gradient(circle at calc(100% - 4px) 50%, var(--roxo) 0 3.5px, transparent 4px),
+    repeating-linear-gradient(90deg, #c9bdfa 0 5px, transparent 5px 10px);
+  background-repeat: no-repeat;
+  background-size: 100% 100%, 100% 100%, calc(100% - 14px) 2px;
+  background-position: 0 0, 0 0, center;
+}
+
+.page-container .rota-duracao {
+  position: relative;
+  padding: 3px 11px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1.5px solid #d9d0fb;
+  color: var(--roxo);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.page-container .rota-duracao:empty {
+  display: none;
+}
+
+/* picote */
+.page-container .resumo-picote {
+  position: relative;
+  height: 0;
+  margin: 0 16px;
+  border-top: 2px dashed var(--pg-linha);
+}
+
+.page-container .resumo-picote::before,
+.page-container .resumo-picote::after {
+  content: "";
+  position: absolute;
+  top: -10px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #F2F2F2; /* mesma cor do fundo da página */
+  box-shadow: inset 0 1px 2px rgba(20, 20, 43, 0.05);
+}
+
+.page-container .resumo-picote::before { left: -27px; }
+.page-container .resumo-picote::after  { right: -27px; }
+
+/* valores */
+.page-container .resumo-base {
+  padding: 22px 24px 24px;
+}
+
+.page-container .resumo-linha {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  font-size: 14px;
+  color: var(--texto-suave);
+}
+
+.page-container .resumo-linha > span:last-child {
+  font-weight: 600;
+  color: var(--texto);
+  font-variant-numeric: tabular-nums;
+}
+
+.page-container .resumo-linha-detalhe {
+  font-size: 13px;
+}
+
+.page-container .resumo-total-linha {
+  align-items: center;
+  margin-top: 14px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: var(--pg-fundo-suave);
+  box-shadow: inset 0 0 0 1.5px #e3dcfd;
+}
+
+.page-container .resumo-total-linha > span:first-child {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--texto);
+}
+
+.page-container .resumo-total-linha > span:last-child {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--roxo-hover);
+}
+
+.page-container .resumo-base .dica-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 0;
+  background: none;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--texto-suave);
+}
+
+.page-container .resumo-base .dica-box > i {
+  flex: none;
+  margin-top: 1px;
+  font-size: 16px;
+  color: var(--verde);
+}
+
+/* ================= RESPONSIVO ================= */
+@media (max-width: 920px) {
+  .page-container .pagamento-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .page-container .pagamento-sidebar {
+    position: static;
+  }
+}
+
+@media (max-width: 520px) {
+  .page-container .pagamento-main .card {
+    padding: 22px 18px;
+  }
+  .page-container .metodos-grid,
+  .page-container .row-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .page-container .resumo-topo,
+  .page-container .resumo-base {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+  .page-container .resumo-rota {
+    padding: 14px;
+  }
+}
+
+/* ================= ACESSIBILIDADE ================= */
+.page-container .metodo-btn:focus-visible,
+.page-container .btn-copiar:focus-visible,
+.page-container .btn-link:focus-visible,
+.page-container .btn:focus-visible {
+  outline: 3px solid rgba(109, 73, 242, 0.4);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-container * {
+    transition: none !important;
+  }
+}
+
+/* =====================================================================
+   ACRÉSCIMOS — página Pagar Multa (reaproveita todo o CSS acima)
+   ===================================================================== */
+
+/* tela de sucesso */
+.page-container .tela-estado-sucesso {
+  background: var(--verde-claro);
+  color: var(--verde);
+}
+
+/* bloco "3 dias × R$ 2,00" no lugar do trajeto de datas */
+.page-container .resumo-rota-calculo .rota-trilho::before {
+  display: none;
+}
+
+.page-container .resumo-rota-calculo .rota-duracao {
+  padding: 3px 12px;
+  font-size: 14px;
+}
+
+/* situação da multa como etiqueta */
+.page-container .resumo-linha > span.resumo-status {
+  padding: 3px 12px;
+  border-radius: 999px;
+  background: var(--pg-aviso-fundo);
+  color: var(--pg-aviso);
+  font-size: 12.5px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+/* variante informativa do aviso do resumo (ícone roxo em vez de verde) */
+.page-container .resumo-base .dica-box-info > i {
+  color: var(--roxo);
+}
+
+/* link "Fale com o Suporte" abaixo do formulário */
+.page-container .suporte-ajuda {
+  margin-top: 10px;
+  text-align: center;
+}
+
+.page-container .resumo-total-linha + .resumo-linha-detalhe {
+  margin-top: 12px;
+}
+
+.page-container a.btn-link {
+  text-decoration: none;
+}

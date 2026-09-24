@@ -1,10 +1,3 @@
-// ================= PROTEGER PÁGINA =================
-if (!localStorage.getItem("token")) {
-    window.location.href = "/login";
-}
-
-const usuarioLogado = JSON.parse(localStorage.getItem("usuario") || "null");
-
 // ================= LER SOLICITAÇÃO =================
 const params = new URLSearchParams(window.location.search);
 const solicitacaoId = params.get("solicitacaoId");
@@ -102,7 +95,7 @@ function formatarDataHora(isoStr) {
 }
 
 // ================= PREENCHER CABEÇALHO / PRODUTO =================
-document.getElementById("produto-mini-imagem").src = solicitacao.imagemProduto || "../img/sem-imagem.jpg";
+document.getElementById("produto-mini-imagem").src = solicitacao.imagemProduto || "/assets/usuario/img/sem-imagem.jpg";
 document.getElementById("produto-mini-nome").textContent = solicitacao.produtoTitulo;
 document.getElementById("produto-mini-categoria").textContent = solicitacao.produtoCategoria || "";
 document.getElementById("detalhe-retirada").textContent = formatarData(solicitacao.dataRetirada);

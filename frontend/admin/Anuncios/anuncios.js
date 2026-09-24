@@ -43,7 +43,7 @@ async function carregarAnuncios() {
         estado.anuncios = (resposta.data || []).map(a => ({ ...a, proprietarioNome: a.usuarios?.nome || '—', categoria: a.categorias?.nome || '—', preco_dia: a.preco_por_dia, imagem: a.fotos_item?.[0]?.url, status: a.status }));
         estado.total = resposta.total;
     } catch (err) {
-        corpoTabela.innerHTML = `<tr><td colspan="8" class="admin-tabela-vazio">${err.message}</td></tr>`;
+        corpoTabela.innerHTML = `<tr><td colspan="8" class="admin-tabela-vazio">${escAdmin(err.message)}</td></tr>`;
         infoPaginacao.textContent = '';
         paginacaoEl.innerHTML = '';
         return;

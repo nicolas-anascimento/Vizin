@@ -1,30 +1,4 @@
-// ================= PROTEGER PÁGINA =================
-if (!localStorage.getItem("token")) {
- 
-    sessionStorage.setItem(
-        "mensagemLogin",
-        "Você precisa estar logado para acessar essa página."
-    );
- 
-    window.location.href = "/login";
- 
-}
- 
-// Protegido contra JSON corrompido em localStorage.usuario — sem isso, um
-// JSON.parse quebrado derrubava o script inteiro (nem o formulário
-// funcionaria).
 let usuarioLogado = null;
- 
-try {
- 
-    usuarioLogado = JSON.parse(localStorage.getItem("usuario") || "null");
- 
-} catch (erro) {
- 
-    console.error("Dados de usuário corrompidos no localStorage:", erro);
-    localStorage.removeItem("usuario");
- 
-}
  
 /* ---------- Upload de fotos (até 5, primeira = principal) ---------- */
 const MAX_PHOTOS = 5;
@@ -249,7 +223,7 @@ window.addEventListener("beforeunload", (e) => {
 // pessoa voltar a esta página sem ter enviado o formulário. Chave inclui o
 // email do usuário pra não misturar rascunhos entre contas no mesmo
 // navegador.
-const CHAVE_RASCUNHO = `rascunho_cadastro_objeto_${usuarioLogado?.id || usuarioLogado?.email || "anonimo"}`;
+let CHAVE_RASCUNHO = "rascunho_cadastro_objeto_sessao";
  
 function camposParaRascunho() {
   return {
@@ -333,7 +307,7 @@ function mostrarBannerRascunho(dados) {
  
 // Verifica, já no carregamento da página, se existe um rascunho salvo com
 // conteúdo relevante (ignora rascunhos vazios/só de checkbox).
-(function verificarRascunhoExistente() {
+function verificarRascunhoExistente() {
   let dadosSalvos = null;
  
   try {
@@ -354,7 +328,7 @@ function mostrarBannerRascunho(dados) {
   } else {
     localStorage.removeItem(CHAVE_RASCUNHO);
   }
-})();
+}
  
 // Salva o rascunho com um pequeno atraso (debounce) pra não escrever no
 // localStorage a cada tecla digitada.
@@ -393,6 +367,7 @@ function validateForm() {
  
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
+  usuarioLogado = await (window.SessaoVizin?.pronto ?? Promise.resolve(usuarioLogado));
   statusMsg.className = "status-msg";
   statusMsg.textContent = "";
  
@@ -524,3 +499,11 @@ const categoriasProntas = window.CategoriasVizin.carregar(document.getElementByI
     statusMsg.textContent = "Não foi possível carregar as categorias. Recarregue a página.";
     btnSubmit.disabled = true;
   });
+
+window.SessaoVizin?.pronto.then(usuario => {
+  if (usuario) {
+    usuarioLogado = usuario;
+    CHAVE_RASCUNHO = `rascunho_cadastro_objeto_${usuario.id}`;
+    verificarRascunhoExistente();
+  }
+});

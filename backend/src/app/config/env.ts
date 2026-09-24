@@ -25,6 +25,19 @@ function booleanValue(value: string | undefined, fallback: boolean): boolean {
   return ["true", "1", "yes", "on"].includes(value.toLowerCase());
 }
 
+function trustProxyValue(value: string | undefined): false | string[] {
+  const raw = value?.trim();
+  if (!raw || raw.toLowerCase() === "false") return false;
+  if (["true", "1", "yes", "on"].includes(raw.toLowerCase())) {
+    throw new Error(
+      "TRUST_PROXY não aceita confiança irrestrita; use loopback no tunnel local ou IPs/CIDRs explícitos",
+    );
+  }
+  const proxies = raw.split(",").map((entry) => entry.trim()).filter(Boolean);
+  if (!proxies.length) return false;
+  return proxies;
+}
+
 const rawNodeEnv = process.env.NODE_ENV?.trim() || "dev";
 if (!["dev", "test", "production"].includes(rawNodeEnv)) {
   throw new Error("NODE_ENV deve ser dev, test ou production");
@@ -51,7 +64,9 @@ const env = {
   DATABASE_URL: required("DATABASE_URL"),
   JWT_KEY: required("JWT_KEY"),
   APP_URL: appUrl,
-  TRUST_PROXY: booleanValue(process.env.TRUST_PROXY, false),
+  // Express aceita nomes de sub-redes (por exemplo, loopback), IPs e CIDRs.
+  // Nunca habilitamos `true`, pois isso confiaria em qualquer cadeia encaminhada.
+  TRUST_PROXY: trustProxyValue(process.env.TRUST_PROXY),
   SMTP_HOST: process.env.SMTP_HOST?.trim() ?? "",
   SMTP_PORT: positiveInteger(process.env.SMTP_PORT, 587),
   SMTP_SECURE: booleanValue(process.env.SMTP_SECURE, false),

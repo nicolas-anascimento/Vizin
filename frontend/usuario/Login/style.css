@@ -82,6 +82,7 @@ body{
 .form-box h2{
     font-size: 19px;
     text-align: center;
+    margin-bottom: 12px;
 }
  
 .form-box .input-box{
@@ -381,6 +382,7 @@ body{
     width: 300%;
     align-items: stretch;
     transition: transform .6s ease;
+    margin-top: 12px;
 }
  
 .cadastro-step {

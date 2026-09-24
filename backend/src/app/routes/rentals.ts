@@ -1,6 +1,6 @@
 // Expõe ciclo da solicitação: criação, status, pagamento, fotos, multa, relato e avaliação.
 import { createReview, listRentalReviews } from "../controllers/reviewsController.ts";
-import { rentalPaymentSummary, rentalPaymentConfirmation, createContractPayment, fineSummary } from "../controllers/paymentsController.ts";
+import { rentalPaymentSummary, rentalPaymentConfirmation, createContractPayment, createDemoPayment, fineSummary } from "../controllers/paymentsController.ts";
 import { rateLimit } from "../middlewares/rateLimit.ts";
 import { Router } from "express";
 import { createRentalRequest, getRentalStatus, listMyRentals, updateRentalStatus, cancelRentalRequest } from "../controllers/rentalsController.ts";
@@ -29,8 +29,10 @@ router.get("/:id/status", getRentalStatus);
 router.get("/:id/pagamento", rentalPaymentSummary);
 router.get("/:id/confirmacao-pagamento", rentalPaymentConfirmation);
 router.post("/:id/pagamentos", rateLimit({windowMs:60000,max:30}), createContractPayment);
+router.post("/:id/pagamentos/demo", rateLimit({windowMs:60000,max:30}), createDemoPayment);
 router.get("/:id/multa", fineSummary);
 router.post("/:id/multa/pagamentos", rateLimit({windowMs:60000,max:30}), createContractPayment);
+router.post("/:id/multa/pagamentos/demo", rateLimit({windowMs:60000,max:30}), createDemoPayment);
 router.get("/:id", getRentalStatus);
 router.patch("/:id/status", updateRentalStatus);
 export default router;

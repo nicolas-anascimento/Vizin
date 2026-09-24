@@ -27,10 +27,10 @@
             <div class="conta-linha-opcao">
                 <div class="conta-linha-texto">
                     <h3>Mostrar meu telefone</h3>
-                    <p>Só é exibido para quem já teve um aluguel aceito com você — nunca para visitantes aleatórios do seu perfil.</p>
+                    <p>Seu telefone permanece privado e não é exibido no perfil público.</p>
                 </div>
                 <label class="conta-toggle">
-                    <input type="checkbox" id="toggle-telefone-condicional" disabled checked>
+                    <input type="checkbox" id="toggle-telefone-condicional" disabled>
                     <span class="conta-toggle-track"></span>
                 </label>
             </div>
@@ -94,14 +94,6 @@
          preferências de notificação de verdade no PDF de "Baixar meus
          dados" (antes lia uma chave antiga que não existe mais). -->
     <script src="/assets/usuario/Notificacoes/notificacoes-shared.js"></script>
-
-    <!-- Precisa vir antes de privacidade.js: expõe
-         window.ObjetosVizin.obterDoProprietario(), usado pra incluir os
-         objetos anunciados de verdade no PDF de "Baixar meus dados" — sem
-         este script, window.ObjetosVizin fica undefined e a seção de
-         objetos do PDF sai sempre vazia, mesmo quando a pessoa tem
-         objetos cadastrados. -->
-    <script src="/assets/usuario/Meus-objetos/objetos-shared.js"></script>
 
     <!-- Precisa vir antes de privacidade.js: expõe
          window.PrivacidadeVizin.obterPrivacidade/salvarPrivacidade — o

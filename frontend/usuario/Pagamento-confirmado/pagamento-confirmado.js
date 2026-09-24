@@ -1,8 +1,3 @@
-// ================= PROTEGER PÁGINA =================
-if (!localStorage.getItem("token")) {
-    window.location.href = "/login";
-}
-
 // ================= LER DADOS DA URL =================
 // Só o id da solicitação vem da URL. Objeto, datas e valor pago são buscados
 // no back-end — quem abrir esta página sem ter pago (ou com um link
@@ -53,11 +48,12 @@ function preencher(c) {
     document.getElementById("confirmado-devolucao").textContent = formatarData(c.data_devolucao);
     document.getElementById("confirmado-periodo").textContent = `${c.dias} dia${c.dias > 1 ? "s" : ""}`;
     document.getElementById("confirmado-total").textContent = formatarPreco(c.total_pago);
+    const avisoDemo = document.getElementById("confirmado-demo");
+    if (avisoDemo) avisoDemo.hidden = c.pagamento_demonstrativo !== true;
 }
 
 // ================= INICIALIZAÇÃO =================
 (async function iniciar() {
-    if (!localStorage.getItem("token")) return; // já redirecionando pro login
 
     mostrarTela("carregando");
 

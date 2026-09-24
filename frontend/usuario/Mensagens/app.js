@@ -6,14 +6,7 @@
  * ------------------------------------------------------------------
  */
  
-const usuarioLogado = JSON.parse(localStorage.getItem("usuario") || "null");
- 
-// Guarda de sessão: sem usuário logado não tem o que fazer aqui.
-// Redireciona pro login já preservando a intenção de voltar pra
-// Mensagens depois (o Login pode ler ?redirect= e mandar de volta).
-if (!usuarioLogado) {
-  window.location.href = "/login?redirect=" + encodeURIComponent(location.pathname + location.search);
-}
+let usuarioLogado = null;
  
 const state = {
   conversations: [],
@@ -25,6 +18,8 @@ let realtimeSocket = null;
 let typingSent = false;
 let typingStopTimer = null;
 let remoteTypingTimer = null;
+let realtimeConnectedOnce = false;
+let reconnectSync = null;
 const pendingSendTimers = new Map();
  
 const els = {
@@ -107,6 +102,7 @@ async function init() {
   setupOfflineDetection();
   const session = await (window.SessaoVizin?.pronto ?? Promise.resolve(usuarioLogado));
   if (!session) return;
+  usuarioLogado = session;
   await window.SessaoVizin?.realtimePronto;
   setupRealtime();
   await loadConversations();
@@ -151,11 +147,14 @@ function setupOfflineDetection() {
 function setupRealtime() {
   realtimeSocket = window.SocketVizin?.connect() || null;
   if (!realtimeSocket) return;
+  realtimeConnectedOnce = realtimeSocket.connected;
 
-  realtimeSocket.on("connect", () => {
+  realtimeSocket.on("connect", async () => {
     if (state.activeConversationId) {
       realtimeSocket.emit("chat:join", { conversation_id: state.activeConversationId });
     }
+    if (realtimeConnectedOnce) await synchronizeAfterReconnect();
+    realtimeConnectedOnce = true;
   });
   realtimeSocket.on("message:new", onRealtimeMessage);
   realtimeSocket.on("message:ack", onRealtimeAck);
@@ -167,6 +166,29 @@ function setupRealtime() {
     stopTyping();
     els.typingIndicator.classList.add("hidden");
   });
+}
+
+// Socket.IO não reproduz eventos perdidos durante uma queda. Ao reconectar,
+// reentra na room e reconcilia lista e histórico com a fonte persistida REST.
+async function synchronizeAfterReconnect() {
+  if (reconnectSync) return reconnectSync;
+  reconnectSync = (async () => {
+    try {
+      state.conversations = await API.getConversations();
+      renderConversationList(currentFilteredList());
+      const conversationId = state.activeConversationId;
+      if (!conversationId) return;
+      const history = await API.getMessages(conversationId);
+      if (state.activeConversationId !== conversationId) return;
+      const localMessages = state.messages;
+      state.messages = history;
+      localMessages.forEach(replaceOrAppendMessage);
+      renderMessages(state.messages);
+    } catch (error) {
+      console.error("Falha ao sincronizar o chat após reconexão:", error);
+    }
+  })().finally(() => { reconnectSync = null; });
+  return reconnectSync;
 }
 
 function loggedUserId() {

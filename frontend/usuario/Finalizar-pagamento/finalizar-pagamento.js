@@ -1,8 +1,3 @@
-// ================= PROTEGER PÁGINA =================
-if (!localStorage.getItem("token")) {
-    window.location.href = "/login";
-}
-
 // ================= LER DADOS DA URL =================
 // Só o id da solicitação é necessário: datas, valores e produto vêm do back.
 const params = new URLSearchParams(window.location.search);
@@ -129,7 +124,7 @@ function formatarData(dataStr) {
 }
 
 function preencherResumo(c) {
-    document.getElementById("resumo-imagem").src = c.produto.imagem || "../img/sem-imagem.jpg";
+    document.getElementById("resumo-imagem").src = c.produto.imagem || "/assets/usuario/img/sem-imagem.jpg";
     document.getElementById("resumo-imagem").alt = c.produto.titulo;
     document.getElementById("resumo-produto-nome").textContent = c.produto.titulo;
     document.getElementById("resumo-produto-categoria").textContent = c.produto.categoria || "";
@@ -153,7 +148,6 @@ function irParaConfirmacao() {
 
 // ================= INICIALIZAÇÃO DA PÁGINA =================
 (async function iniciar() {
-    if (!localStorage.getItem("token")) return; // já redirecionando pro login
 
     mostrarTela("carregando");
 

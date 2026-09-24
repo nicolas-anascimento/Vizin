@@ -17,7 +17,7 @@
     "use strict";
 
     let mp = null;
-    const campos = { numero: null, validade: null, cvv: null, cvvSalvo: null };
+    const campos = { numero: null, validade: null, cvv: null };
     let paymentMethodId = null; // "visa", "master"... detectado pelos primeiros dígitos
 
     function obterMP() {
@@ -67,13 +67,6 @@
         });
     }
 
-    // Cartão já salvo: só o CVV é pedido de novo.
-    function montarCvvCartaoSalvo(idContainer) {
-        const sdk = obterMP();
-        desmontarTudo();
-        campos.cvvSalvo = sdk.fields.create("securityCode", { placeholder: "CVV" }).mount(idContainer);
-    }
-
     // ---------------- tokenização ----------------
     function somenteDigitos(v) {
         return String(v || "").replace(/\D/g, "");
@@ -88,17 +81,6 @@
                 identificationNumber: somenteDigitos(cpf)
             });
             return { token: token.id, paymentMethodId };
-        } catch (erro) {
-            throw traduzirErroTokenizacao(erro);
-        }
-    }
-
-    // cartaoId = id do cartão no gateway, devolvido por GET /cartoes.
-    async function tokenizarCartaoSalvo(cartaoId) {
-        const sdk = obterMP();
-        try {
-            const token = await sdk.fields.createCardToken({ cardId: cartaoId });
-            return { token: token.id, paymentMethodId: null };
         } catch (erro) {
             throw traduzirErroTokenizacao(erro);
         }
@@ -161,10 +143,8 @@
 
     window.PagamentoGateway = {
         montarCamposNovoCartao,
-        montarCvvCartaoSalvo,
         desmontarTudo,
         tokenizarCartaoNovo,
-        tokenizarCartaoSalvo,
         validarCpf,
         ligarMascaraCpf,
         obterDeviceId
