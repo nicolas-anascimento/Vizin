@@ -98,60 +98,56 @@ document.getElementById("devolucao-subtitulo").textContent =
         : "Registre suas fotos confirmando o recebimento do objeto";
 
 // ================= PRAZO / ATRASO DA DEVOLUÇÃO (visível na própria tela) =================
-function parseDataISOLocal(dataStr) {
-    if (!dataStr) return null;
-    const partes = dataStr.split("-").map(Number);
-    if (partes.length !== 3 || partes.some(Number.isNaN)) return null;
-    const [ano, mes, dia] = partes;
-    return new Date(ano, mes - 1, dia);
-}
-
+// REGRA: a devolução deve ser confirmada até as 23:59 do dia agendado; a partir
+// das 00:00 do dia seguinte começa a contar multa diária. O cálculo do "hoje"
+// (fuso de São Paulo) fica em DevolucaoVizin.prazo(); o VALOR da multa é sempre
+// do back-end.
 const formatarReal = window.SolicitacoesVizin.formatarReal;
 
-(function mostrarPrazo() {
-    if (!solicitacao.dataDevolucao || solicitacao.status !== "retirado") return;
+const AVISO_MULTA_DIARIA = "Depois disso começa a contar multa diária.";
 
-    const dataDevolucao = parseDataISOLocal(solicitacao.dataDevolucao);
-    if (!dataDevolucao) return;
-
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    const diffDias = Math.round((dataDevolucao - hoje) / (1000 * 60 * 60 * 24));
-    const dataFormatada = solicitacao.dataDevolucao.split("-").reverse().join("/");
-
+function renderizarPrazo() {
     const prazoCard = document.getElementById("prazo-card");
     const prazoTexto = document.getElementById("prazo-texto");
     if (!prazoCard || !prazoTexto) return;
+    if (!solicitacao.dataDevolucao || solicitacao.status !== "retirado") return;
+
+    const p = DevolucaoVizin.prazo(solicitacao.dataDevolucao);
+    if (!p) return;
+
+    const dataFormatada = p.dataISO.split("-").reverse().join("/");
+    prazoCard.classList.remove("prazo-urgente");
 
     let texto;
-    if (diffDias > 1) {
-        texto = `Faltam ${diffDias} dias para o prazo da devolução (${dataFormatada}).`;
-    } else if (diffDias === 1) {
-        texto = `A devolução precisa ser confirmada até amanhã (${dataFormatada}).`;
-    } else if (diffDias === 0) {
-        texto = "A devolução precisa ser confirmada hoje.";
+    if (p.estado === "futura" && p.diff > 1) {
+        texto = `Faltam ${p.diff} dias para o prazo da devolução (${dataFormatada}). A devolução deve ser confirmada até as 23:59 desse dia. ${AVISO_MULTA_DIARIA}`;
+    } else if (p.estado === "futura") {
+        texto = `A devolução precisa ser confirmada até amanhã (${dataFormatada}), às 23:59. ${AVISO_MULTA_DIARIA}`;
+        prazoCard.classList.add("prazo-urgente");
+    } else if (p.estado === "hoje") {
+        texto = `A devolução precisa ser confirmada hoje, até as 23:59. ${AVISO_MULTA_DIARIA}`;
         prazoCard.classList.add("prazo-urgente");
     } else {
-        const diasAtraso = Math.abs(diffDias);
-        texto = `Devolução em atraso há ${diasAtraso} dia(s) (prazo era ${dataFormatada}). Enquanto o objeto não for devolvido, ${meuPapel === "locatario" ? "sua conta fica impedida de solicitar novos aluguéis ou aprovar locações" : "a conta de quem alugou fica restrita"}.`;
+        texto = `Devolução em atraso há ${p.diasAtraso} dia(s): o prazo terminou às 23:59 de ${dataFormatada} e a multa diária já está correndo. Enquanto o objeto não for devolvido, ${meuPapel === "locatario" ? "sua conta fica impedida de solicitar novos aluguéis ou aprovar locações" : "a conta de quem alugou fica restrita"}.`;
         prazoCard.classList.add("prazo-urgente");
 
-        // O valor da multa é do back-end (projeção até a devolução ser confirmada).
+        // Valor e dias de atraso "oficiais" vêm do back (projeção até a devolução ser confirmada).
         window.SolicitacoesVizin.obterMulta(solicitacao.id).then(m => {
             if (m && m.valorTotal > 0) {
-                prazoTexto.textContent = `${texto} Já acumulou ${formatarReal(m.valorTotal)} de multa (${formatarReal(m.valorDia)}/dia), cobrados quando a devolução for confirmada.`;
+                const dias = m.diasAtraso > 0 ? m.diasAtraso : p.diasAtraso;
+                prazoTexto.textContent = `Devolução em atraso há ${dias} dia(s): o prazo terminou às 23:59 de ${dataFormatada}. Já acumulou ${formatarReal(m.valorTotal)} de multa (${formatarReal(m.valorDia)}/dia), cobrados quando a devolução for confirmada.`;
             }
         }).catch(() => { /* mantém o texto sem valor */ });
     }
 
     prazoTexto.textContent = texto;
     prazoCard.style.display = "flex";
-})();
+}
 
 // ================= RESUMO DA MULTA ANTES DE CONFIRMAR =================
 // Repete o valor exato perto do botão de confirmar, pra ninguém confirmar a
 // devolução sem saber quanto vai ser cobrado (ou recebido). Valores do back.
-(function mostrarResumoMultaAntesConfirmar() {
+function renderizarResumoMulta() {
     const resumoEl = document.getElementById("resumo-multa-confirmar");
     if (!resumoEl || solicitacao.status !== "retirado") return;
 
@@ -169,7 +165,17 @@ const formatarReal = window.SolicitacoesVizin.formatarReal;
         resumoEl.classList.add("prazo-urgente");
         resumoEl.style.display = "flex";
     }).catch(() => { /* sem resumo: o valor final aparece após confirmar */ });
-})();
+}
+
+renderizarPrazo();
+renderizarResumoMulta();
+
+// Se a tela ficar aberta na virada do dia (00:00 de São Paulo), o prazo passa
+// de "hoje" pra "em atraso" sozinho, sem perder as fotos já selecionadas.
+DevolucaoVizin.aoVirarODia(() => {
+    renderizarPrazo();
+    renderizarResumoMulta();
+});
 
 // ================= COMPRESSÃO DAS FOTOS ANTES DO ENVIO =================
 // O back aceita até 5 MB por foto: redimensionamos (lado maior até 1600 px) e

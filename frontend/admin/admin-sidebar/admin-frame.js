@@ -12,7 +12,9 @@
  *      window.mostrarToastAdmin(mensagem, tipo), pra qualquer
  *      script do admin (usuarios.js, admin-usuario-acoes.js etc.)
  *      poder mostrar avisos sem precisar declarar essa div sozinho
- *      (se a página já tiver a div, essa função reaproveita ela).
+ *      (se a página já tiver a div, essa função reaproveita ela);
+ *   4) mostra contadores (bolinha laranja) nos links do menu que têm
+ *      algo esperando o admin — ver "CONTADORES NA SIDEBAR" abaixo.
  *
  * Não reaproveita o frame.js do usuário porque ele busca os fragmentos
  * de header e footer — se fosse incluído
@@ -62,6 +64,7 @@
             preencherPerfilAdmin();
             ligarLogout();
             ligarGavetaMobile();
+            iniciarContadores();
         })
         .catch(err => console.error("Falha ao carregar sidebar do admin:", err));
 
@@ -172,5 +175,121 @@
             }
         });
     }
+
+    // ================= CONTADORES NA SIDEBAR =================
+    // Cada link do menu pode mostrar uma bolinha com "quanto tem esperando
+    // o admin". Duas famílias de contagem:
+    //
+    //  - FILAS de trabalho (somem só quando o admin resolve o caso):
+    //      Denúncias / Suporte -> total_pendentes (GET /admin/ocorrencias/resumo)
+    //      Verificações        -> verificações em análise (GET /admin/verificacoes?status=pendente, campo `total`)
+    //
+    //  - NOTIFICAÇÕES NÃO LIDAS por categoria (somem quando o admin lê na
+    //    tela de Notificações; GET /admin/notificacoes/resumo):
+    //      Usuários  -> novos cadastros / usuários reincidentes
+    //      Anúncios  -> novos anúncios publicados / anúncios reportados
+    //      Pagamentos-> pagamentos processados / falhos / estornados
+    //      Avaliações-> avaliações negativas
+    //      Notificações (recebidas) -> total de não lidas
+    //
+    // Sem contador de propósito: Categorias, Configurações e Criar Notificação
+    // (não há "pendência" ali). Pra um link novo ganhar contador, basta
+    // adicionar uma linha em CONTADORES com o data-page dele.
+    //
+    // Falha de rede/rota inexistente não quebra nada: o contador só fica
+    // escondido (ou mantém o último valor conhecido).
+    const INTERVALO_CONTADORES_MS = 60000;
+
+    const fontes = { notificacoes: null, ocorrencias: null, verificacoes: null };
+
+    const numero = v => {
+        const n = Number(v);
+        return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+    };
+    const porCategoria = (f, cat) => numero(f.notificacoes?.por_categoria?.[cat]);
+
+    // data-page do link -> função que devolve o número a exibir
+    const CONTADORES = {
+        "usuarios":               f => porCategoria(f, "usuarios"),
+        "anuncios":               f => porCategoria(f, "anuncios"),
+        "pagamentos":             f => porCategoria(f, "pagamentos"),
+        "avaliacoes":             f => porCategoria(f, "avaliacoes"),
+        "denuncias":              f => numero(f.ocorrencias?.total_pendentes),
+        "verificacoes":           f => numero(f.verificacoes?.total),
+        "notificacoes-recebidas": f => numero(f.notificacoes?.nao_lidas)
+    };
+
+    const ROTULOS_CONTADOR = {
+        "usuarios": "não lidas", "anuncios": "não lidas", "pagamentos": "não lidas",
+        "avaliacoes": "não lidas", "notificacoes-recebidas": "não lidas",
+        "denuncias": "casos pendentes", "verificacoes": "em análise"
+    };
+
+    function definirBadge(link, valor, rotulo) {
+        let badge = link.querySelector(".admin-nav-badge");
+        if (valor <= 0) {
+            if (badge) badge.hidden = true;
+            return;
+        }
+        if (!badge) {
+            badge = document.createElement("span");
+            badge.className = "admin-nav-badge";
+            link.appendChild(badge);
+        }
+        badge.textContent = valor > 99 ? "99+" : String(valor);
+        badge.title = `${valor} ${rotulo}`;
+        badge.hidden = false;
+    }
+
+    function renderizarContadores() {
+        Object.entries(CONTADORES).forEach(([pagina, calcular]) => {
+            const link = document.querySelector(`.admin-nav-link[data-page="${pagina}"]`);
+            if (link) definirBadge(link, calcular(fontes), ROTULOS_CONTADOR[pagina] || "");
+        });
+    }
+
+    let _tokenContadores = 0;
+    async function buscarContadores() {
+        if (typeof apiRequest !== "function") return; // api.js não carregou nesta página
+        const meuToken = ++_tokenContadores;
+
+        const [notif, ocor, verif] = await Promise.allSettled([
+            apiRequest("/admin/notificacoes/resumo", "GET", null, "Não foi possível carregar as notificações."),
+            apiRequest("/admin/ocorrencias/resumo", "GET", null, "Não foi possível carregar o resumo de ocorrências."),
+            apiRequest("/admin/verificacoes?status=pendente&page=1&limit=1", "GET", null, "Não foi possível carregar as verificações.")
+        ]);
+        if (meuToken !== _tokenContadores) return; // chegou uma busca mais nova
+
+        if (notif.status === "fulfilled") fontes.notificacoes = notif.value;
+        if (ocor.status === "fulfilled") fontes.ocorrencias = ocor.value;
+        if (verif.status === "fulfilled") fontes.verificacoes = verif.value;
+        renderizarContadores();
+    }
+
+    function iniciarContadores() {
+        renderizarContadores();   // usa o que já chegou por evento, se houver
+        buscarContadores();
+
+        setInterval(() => { if (!document.hidden) buscarContadores(); }, INTERVALO_CONTADORES_MS);
+        document.addEventListener("visibilitychange", () => { if (!document.hidden) buscarContadores(); });
+    }
+
+    // A tela de Notificações já tem o resumo em mãos e avisa por evento
+    // (evita refazer a requisição e atualiza os contadores na hora).
+    document.addEventListener("admin:notificacoes-nao-lidas", (e) => {
+        if (e.detail?.resumo) {
+            fontes.notificacoes = e.detail.resumo;
+            renderizarContadores();
+        }
+    });
+
+    // Pontos de chamada pras telas depois de uma ação que mexe numa fila
+    // (ex.: aprovar uma verificação, resolver uma denúncia).
+    window.atualizarBadgesAdmin = buscarContadores;
+    window.atualizarBadgeVerificacoes = buscarContadores; // nome que analise.js já usa
+    window.atualizarBadgeNotificacoesAdmin = function (total) {
+        if (fontes.notificacoes) fontes.notificacoes.nao_lidas = total;
+        renderizarContadores();
+    };
 
 })();

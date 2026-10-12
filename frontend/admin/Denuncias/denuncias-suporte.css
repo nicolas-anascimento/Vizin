@@ -1,0 +1,494 @@
+/**
+ * denuncias.css
+ * ------------------------------------------------------------------
+ * Só o que é específico desta página. admin-card, admin-badge (base),
+ * botões, modal, form-campo/form-erro e toast vêm de admin-shared.css.
+ * Header, stats-grid, toolbar de busca, filtros, tabela e paginação são
+ * redefinidos aqui porque cada página do admin tem o próprio CSS (mesmo
+ * padrão de Usuários/Pagamentos/Anúncios/Avaliações).
+ * ------------------------------------------------------------------
+ */
+
+/* ================= CABEÇALHO DA PÁGINA ================= */
+.admin-page-header{ margin-bottom: 18px; }
+
+.admin-page-header-com-acao{
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.admin-page-header h1{
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--admin-texto);
+}
+
+.admin-page-header p{
+    margin-top: 4px;
+    font-size: 14.5px;
+    color: var(--admin-texto-muted);
+}
+
+.admin-pendentes-badge{
+    display: inline-flex;
+    align-items: center;
+    background: var(--admin-laranja);
+    color: #F2F2F2;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 8px 16px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+.admin-pendentes-badge[hidden]{ display: none; }
+
+/* ================= BANNER DE CRÍTICAS SEM RESPOSTA ================= */
+.admin-banner-alerta{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--admin-vermelho-bg);
+    color: var(--admin-vermelho-txt);
+    border: 1px solid var(--admin-vermelho-txt);
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 13.5px;
+    font-weight: 600;
+    margin-bottom: 18px;
+}
+.admin-banner-alerta[hidden]{ display: none; }
+
+/* ================= CARDS DE RESUMO ================= */
+.admin-stats-grid{
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.admin-stat-card{
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-borda);
+    border-radius: 14px;
+    padding: 18px 20px;
+}
+
+.admin-stat-label{
+    font-size: 13.5px;
+    color: var(--admin-texto-muted);
+    font-weight: 600;
+}
+
+.admin-stat-valor{
+    margin-top: 8px;
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--admin-texto);
+}
+
+.admin-stat-valor.alerta{ color: var(--admin-vermelho-txt); }
+.admin-stat-valor.erro{ color: var(--admin-vermelho-txt); font-size: 17px; cursor: help; }
+
+.admin-stat-card-clicavel{
+    cursor: pointer;
+    transition: border-color .2s ease, box-shadow .2s ease;
+}
+.admin-stat-card-clicavel:hover,
+.admin-stat-card-clicavel:focus-visible{
+    border-color: var(--admin-roxo-500);
+    box-shadow: 0 0 0 3px rgba(109,73,242,0.12);
+    outline: none;
+}
+
+.admin-stat-sublabel{
+    display: block;
+    margin-top: 4px;
+    font-size: 12.5px;
+    color: var(--admin-texto-muted);
+}
+
+@media (max-width: 900px){
+    .admin-stats-grid{ grid-template-columns: 1fr; }
+}
+
+/* ================= BARRA DE BUSCA + FILTROS ================= */
+.admin-toolbar{
+    display: flex;
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.admin-search-box{
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-borda);
+    border-radius: 12px;
+    padding: 0 16px;
+    height: 46px;
+}
+
+.admin-search-box i{ color: var(--admin-texto-muted); font-size: 15px; }
+
+.admin-search-box input{
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 14.5px;
+    font-family: inherit;
+    color: var(--admin-texto);
+}
+.admin-search-box input::placeholder{ color: #A6A0BF; }
+
+.admin-btn-filtro{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 46px;
+    padding: 0 18px;
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-borda);
+    border-radius: 12px;
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--admin-texto);
+    cursor: pointer;
+    font-family: inherit;
+    transition: border-color .2s ease, color .2s ease;
+}
+.admin-btn-filtro:hover, .admin-btn-filtro.active{
+    border-color: var(--admin-roxo-500);
+    color: var(--admin-roxo-500);
+}
+
+/* Painel de filtros com 3 grupos empilhados (Tipo / Status / Prioridade),
+   diferente do painel de 1 linha só usado em Usuários/Anúncios/Pagamentos. */
+.admin-filtro-status{
+    display: none;
+    flex-direction: column;
+    gap: 14px;
+    background: #F1F0F8;
+    border: 1px solid var(--admin-borda);
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 20px;
+}
+.admin-filtro-status.aberta{ display: flex; }
+
+.admin-filtro-grupo{
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.admin-filtro-status-label{
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--admin-texto);
+    flex: 0 0 auto;
+    min-width: 76px;
+}
+
+.admin-filtro-pills{ display: flex; flex-wrap: wrap; gap: 8px; }
+
+.admin-filtro-pill{
+    padding: 7px 16px;
+    border-radius: 999px;
+    border: 1px solid var(--admin-borda);
+    background: var(--admin-surface);
+    color: var(--admin-texto);
+    font-size: 13px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background .2s ease, color .2s ease, border-color .2s ease;
+}
+.admin-filtro-pill:hover{ border-color: var(--admin-roxo-500); color: var(--admin-roxo-500); }
+.admin-filtro-pill.active{
+    background: var(--admin-roxo-500);
+    border-color: var(--admin-roxo-500);
+    color: #F2F2F2;
+}
+
+/* ================= TABELA ================= */
+.admin-tabela-scroll{ overflow-x: auto; }
+
+.admin-tabela{
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 860px;
+}
+
+.admin-tabela thead th{
+    text-align: left;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--admin-texto-muted);
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--admin-borda);
+    white-space: nowrap;
+}
+
+.admin-tabela tbody td{
+    padding: 14px 16px;
+    font-size: 14px;
+    color: var(--admin-texto);
+    border-bottom: 1px solid var(--admin-borda);
+    vertical-align: top;
+}
+.admin-tabela tbody tr:last-child td{ border-bottom: none; }
+.admin-tabela tbody tr:hover{ background: #FAFAFD; }
+
+.admin-ocorrencia-id{ font-weight: 700; color: var(--admin-roxo-500); white-space: nowrap; }
+.admin-motivo-titulo{ font-weight: 600; margin-bottom: 4px; }
+
+/* Link pro perfil do usuário, mesma classe/estilo já usado em Pagamentos
+   (celulaUsuarioPagamento) — repetido aqui pois também não é compartilhado. */
+.admin-usuario-link{ color: inherit; text-decoration: none; }
+.admin-usuario-link:hover{ color: var(--admin-roxo-500); text-decoration: underline; }
+
+/* Tag de origem (Anúncio/Avaliação/Aluguel/Conversa) — mesma ideia visual
+   do admin-metodo-pill de Pagamentos, só que menor, pra caber embaixo do
+   motivo sem competir com ele. */
+.admin-tag-origem{
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--admin-roxo-500);
+    background: #EDE7FE;
+    border-radius: 999px;
+    padding: 2px 9px;
+}
+.admin-tag-origem i{ font-size: 10px; }
+
+/* "aberta há 3 dias", só pra quem ainda está pendente — fica vermelho
+   depois do limiar definido em HORAS_LIMITE_SEM_RESPOSTA (denuncias.js). */
+.admin-tempo-aberta{
+    margin-top: 3px;
+    font-size: 12px;
+    color: var(--admin-texto-muted);
+}
+.admin-tempo-aberta.urgente{ color: var(--admin-vermelho-txt); font-weight: 700; }
+
+/* ================= BADGES DE PRIORIDADE / STATUS / TIPO =================
+   .admin-badge base já vem de admin-shared.css; aqui só as variantes de
+   cor específicas desta tela — reaproveitando o mesmo par cor/fundo já
+   usado em outras telas pro mesmo tipo de semântica (ex: "improcedente"
+   usa a mesma cor âmbar de "suspenso" em Usuários). */
+.admin-badge.prioridade-critica{ color: var(--admin-vermelho-txt); background: var(--admin-vermelho-bg); }
+.admin-badge.prioridade-alta{ color: var(--admin-ambar-txt); background: var(--admin-ambar-bg); }
+.admin-badge.prioridade-media{ color: #3B82C4; background: #E3F1FB; }
+.admin-badge.prioridade-baixa{ color: var(--admin-texto-muted); background: var(--admin-bg); }
+
+.admin-badge.status-aberta{ color: var(--admin-vermelho-txt); background: var(--admin-vermelho-bg); }
+.admin-badge.status-andamento{ color: #3B82C4; background: #E3F1FB; }
+.admin-badge.status-resolvida{ color: var(--admin-verde-txt); background: var(--admin-verde-bg); }
+.admin-badge.status-fechada{ color: var(--admin-texto-muted); background: var(--admin-bg); }
+.admin-badge.status-improcedente{ color: var(--admin-ambar-txt); background: var(--admin-ambar-bg); }
+
+.admin-badge.tipo-denuncia{ color: var(--admin-vermelho-txt); background: var(--admin-vermelho-bg); }
+.admin-badge.tipo-suporte{ color: var(--admin-roxo-500); background: #EDE7FE; }
+
+/* ================= AÇÕES ================= */
+.admin-acoes{ display: flex; align-items: center; gap: 4px; }
+.admin-acao-btn.ver{ color: #3B82C4; }
+.admin-acao-btn.status{ color: var(--admin-verde-txt); }
+.admin-acao-btn.excluir{ color: var(--admin-ambar-txt); }
+
+/* ================= RODAPÉ / PAGINAÇÃO ================= */
+.admin-tabela-rodape{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+#infoPaginacao{ font-size: 13.5px; color: var(--admin-texto-muted); }
+
+.admin-paginacao{ display: flex; align-items: center; gap: 6px; }
+
+.admin-pagina-btn{
+    min-width: 34px;
+    height: 34px;
+    padding: 0 10px;
+    border-radius: 8px;
+    border: 1px solid var(--admin-borda);
+    background: var(--admin-surface);
+    color: var(--admin-texto);
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: .2s ease;
+}
+.admin-pagina-btn:hover:not(:disabled){ border-color: var(--admin-roxo-500); color: var(--admin-roxo-500); }
+.admin-pagina-btn:disabled{ opacity: .45; cursor: not-allowed; }
+.admin-pagina-btn.active{
+    background: var(--admin-roxo-500);
+    border-color: var(--admin-roxo-500);
+    color: #F2F2F2;
+}
+
+/* ================= MODAL "VER / RESPONDER" =================
+   Reaproveita .admin-modal-overlay/.admin-modal de admin-shared.css, só
+   um pouco mais largo (mesma ideia do .admin-modal-grande de Anúncios). */
+.admin-modal-largo{
+    width: 100%;
+    max-width: 620px;
+    max-height: 88vh;
+    overflow-y: auto;
+}
+
+.admin-modal-topo-badges{
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.admin-protocolo{
+    font-size: 12px !important;
+    color: var(--admin-texto-muted);
+    font-family: monospace;
+    margin-bottom: 14px !important;
+}
+
+.admin-reincidencia-aviso{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--admin-ambar-bg);
+    color: var(--admin-ambar-txt);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 13px !important;
+    font-weight: 600;
+    margin-bottom: 14px;
+}
+.admin-reincidencia-aviso a{ color: inherit; text-decoration: underline; }
+
+/* Mesma grid de admin-detalhes-grid usada em Pagamentos — repetida aqui
+   porque também não é compartilhada em admin-shared.css. */
+.admin-detalhes-grid{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 20px;
+    margin: 14px 0;
+}
+.admin-detalhes-grid div{ display: flex; flex-direction: column; gap: 2px; }
+.admin-detalhes-grid span{ font-size: 12px; color: var(--admin-texto-muted); }
+.admin-detalhes-grid strong{ font-size: 14px; color: var(--admin-texto); word-break: break-word; }
+
+.admin-anexo-link{
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--admin-roxo-500);
+    font-size: 13.5px;
+    font-weight: 600;
+    text-decoration: none;
+}
+.admin-anexo-link:hover{ text-decoration: underline; }
+
+.admin-descricao-texto{
+    font-size: 14px !important;
+    color: var(--admin-texto) !important;
+    line-height: 1.55;
+    white-space: pre-wrap;
+}
+
+.admin-respostas-lista{
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: var(--admin-bg);
+    border-radius: 10px;
+    padding: 10px 12px;
+}
+.admin-respostas-lista p{
+    font-size: 13px !important;
+    color: var(--admin-texto) !important;
+    line-height: 1.5;
+}
+
+.admin-status-botoes{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 6px;
+}
+.admin-status-pill{
+    border: 1.5px solid var(--admin-borda);
+    background: var(--admin-surface);
+    border-radius: 999px;
+    padding: 7px 14px;
+    font-size: 12.5px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: opacity .15s ease;
+}
+.admin-status-pill.status-aberta{ border-color: var(--admin-vermelho-txt); color: var(--admin-vermelho-txt); }
+.admin-status-pill.status-andamento{ border-color: #3B82C4; color: #3B82C4; }
+.admin-status-pill.status-resolvida{ border-color: var(--admin-verde-txt); color: var(--admin-verde-txt); }
+.admin-status-pill.status-fechada{ border-color: var(--admin-texto-muted); color: var(--admin-texto-muted); }
+
+/* ===================================================
+   RESPONSIVO
+   =================================================== */
+@media (max-width: 640px){
+    .admin-toolbar{ flex-direction: column; }
+    .admin-toolbar .admin-btn-filtro{ width: 100%; justify-content: center; }
+    .admin-filtro-grupo{ flex-direction: column; align-items: flex-start; }
+    .admin-filtro-pills{ width: 100%; }
+    .admin-filtro-pill{ flex: 1; text-align: center; }
+    .admin-detalhes-grid{ grid-template-columns: 1fr; }
+    .admin-page-header-com-acao{ flex-direction: column; }
+}
+
+@media (max-width: 680px){
+    .admin-tabela-scroll{ overflow-x: visible; }
+    .admin-tabela{ min-width: 0; }
+    .admin-tabela thead{ display: none; }
+    .admin-tabela, .admin-tabela tbody, .admin-tabela tr{ display: block; width: 100%; }
+
+    .admin-tabela tbody tr{
+        border: 1px solid var(--admin-borda);
+        border-radius: 12px;
+        margin: 10px 4px;
+        padding: 6px 14px;
+    }
+    .admin-tabela tbody tr:hover{ background: var(--admin-surface); }
+
+    .admin-tabela td{
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--admin-borda);
+        text-align: right;
+    }
+    .admin-tabela tr td:last-child{ border-bottom: none; }
+
+    .admin-tabela td::before{
+        content: attr(data-label);
+        font-size: 12.5px;
+        font-weight: 700;
+        color: var(--admin-texto-muted);
+        text-align: left;
+        flex: 0 0 auto;
+    }
+
+    .admin-tabela td[data-label="Ações"]{ justify-content: flex-end; }
+    .admin-tabela td[data-label="Ações"]::before{ display: none; }
+}

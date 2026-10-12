@@ -1,0 +1,433 @@
+/**
+ * notificacoes.css
+ * ------------------------------------------------------------------
+ * Só o que é específico desta página. admin-card, botões, modal,
+ * form-erro, avatar/badge e toast vêm de admin-shared.css. Header,
+ * stats, toolbar, filtros e paginação são redefinidos aqui porque cada
+ * página do admin tem o próprio CSS (mesmo padrão de Denúncias/Pagamentos).
+ * ------------------------------------------------------------------
+ */
+
+/* ================= CABEÇALHO DA PÁGINA ================= */
+.admin-page-header{ margin-bottom: 24px; }
+
+.admin-page-header-com-acao{
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.admin-page-header h1{
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--admin-texto);
+}
+
+.admin-page-header p{
+    margin-top: 4px;
+    font-size: 14.5px;
+    color: var(--admin-texto-muted);
+}
+
+/* ================= CARDS DE RESUMO ================= */
+.admin-stats-grid{
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.admin-stat-card{
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-borda);
+    border-radius: 14px;
+    padding: 18px 20px;
+}
+
+.admin-stat-label{
+    font-size: 13.5px;
+    color: var(--admin-texto-muted);
+    font-weight: 600;
+}
+
+.admin-stat-valor{
+    margin-top: 8px;
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--admin-texto);
+}
+
+.admin-stat-valor.alerta{ color: var(--admin-vermelho-txt); }
+
+.admin-stat-sublabel{
+    display: block;
+    margin-top: 4px;
+    font-size: 12.5px;
+    color: var(--admin-texto-muted);
+}
+
+.admin-stat-card-clicavel{
+    cursor: pointer;
+    transition: border-color .2s ease, box-shadow .2s ease;
+}
+.admin-stat-card-clicavel:hover,
+.admin-stat-card-clicavel:focus-visible{
+    border-color: var(--admin-roxo-500);
+    box-shadow: 0 0 0 3px rgba(109,73,242,0.12);
+    outline: none;
+}
+
+@media (max-width: 900px){
+    .admin-stats-grid{ grid-template-columns: 1fr; }
+}
+
+/* ================= BARRA DE BUSCA + FILTROS ================= */
+.admin-toolbar{
+    display: flex;
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.admin-search-box{
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-borda);
+    border-radius: 12px;
+    padding: 0 16px;
+    height: 46px;
+}
+
+.admin-search-box i{ color: var(--admin-texto-muted); font-size: 15px; }
+
+.admin-search-box input{
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 14.5px;
+    font-family: inherit;
+    color: var(--admin-texto);
+}
+.admin-search-box input::placeholder{ color: #A6A0BF; }
+
+.admin-btn-filtro{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 46px;
+    padding: 0 18px;
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-borda);
+    border-radius: 12px;
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--admin-texto);
+    cursor: pointer;
+    font-family: inherit;
+    transition: border-color .2s ease, color .2s ease;
+}
+.admin-btn-filtro:hover, .admin-btn-filtro.active{
+    border-color: var(--admin-roxo-500);
+    color: var(--admin-roxo-500);
+}
+
+.admin-filtro-status{
+    display: none;
+    flex-direction: column;
+    gap: 14px;
+    background: var(--admin-faixa, #F1F0F8);
+    border: 1px solid var(--admin-borda);
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 20px;
+}
+.admin-filtro-status.aberta{ display: flex; }
+
+.admin-filtro-grupo{
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.admin-filtro-status-label{
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--admin-texto);
+    flex: 0 0 auto;
+    min-width: 76px;
+}
+
+.admin-filtro-pills{ display: flex; flex-wrap: wrap; gap: 8px; }
+
+.admin-filtro-pill{
+    padding: 7px 16px;
+    border-radius: 999px;
+    border: 1px solid var(--admin-borda);
+    background: var(--admin-surface);
+    color: var(--admin-texto);
+    font-size: 13px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background .2s ease, color .2s ease, border-color .2s ease;
+}
+.admin-filtro-pill:hover{ border-color: var(--admin-roxo-500); color: var(--admin-roxo-500); }
+.admin-filtro-pill.active{
+    background: var(--admin-roxo-500);
+    border-color: var(--admin-roxo-500);
+    color: #F2F2F2;
+}
+
+/* Bolinha com a quantidade de NÃO lidas dentro do pill da categoria */
+.admin-contagem{
+    display: inline-block;
+    min-width: 18px;
+    padding: 0 6px;
+    margin-left: 4px;
+    border-radius: 9px;
+    background: var(--admin-vermelho-txt);
+    color: #F2F2F2;
+    font-size: 11px;
+    line-height: 18px;
+    text-align: center;
+}
+.admin-contagem[hidden]{ display: none; }
+
+/* ================= BANNER "N NOVAS NOTIFICAÇÕES" ================= */
+.admin-banner-novas{
+    display: block;
+    width: calc(100% - 16px);
+    margin: 4px 8px 8px;
+    padding: 10px;
+    border: none;
+    border-radius: 10px;
+    background: var(--admin-roxo-500);
+    color: #F2F2F2;
+    font-size: 13.5px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: opacity .2s ease;
+}
+.admin-banner-novas:hover{ opacity: .9; }
+.admin-banner-novas[hidden]{ display: none; }
+
+/* ================= LISTA DE NOTIFICAÇÕES ================= */
+.admin-notif-lista{ display: flex; flex-direction: column; }
+
+.admin-notif{
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 16px;
+    border-bottom: 1px solid var(--admin-borda);
+    border-left: 3px solid transparent;
+    transition: background .15s ease;
+}
+.admin-notif:last-child{ border-bottom: none; }
+.admin-notif:hover{ background: var(--admin-faixa, #FAFAFD); }
+
+.admin-notif.nao-lida{
+    background: color-mix(in srgb, var(--admin-roxo-500) 9%, var(--admin-surface));
+    border-left-color: var(--admin-roxo-500);
+}
+.admin-notif.nao-lida .admin-notif-titulo{ font-weight: 700; }
+.admin-notif.lida .admin-notif-icone{ opacity: .6; }
+.admin-notif.prioridade-alta.nao-lida{
+    background: var(--admin-vermelho-bg);
+    border-left-color: var(--admin-vermelho-txt);
+}
+
+/* Cor por categoria (a mesma paleta usada nas miniaturas/avatares do admin) */
+.cat-usuarios{ --cat: #3B82C4; }
+.cat-anuncios{ --cat: #F27C38; }
+.cat-denuncias{ --cat: #C4362B; }
+.cat-pagamentos{ --cat: #1F9D66; }
+.cat-avaliacoes{ --cat: #B4770A; }
+.cat-verificacoes{ --cat: var(--admin-roxo-500); }
+.cat-sistema{ --cat: #5B5870; }
+
+.admin-notif-icone{
+    flex: 0 0 40px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--cat);
+    color: #F2F2F2;
+    font-size: 17px;
+}
+
+.admin-notif-corpo{ flex: 1; min-width: 0; }
+
+.admin-notif-topo{
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+    font-size: 12px;
+}
+
+.admin-notif-cat{
+    color: var(--cat);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+}
+
+.admin-notif-urgente{
+    color: var(--admin-vermelho-txt);
+    font-weight: 700;
+}
+
+.admin-notif-tempo{
+    margin-left: auto;
+    color: var(--admin-texto-muted);
+}
+
+.admin-notif-titulo{
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--admin-texto);
+    margin-bottom: 2px;
+}
+
+.admin-notif-msg{
+    font-size: 13.5px;
+    color: var(--admin-texto-muted);
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.admin-notif-link{
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--admin-roxo-500);
+    text-decoration: none;
+}
+.admin-notif-link:hover{ text-decoration: underline; }
+
+.admin-acoes{ display: flex; align-items: center; gap: 4px; }
+.admin-notif-acoes{ flex: 0 0 auto; }
+
+/* "Tratada por Fulano em ..." — outro admin já resolveu o item */
+.admin-notif-tratada{
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--admin-verde-txt);
+}
+
+/* Link "Limpar filtros" dentro do estado vazio */
+.admin-link-limpar{
+    border: none;
+    background: none;
+    padding: 0;
+    margin-left: 6px;
+    color: var(--admin-roxo-500);
+    font-size: inherit;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+/* Aviso de conexão/sessão */
+.admin-aviso-conexao{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    background: var(--admin-ambar-bg);
+    color: var(--admin-ambar-txt);
+    border: 1px solid var(--admin-ambar-txt);
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 18px;
+    font-size: 13.5px;
+    font-weight: 600;
+}
+.admin-aviso-conexao[hidden]{ display: none; }
+.admin-aviso-conexao-acoes{ display: flex; gap: 8px; flex-wrap: wrap; }
+.admin-aviso-conexao .admin-btn-secundario{
+    height: 34px;
+    padding: 0 14px;
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+    font-size: 13px;
+}
+
+/* Nota de retenção no rodapé do card */
+.admin-notif-retencao{
+    padding: 0 16px 14px;
+    font-size: 12px;
+    color: var(--admin-texto-muted);
+}
+
+/* ================= RODAPÉ / PAGINAÇÃO ================= */
+.admin-tabela-rodape{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+#infoPaginacao{ font-size: 13.5px; color: var(--admin-texto-muted); }
+
+.admin-paginacao{ display: flex; align-items: center; gap: 6px; }
+
+.admin-pagina-btn{
+    min-width: 34px;
+    height: 34px;
+    padding: 0 10px;
+    border-radius: 8px;
+    border: 1px solid var(--admin-borda);
+    background: var(--admin-surface);
+    color: var(--admin-texto);
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: .2s ease;
+}
+.admin-pagina-btn:hover:not(:disabled){ border-color: var(--admin-roxo-500); color: var(--admin-roxo-500); }
+.admin-pagina-btn:disabled{ opacity: .45; cursor: not-allowed; }
+.admin-pagina-btn.active{
+    background: var(--admin-roxo-500);
+    border-color: var(--admin-roxo-500);
+    color: #F2F2F2;
+}
+
+/* ===================================================
+   RESPONSIVO
+   =================================================== */
+@media (max-width: 640px){
+    .admin-toolbar{ flex-direction: column; }
+    .admin-toolbar .admin-btn-filtro{ width: 100%; justify-content: center; }
+    .admin-filtro-grupo{ flex-direction: column; align-items: flex-start; }
+    .admin-filtro-pills{ width: 100%; }
+    .admin-filtro-pill{ flex: 1; text-align: center; }
+    .admin-page-header-com-acao{ flex-direction: column; }
+    .admin-page-header-com-acao .admin-btn-secundario{ width: 100%; }
+
+    .admin-notif{ padding: 14px 10px; gap: 10px; }
+    .admin-notif-tempo{ margin-left: 0; width: 100%; }
+    .admin-notif-acoes{ flex-direction: column; }
+}

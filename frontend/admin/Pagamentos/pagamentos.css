@@ -43,6 +43,21 @@
 
 .admin-stat-valor.alerta{ color: var(--admin-vermelho-txt); }
 
+.admin-stat-valor.erro{ color: var(--admin-vermelho-txt); font-size: 17px; cursor: help; }
+
+/* Cards "Pendentes"/"Falhadas" também funcionam como atalho de filtro */
+.admin-stat-card-clicavel{
+    cursor: pointer;
+    transition: border-color .2s ease, box-shadow .2s ease;
+}
+
+.admin-stat-card-clicavel:hover,
+.admin-stat-card-clicavel:focus-visible{
+    border-color: var(--admin-roxo-500);
+    box-shadow: 0 0 0 3px rgba(109,73,242,0.12);
+    outline: none;
+}
+
 .admin-stat-variacao{
     display: block;
     margin-top: 4px;
@@ -233,6 +248,22 @@
 
 .admin-transacao-id{ font-weight: 600; color: var(--admin-roxo-500); }
 .admin-preco{ font-weight: 600; }
+
+/* ================= USUÁRIO (nome + e-mail) =================
+   Duas transações de usuários com o mesmo nome não podem ficar
+   indistinguíveis numa tela financeira — mostramos o e-mail junto e
+   linkamos pro perfil em Usuários quando o back manda o id. */
+.admin-usuario-link{
+    color: inherit;
+    text-decoration: none;
+}
+.admin-usuario-link:hover{ color: var(--admin-roxo-500); text-decoration: underline; }
+
+.admin-usuario-email{
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--admin-texto-muted);
+}
 
 /* ================= PILL DE MÉTODO =================
    Um único estilo pra todos os métodos (PIX, crédito, débito) — mesmo

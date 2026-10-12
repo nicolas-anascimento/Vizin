@@ -31,7 +31,7 @@ export async function optionalAuth(req: Request, _res: Response, next: NextFunct
       where: { id: payload.id },
       select: { id: true, email: true, tipo: true, ativo: true, token_version: true },
     });
-    if (user?.ativo && user.token_version === payload.tokenVersion) req.user = { id: user.id, email: user.email, tipo: user.tipo };
+    if (user && user.token_version === payload.tokenVersion) req.user = { id: user.id, email: user.email, tipo: user.tipo, ativo: user.ativo };
   } catch {
     // Sessão inválida é tratada como usuário não autenticado.
   }
@@ -44,6 +44,17 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
     res.status(401).json({ success: false, codigo: "nao_autenticado", message: "Faça login para continuar", mensagem: "Faça login para continuar" });
     return;
   }
+  if (!req.user.ativo) {
+    const path = req.originalUrl.split("?")[0] ?? "";
+    const allowed = req.method === "GET"
+      ? ["/api/login/sessao", "/api/usuarios/me", "/api/notificacoes", "/api/notificacoes/nao-lidas/contagem", "/api/suporte/me"].some(prefix => path === prefix || path.startsWith(`${prefix}/`))
+      : (req.method === "POST" && ["/api/login/logout", "/api/suporte/ajuda"].includes(path))
+        || (req.method === "PATCH" && path.startsWith("/api/notificacoes/"));
+    if (!allowed) {
+      res.status(403).json({ success: false, codigo: "conta_suspensa", message: "Sua conta está suspensa.", mensagem: "Sua conta está suspensa." });
+      return;
+    }
+  }
   next();
 }
 
@@ -53,7 +64,7 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
     res.status(401).json({ success: false, codigo: "nao_autenticado", message: "Faça login para continuar", mensagem: "Faça login para continuar" });
     return;
   }
-  if (req.user.tipo !== "admin") {
+  if (!req.user.ativo || req.user.tipo !== "admin") {
     res.status(403).json({ success: false, codigo: "admin_required", message: "Acesso restrito a administradores", mensagem: "Acesso restrito a administradores" });
     return;
   }
@@ -75,7 +86,7 @@ export function requireAdminPage(req: Request, res: Response, next: NextFunction
     res.redirect("/login");
     return;
   }
-  if (req.user.tipo !== "admin") {
+  if (!req.user.ativo || req.user.tipo !== "admin") {
     res.redirect("/home");
     return;
   }

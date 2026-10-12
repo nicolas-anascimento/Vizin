@@ -35,6 +35,7 @@ const els = {
   chatEmpty: document.getElementById("chatEmpty"),
   chatActive: document.getElementById("chatActive"),
   chatAvatar: document.getElementById("chatAvatar"),
+  chatAvatarInicial: document.getElementById("chatAvatarInicial"),
   chatStatusDot: document.getElementById("chatStatusDot"),
   chatName: document.getElementById("chatName"),
   chatPresence: document.getElementById("chatPresence"),
@@ -418,6 +419,47 @@ function bindEvents() {
 }
  
 /* ============================================================
+   AVATAR COM FALLBACK (inicial do nome quando não há foto)
+   ============================================================ */
+// Gera o miolo de um .avatar (img + span de inicial), pra ser usado
+// dentro de innerHTML. Se não houver URL de foto, ou se a foto falhar
+// ao carregar, mostra a inicial do nome no lugar do ícone quebrado.
+function avatarInnerHtml(name, avatarUrl) {
+  const inicial = escapeHtml((name || "?").trim().charAt(0).toUpperCase() || "?");
+  const nomeSeguro = escapeHtml(name || "");
+  if (avatarUrl) {
+    return `
+      <img src="${escapeHtml(avatarUrl)}" alt="Foto de ${nomeSeguro}"
+        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+      <span class="avatar-inicial" style="display:none;">${inicial}</span>
+    `;
+  }
+  return `<span class="avatar-inicial">${inicial}</span>`;
+}
+
+// Mesma ideia, mas para o avatar do cabeçalho do chat ativo, que é um
+// <img> fixo no HTML (não recriado a cada render) — atualiza o src e
+// alterna a visibilidade do <img> e do <span> de inicial conforme o caso.
+function setChatAvatar(imgEl, spanEl, name, avatarUrl) {
+  const inicial = (name || "?").trim().charAt(0).toUpperCase() || "?";
+  spanEl.textContent = inicial;
+  imgEl.onerror = () => {
+    imgEl.style.display = "none";
+    spanEl.style.display = "flex";
+  };
+  if (avatarUrl) {
+    imgEl.src = avatarUrl;
+    imgEl.alt = "Foto de " + (name || "");
+    imgEl.style.display = "block";
+    spanEl.style.display = "none";
+  } else {
+    imgEl.removeAttribute("src");
+    imgEl.style.display = "none";
+    spanEl.style.display = "flex";
+  }
+}
+ 
+/* ============================================================
    LISTA DE CONVERSAS
    ============================================================ */
 function renderConversationList(conversations) {
@@ -441,7 +483,7 @@ function renderConversationList(conversations) {
  
     li.innerHTML = `
       <div class="avatar">
-        <img src="${escapeHtml(conv.user.avatar)}" alt="Foto de ${escapeHtml(conv.user.name)}">
+        ${avatarInnerHtml(conv.user.name, conv.user.avatar)}
         <span class="status-dot ${conv.user.online ? "online" : ""}"></span>
       </div>
       <div class="conv-item__body">
@@ -504,8 +546,7 @@ async function openConversation(id) {
   els.chatEmpty.classList.add("hidden");
   els.chatActive.classList.remove("hidden");
  
-  els.chatAvatar.src = conv.user.avatar;
-  els.chatAvatar.alt = "Foto de " + conv.user.name;
+  setChatAvatar(els.chatAvatar, els.chatAvatarInicial, conv.user.name, conv.user.avatar);
   els.chatStatusDot.classList.toggle("online", conv.user.online);
   els.chatName.textContent = conv.user.name;
   els.chatPresence.textContent = conv.user.online ? "Online" : "Offline";
@@ -1099,13 +1140,21 @@ function blockedUsersListHtml(blocked) {
   if (blocked.length === 0) {
     return `<p>Você não tem usuários bloqueados.</p>`;
   }
-  return `<ul class="blocked-users-list">${blocked.map(u => `
+  return `<ul class="blocked-users-list">${blocked.map(u => {
+    const inicial = escapeHtml((u.name || "?").trim().charAt(0).toUpperCase() || "?");
+    return `
     <li class="blocked-user-item" data-user-id="${escapeHtml(u.id)}">
-      <img class="blocked-user-avatar" src="${escapeHtml(u.avatar || "")}" alt="Foto de ${escapeHtml(u.name)}">
+      ${u.avatar
+        ? `<img class="blocked-user-avatar" src="${escapeHtml(u.avatar)}" alt="Foto de ${escapeHtml(u.name)}"
+            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+           <span class="blocked-user-avatar-inicial" style="display:none;">${inicial}</span>`
+        : `<span class="blocked-user-avatar-inicial">${inicial}</span>`
+      }
       <span class="blocked-user-name">${escapeHtml(u.name)}</span>
       <button type="button" class="blocked-user-unblock">Desbloquear</button>
     </li>
-  `).join("")}</ul>`;
+  `;
+  }).join("")}</ul>`;
 }
  
 // Cada item da lista tem sua própria ação (desbloquear), então em vez

@@ -15,10 +15,10 @@
     "typecheck": "tsc --noEmit",
     "seed": "tsx src/seed.ts",
     "test": "node --import tsx --input-type=module -e \"await import('./src/tests/contracts.test.ts'); await import('./src/tests/utils.test.ts'); await import('./src/tests/paymentRules.test.ts'); await import('./src/tests/rateLimit.test.ts'); await import('./src/tests/notificationPreferences.test.ts')\"",
-    "test:integration": "node --env-file=.env --import tsx scripts/runIntegration.ts",
-    "test:financial": "node --env-file=.env --import tsx --input-type=module -e \"await import('./src/tests/integration/payments.test.ts')\"",
-    "test:admin": "node --env-file=.env --import tsx src/tests/integration/admin.integration.test.ts",
-    "test:front-contract": "node --env-file=.env --import tsx src/tests/integration/frontendContract.integration.test.ts"
+    "test:integration": "node --env-file-if-exists=.env --import tsx scripts/runIntegration.ts",
+    "test:financial": "node --env-file-if-exists=.env --import tsx --input-type=module -e \"await import('./src/tests/integration/payments.test.ts')\"",
+    "test:admin": "node --env-file-if-exists=.env --import tsx src/tests/integration/admin.integration.test.ts",
+    "test:front-contract": "node --env-file-if-exists=.env --import tsx src/tests/integration/frontendContract.integration.test.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.8.0",

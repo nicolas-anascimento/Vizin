@@ -86,9 +86,16 @@ function labelStatus(status) {
 
 // Mesma prioridade que meus-objetos.js já usa do lado do usuário:
 // locação ativa > solicitação pendente > pausado/disponível.
+// IMPORTANTE: os nomes dos campos aqui têm que ser os MESMOS que o back manda
+// em /objetos (em_locacao, tem_solicitacao_pendente — snake_case, ver
+// objetos-shared.js:temLocacaoAtiva/temSolicitacaoPendente). Antes esta função
+// lia anuncio.emLocacao/anuncio.solicitacaoPendente (camelCase), que não bate
+// com o restante do sistema — corrigido para não ficar sempre caindo no
+// fallback "Disponível/Pausado" mesmo quando o item está locado ou pendente.
 function infoDisponibilidade(anuncio) {
-    if (anuncio.emLocacao) return { classe: "em-locacao", label: "Em locação" };
-    if (anuncio.solicitacaoPendente) return { classe: "solicitacao-pendente", label: "Solicitação pendente" };
+    if (anuncio.oculto_pelo_admin) return { classe: "pausado", label: "Oculto pela moderação" };
+    if (anuncio.em_locacao) return { classe: "em-locacao", label: "Em locação" };
+    if (anuncio.tem_solicitacao_pendente) return { classe: "solicitacao-pendente", label: "Solicitação pendente" };
     if (anuncio.disponivel) return { classe: "disponivel", label: "Disponível" };
     return { classe: "pausado", label: "Pausado pelo dono" };
 }
@@ -248,3 +255,34 @@ corpoTabela.addEventListener("click", async (e) => {
 // INÍCIO
 // =====================================================
 carregarAnuncios();
+
+// =====================================================
+// ABRIR DIRETO UM ANÚNCIO (?abrir=<id>) — usado pela central de
+// notificações. Sem a linha da tabela em mãos, monta o modal só com o
+// detalhe canônico (GET /objetos/:id).
+// =====================================================
+(async function abrirItemDaUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("abrir");
+    if (!id) return;
+    params.delete("abrir");
+    const resto = params.toString();
+    history.replaceState(null, "", window.location.pathname + (resto ? `?${resto}` : ""));
+
+    try {
+        const detalhe = await obterAnuncioAdmin(id);
+        abrirModalVerAnuncio({
+            ...detalhe,
+            proprietarioNome: detalhe.proprietarioNome || detalhe.proprietario?.nome || detalhe.usuarios?.nome || detalhe.usuario?.nome || "—",
+            categoria: detalhe.categoria?.nome || detalhe.categorias?.nome || (typeof detalhe.categoria === "string" ? detalhe.categoria : "—"),
+            preco_dia: detalhe.preco_dia ?? detalhe.preco_por_dia,
+            fotos_item: detalhe.fotos || [],
+            status: detalhe.status || (detalhe.arquivado || detalhe.arquivado_em ? "arquivado" : "ativo")
+        });
+    } catch (err) {
+        window.mostrarToastAdmin(
+            err.status === 404 ? "Este anúncio não existe mais ou foi removido." : err.message,
+            "erro"
+        );
+    }
+})();

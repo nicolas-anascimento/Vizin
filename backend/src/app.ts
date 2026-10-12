@@ -9,6 +9,9 @@ import prisma from "./app/config/database.ts";
 import { requireAuth, optionalAuth } from "./app/middlewares/auth.ts";
 import { errorHandler, notFound } from "./app/middlewares/errorHandler.ts";
 import { maintainRentals } from "./app/services/rentalMaintenance.ts";
+import { processAdminCampaigns } from "./app/services/adminCampaigns.ts";
+import { processEmailOutbox } from "./app/services/emailOutbox.ts";
+import { processAdminOperationalAlerts } from "./app/services/adminOperationalMaintenance.ts";
 import { paymentWebhook } from "./app/controllers/paymentsController.ts";
 import api from "./app/routes/api.ts";
 import web from "./app/routes/web.ts";
@@ -164,6 +167,9 @@ const maintenance = shouldListen
       if (maintenanceRunning) return;
       maintenanceRunning = true;
       void maintainRentals(true)
+        .then(() => processAdminCampaigns())
+        .then(() => processAdminOperationalAlerts())
+        .then(() => processEmailOutbox())
         .catch((error) =>
           console.error("Falha na manutenção de aluguéis", error),
         )

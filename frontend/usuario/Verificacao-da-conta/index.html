@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="/assets/usuario/header/header.css">
     <link rel="stylesheet" href="/assets/usuario/footer/footer.css">
     <link rel="stylesheet" href="/assets/usuario/Minha-conta/conta-shared.css">
-    <link rel="stylesheet" href="/assets/usuario/Verificacao-da-conta/verificacao.css">
+    <link rel="stylesheet" href="/assets/usuario/Verificacao-da-conta/verificacao.css?v=2">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
     <title>Verificação de conta</title>
 </head>
@@ -33,7 +33,10 @@
             <h1 class="verif-status-titulo">Documentos em análise</h1>
             <p class="verif-status-texto">Recebemos seus documentos e estamos conferindo as informações. Isso costuma levar até 48 horas — você será avisado por notificação assim que tivermos uma resposta.</p>
             <p class="verif-status-data" id="texto-enviado-em"></p>
-            <a class="btn btn-secondary" href="/perfil">Voltar ao perfil</a>
+            <div class="verif-status-acoes">
+                <a class="btn btn-secondary" href="/perfil">Voltar ao perfil</a>
+                <button type="button" class="verif-link-cancelar" id="btn-cancelar-envio">Enviei o documento errado? Cancelar envio</button>
+            </div>
         </div>
  
         <!-- ================= FORMULÁRIO (não verificado / reprovado) ================= -->
@@ -46,6 +49,7 @@
             <div class="verif-motivo-reprovacao" id="aviso-reprovado" style="display:none;">
                 <strong>Não foi possível verificar sua conta da última vez.</strong>
                 <p id="texto-motivo-reprovacao" style="margin:6px 0 0;"></p>
+                <a class="verif-link-suporte" id="link-suporte-reprovado" href="/suporte">Discordou do motivo? Fale com o Suporte</a>
             </div>
  
             <div class="verif-step-indicator">
@@ -56,28 +60,49 @@
  
             <div class="card">
  
-                <!-- ETAPA 1: frente do documento -->
+                <!-- ETAPA 1: tipo e frente do documento -->
                 <div class="verif-etapa" data-etapa="1">
+ 
+                    <details class="verif-guia" open>
+                        <summary><i class="bi bi-lightbulb"></i> Dicas para ser aprovado de primeira</summary>
+                        <ul>
+                            <li>Use o documento físico, dentro da validade.</li>
+                            <li>Fotografe em local bem iluminado, sem flash e sem reflexo.</li>
+                            <li>Os quatro cantos do documento devem aparecer, e o nome, o CPF e a foto precisam estar legíveis.</li>
+                            <li>Na selfie, seu rosto e o documento aparecem juntos, ambos nítidos.</li>
+                        </ul>
+                    </details>
+ 
+                    <fieldset class="verif-tipos">
+                        <legend>Qual documento você vai enviar?</legend>
+                        <label class="verif-tipo"><input type="radio" name="tipo-documento" value="rg" checked><span>RG</span></label>
+                        <label class="verif-tipo"><input type="radio" name="tipo-documento" value="cnh"><span>CNH</span></label>
+                        <label class="verif-tipo"><input type="radio" name="tipo-documento" value="passaporte"><span>Passaporte</span></label>
+                    </fieldset>
+                    <p class="verif-aviso-passaporte" id="aviso-passaporte" style="display:none;">O passaporte tem uma única página com foto, então não vamos pedir o verso.</p>
+ 
                     <h2>Documento com foto — frente</h2>
-                    <p class="conta-subtitulo-pagina">RG, CNH ou passaporte, ainda válido.</p>
+                    <p class="conta-subtitulo-pagina" id="subtitulo-frente">A página com sua foto e seus dados.</p>
  
                     <label class="verif-upload-box" id="caixa-upload-frente" for="input-doc-frente">
                         <i class="bi bi-cloud-arrow-up"></i>
                         <p>Toque para enviar uma foto</p>
-                        <span>JPG, PNG, WebP ou GIF · até 5 MB</span>
+                        <span>JPG, PNG, WebP ou HEIC · fotos grandes são reduzidas automaticamente</span>
                     </label>
                     <div class="verif-preview" id="preview-frente" style="display:none;">
                         <img id="preview-frente-img" src="" alt="Frente do documento">
                         <button type="button" class="verif-preview-trocar" data-trocar="frente">Trocar foto</button>
                     </div>
-                    <input type="file" id="input-doc-frente" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
+                    <input type="file" id="input-doc-frente" accept="image/*" hidden>
+ 
+                    <p id="mensagem-etapa1" class="conta-mensagem"></p>
  
                     <div class="verif-actions">
                         <button type="button" class="btn btn-primary" id="btn-etapa1-proximo">Próximo</button>
                     </div>
                 </div>
  
-                <!-- ETAPA 2: verso do documento -->
+                <!-- ETAPA 2: verso do documento (RG/CNH) -->
                 <div class="verif-etapa" data-etapa="2" style="display:none;">
                     <h2>Documento com foto — verso</h2>
                     <p class="conta-subtitulo-pagina">A parte de trás do mesmo documento.</p>
@@ -85,13 +110,15 @@
                     <label class="verif-upload-box" id="caixa-upload-verso" for="input-doc-verso">
                         <i class="bi bi-cloud-arrow-up"></i>
                         <p>Toque para enviar uma foto</p>
-                        <span>JPG, PNG, WebP ou GIF · até 5 MB</span>
+                        <span>JPG, PNG, WebP ou HEIC · fotos grandes são reduzidas automaticamente</span>
                     </label>
                     <div class="verif-preview" id="preview-verso" style="display:none;">
                         <img id="preview-verso-img" src="" alt="Verso do documento">
                         <button type="button" class="verif-preview-trocar" data-trocar="verso">Trocar foto</button>
                     </div>
-                    <input type="file" id="input-doc-verso" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
+                    <input type="file" id="input-doc-verso" accept="image/*" hidden>
+ 
+                    <p id="mensagem-etapa2" class="conta-mensagem"></p>
  
                     <div class="verif-actions">
                         <button type="button" class="btn btn-secondary" id="btn-etapa2-voltar">Voltar</button>
@@ -117,7 +144,7 @@
  
                     <div class="verif-dica">
                         <i class="bi bi-shield-lock"></i>
-                        <span>Suas fotos são usadas só para confirmar sua identidade e não aparecem no seu perfil público.</span>
+                        <span>Suas fotos são usadas só para confirmar sua identidade e não aparecem no seu perfil público. Saiba como tratamos esses dados na <a href="/politica-de-privacidade" target="_blank" rel="noopener">Política de Privacidade</a>.</span>
                     </div>
  
                     <label class="conta-checkbox-linha">
@@ -137,14 +164,28 @@
         </div>
  
     </div>
+
+    <!-- Modal: cancelar envio em análise -->
+    <div class="modal-overlay" id="modal-cancelar-envio">
+        <div class="modal-box modal-confirm">
+            <i class="bi bi-exclamation-triangle"></i>
+            <h2>Cancelar envio?</h2>
+            <p>Os documentos enviados serão descartados e você poderá enviar novos. A análise recomeça do zero, com um novo prazo.</p>
+            <p id="mensagem-cancelar" class="conta-mensagem"></p>
+            <div class="modal-confirm-actions">
+                <button type="button" class="btn btn-secondary" id="modal-cancelar-envio-voltar">Voltar</button>
+                <button type="button" class="btn btn-danger" id="modal-cancelar-envio-confirmar">Cancelar envio</button>
+            </div>
+        </div>
+    </div>
  
     <div id="footer"></div>
  
     <script src="/assets/usuario/header/frame.js"></script>
     <script src="/assets/usuario/utils/config.js"></script>
     <script src="/assets/usuario/utils/api-client.js"></script>
+    <script src="/assets/usuario/utils/conta-suspensa.js"></script>
     <script src="/assets/usuario/Notificacoes/notificacoes-shared.js"></script>
-    <script src="/assets/usuario/Verificacao-da-conta/verificacao.js"></script>
+    <script src="/assets/usuario/Verificacao-da-conta/verificacao.js?v=2"></script>
 </body>
 </html>
- 

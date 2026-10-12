@@ -3,7 +3,7 @@ import prisma from "../config/database.ts";
 import { HttpError } from "../utils/httpError.ts";
 import { uuid, text } from "../utils/validation.ts";
 import { withdrawalPhotoUrl } from "../utils/files.ts";
-import { businessDate, businessLateDays } from "../utils/dates.ts";
+import { businessDate, businessLateDays, withdrawalWindowCode } from "../utils/dates.ts";
 import { finePrice } from "../services/paymentRules.ts";
 import { simulated } from "../services/paymentGateway.ts";
 const DEMO_WITHDRAWAL_STATUS="demo_retirada_liberada";
@@ -21,10 +21,12 @@ async function status(id: string, userId: string, returning: boolean) {
    prisma.conciliacoes_pagamento.count({where:{pagamento:{aluguel_id:id},status:"aberta"}}),
    simulated()?prisma.eventos_aluguel.findFirst({where:{aluguel_id:id,status:DEMO_WITHDRAWAL_STATUS},select:{id:true}}):Promise.resolve(null)
   ]);
-  const dataFutura=r.data_inicio>businessDate();
+  const windowCode=withdrawalWindowCode(r.data_inicio);
+  const dataFutura=windowCode==="retirada_data_futura";
+  const prazoExpirado=windowCode==="retirada_prazo_expirado";
   const liberada=r.status==="pago"&&Boolean(demoEvent)&&simulated();
   const somenteData=r.status==="pago"&&paidPayment>0&&pendingFinancial===0&&openReconciliation===0&&dataFutura&&!liberada;
-  const codigoBloqueio=r.status!=="pago"?"etapa_indisponivel":paidPayment===0?"pagamento_obrigatorio":pendingFinancial||openReconciliation?"operacao_financeira_pendente":dataFutura&&!liberada?"retirada_data_futura":null;
+  const codigoBloqueio=r.status!=="pago"?"etapa_indisponivel":paidPayment===0?"pagamento_obrigatorio":pendingFinancial||openReconciliation?"operacao_financeira_pendente":prazoExpirado?"retirada_prazo_expirado":dataFutura&&!liberada?"retirada_data_futura":null;
   retiradaDemo={data_retirada:r.data_inicio.toISOString().slice(0,10),codigo_bloqueio:codigoBloqueio,modo_demo:simulated(),retirada_demo_liberada:liberada,pode_liberar_retirada_demo:simulated()&&somenteData};
  }
  const rows = returning ? r.devolucoes.map(d => ({ ...d, urls: d.fotos as string[] })) : r.retiradas.map(d => ({ ...d, urls: d.fotos.map(f => f.url), danos: null }));
@@ -84,7 +86,9 @@ export function recordHandover(returning: boolean): RequestHandler { return asyn
   if (!returning && (await tx.pagamentos.count({where:{aluguel_id:id,status:{in:["cancelamento_pendente","estorno_pendente"]}}}) || await tx.conciliacoes_pagamento.count({where:{pagamento:{aluguel_id:id},status:"aberta"}}))) throw new HttpError(409,"Operação financeira pendente ou conciliação impede retirada");
   if (!returning) {
    if(!await tx.pagamentos.count({where:{aluguel_id:id,tipo:"aluguel",status:"pago"}}))throw new HttpError(409,"O pagamento precisa estar confirmado antes da retirada","pagamento_obrigatorio");
-   if(rental.data_inicio>businessDate()) {
+   const windowCode=withdrawalWindowCode(rental.data_inicio);
+   if(windowCode==="retirada_prazo_expirado") throw new HttpError(409,"O prazo para registrar a retirada terminou.",windowCode);
+   if(windowCode==="retirada_data_futura") {
     const demoRelease=simulated()?await tx.eventos_aluguel.findFirst({where:{aluguel_id:id,status:DEMO_WITHDRAWAL_STATUS},select:{id:true}}):null;
     if(!demoRelease)throw new HttpError(409,"Retirada anterior à data combinada","retirada_data_futura");
    }
@@ -107,6 +111,7 @@ export function recordHandover(returning: boolean): RequestHandler { return asyn
     const snapshot = finePrice({ status: "retirado", data_fim: rental.data_fim });
     await tx.multas_aluguel.create({ data: { aluguel_id: id, dias_atraso: snapshot.dias_atraso, valor_dia: snapshot.valor_dia, valor_total: snapshot.valor_total, valor_plataforma: snapshot.valor_plataforma, valor_proprietario: snapshot.valor_proprietario, status: "pendente" } });
     await tx.notificacoes.create({ data: { usuario_id: rental.locatario_id, tipo: "bloqueio_conta", titulo: "Multa por atraso", mensagem: "A devolução em atraso gerou multa pendente.", contexto: { solicitacao_id: id, aluguelId: id } } });
+    await tx.notificacoes_admin.create({ data: { tipo: "multa_gerada", categoria: "pagamentos", prioridade: "normal", titulo: "Multa gerada", mensagem: "Uma devolução em atraso gerou multa.", referencia_tipo: "aluguel", referencia_id: id, chave_deduplicacao: `multa_gerada:${id}` } });
    }
   }
   // Informa conclusão às duas partes ou avisa a parte que ainda precisa enviar fotos.

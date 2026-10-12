@@ -15,6 +15,11 @@ export function registerRealtimeServer(io: RealtimeServer): void {
   realtimeServer = io;
 }
 
+export function publishNotification(userId:string,notification:Record<string,unknown>):void{
+  if(!realtimeServer)return;
+  realtimeServer.to(userRoom(userId)).emit("notification:new",notification);
+}
+
 export function publishPersistedMessage(
   result: Awaited<ReturnType<typeof sendChatMessage>>,
 ): void {

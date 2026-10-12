@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/assets/admin/admin-sidebar/admin-sidebar.css">
+    <link rel="stylesheet" href="/assets/admin/Usuarios/admin-shared.css">
+    <link rel="stylesheet" href="/assets/admin/Configuracoes/admin-tema.css">
+    <link rel="stylesheet" href="/assets/admin/Notificações-recebidas/notificacoes.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <title>Notificações — Admin Vizin</title>
+    <script src="/assets/admin/Configuracoes/admin-preferencias.js"></script>
+</head>
+<body class="admin-body" data-page="notificacoes-recebidas">
+
+    <div id="adminSidebarContainer"></div>
+
+    <main class="admin-main">
+
+        <div class="admin-topbar-mobile">
+            <button id="adminMenuToggle" aria-label="Abrir menu"><i class="bi bi-list"></i></button>
+        </div>
+
+        <header class="admin-page-header admin-page-header-com-acao">
+            <div>
+                <h1>Notificações</h1>
+                <p>Acompanhe o que acontece na plataforma</p>
+            </div>
+            <button class="admin-btn-secundario" id="btnMarcarTodasLidas" type="button" disabled>
+                <i class="bi bi-check2-all"></i> Marcar todas como lidas
+            </button>
+        </header>
+
+        <!-- Aviso quando a atualização automática falha (sem conexão / sessão expirada) -->
+        <div class="admin-aviso-conexao" id="avisoConexao" role="alert" hidden>
+            <span id="avisoConexaoTexto"></span>
+            <span class="admin-aviso-conexao-acoes">
+                <a class="admin-btn-secundario" id="avisoConexaoEntrar" href="/login" hidden>Entrar novamente</a>
+                <button class="admin-btn-secundario" id="btnTentarConexao" type="button">Tentar novamente</button>
+            </span>
+        </div>
+
+        <!-- ================= CARDS DE RESUMO ================= -->
+        <section class="admin-stats-grid">
+            <div class="admin-stat-card">
+                <span class="admin-stat-label">Não Lidas</span>
+                <div class="admin-stat-valor" id="statNaoLidas">—</div>
+                <span class="admin-stat-sublabel">Clique para filtrar</span>
+            </div>
+            <div class="admin-stat-card">
+                <span class="admin-stat-label">Urgentes</span>
+                <div class="admin-stat-valor alerta" id="statUrgentes">—</div>
+                <span class="admin-stat-sublabel">Não lidas e de prioridade alta</span>
+            </div>
+            <div class="admin-stat-card">
+                <span class="admin-stat-label">Recebidas Hoje</span>
+                <div class="admin-stat-valor" id="statHoje">—</div>
+                <span class="admin-stat-sublabel">Desde 00h</span>
+            </div>
+        </section>
+
+        <!-- ================= BUSCA + FILTROS ================= -->
+        <div class="admin-filtros-container">
+
+            <section class="admin-toolbar">
+                <div class="admin-search-box">
+                    <i class="bi bi-search"></i>
+                    <input type="text" id="buscaNotificacoes" placeholder="Buscar nas notificações...">
+                </div>
+
+                <button class="admin-btn-filtro" id="btnFiltros" type="button">
+                    <i class="bi bi-funnel"></i> Filtros
+                </button>
+            </section>
+
+            <section class="admin-filtro-status" id="filtroStatusBar">
+
+                <div class="admin-filtro-grupo">
+                    <span class="admin-filtro-status-label">Categoria:</span>
+                    <div class="admin-filtro-pills">
+                        <button type="button" class="admin-filtro-pill active" data-grupo="categoria" data-valor="todas">Todas</button>
+                        <button type="button" class="admin-filtro-pill" data-grupo="categoria" data-valor="usuarios">Usuários <span class="admin-contagem" id="contagem-usuarios" hidden></span></button>
+                        <button type="button" class="admin-filtro-pill" data-grupo="categoria" data-valor="anuncios">Anúncios <span class="admin-contagem" id="contagem-anuncios" hidden></span></button>
+                        <button type="button" class="admin-filtro-pill" data-grupo="categoria" data-valor="denuncias">Denúncias <span class="admin-contagem" id="contagem-denuncias" hidden></span></button>
+                        <button type="button" class="admin-filtro-pill" data-grupo="categoria" data-valor="pagamentos">Pagamentos <span class="admin-contagem" id="contagem-pagamentos" hidden></span></button>
+                        <button type="button" class="admin-filtro-pill" data-grupo="categoria" data-valor="avaliacoes">Avaliações <span class="admin-contagem" id="contagem-avaliacoes" hidden></span></button>
+                        <button type="button" class="admin-filtro-pill" data-grupo="categoria" data-valor="verificacoes">Verificações <span class="admin-contagem" id="contagem-verificacoes" hidden></span></button>
+                        <button type="button" class="admin-filtro-pill" data-grupo="categoria" data-valor="sistema">Sistema <span class="admin-contagem" id="contagem-sistema" hidden></span></button>
+                    </div>
+                </div>
+
+                <div class="admin-filtro-grupo">
+                    <span class="admin-filtro-status-label">Leitura:</span>
+                    <div class="admin-filtro-pills">
+                        <button type="button" class="admin-filtro-pill active" data-grupo="lida" data-valor="todas">Todas</button>
+                        <button type="button" class="admin-filtro-pill" data-grupo="lida" data-valor="nao-lidas">Não lidas</button>
+                        <button type="button" class="admin-filtro-pill" data-grupo="lida" data-valor="lidas">Lidas</button>
+                    </div>
+                </div>
+
+            </section>
+
+        </div>
+
+        <!-- ================= LISTA ================= -->
+        <section class="admin-card">
+
+            <button type="button" class="admin-banner-novas" id="bannerNovasNotificacoes" hidden></button>
+
+            <div class="admin-notif-lista" id="listaNotificacoes">
+                <!-- cards inseridos via notificacoes.js -->
+            </div>
+
+            <p id="notifEstadoVazio" class="admin-tabela-vazio" hidden>Nenhuma notificação encontrada.</p>
+
+            <div class="admin-tabela-rodape">
+                <span id="infoPaginacao"></span>
+                <div class="admin-paginacao" id="paginacao"></div>
+            </div>
+
+            <p class="admin-notif-retencao">Notificações lidas são apagadas automaticamente após 90 dias. "Dispensar" esconde a notificação só para você.</p>
+
+        </section>
+
+    </main>
+
+    <div id="toast" class="admin-toast"></div>
+
+    <script src="/assets/usuario/Login/api.js"></script>
+    <script src="/assets/admin/Notificações-recebidas/notificacoes-api.js"></script>
+    <script src="/assets/admin/admin-sidebar/admin-frame.js"></script>
+    <script src="/assets/admin/Notificações-recebidas/notificacoes-shared.js"></script>
+    <script src="/assets/admin/Notificações-recebidas/notificacoes.js"></script>
+
+</body>
+</html>

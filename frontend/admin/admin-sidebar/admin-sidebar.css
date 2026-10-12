@@ -365,3 +365,21 @@ body.admin-body{
         cursor: pointer;
     }
 }
+
+/* Contador de pendências no item do menu (ex.: Verificações aguardando análise).
+   O link é flex, então margin-left:auto empurra o número pra direita. */
+.admin-nav-link .admin-nav-badge{
+    position: relative;
+    z-index: 2;
+    margin-left: auto;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--admin-laranja);
+    color: #F2F2F2;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 20px;
+    text-align: center;
+}

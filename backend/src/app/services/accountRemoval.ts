@@ -18,8 +18,9 @@ export async function removeAccount(id: string, deactivateOnly=false, adminId?: 
   await tx.itens.updateMany({where:{usuario_id:id},data:{disponivel:false,...(!deactivateOnly?{arquivado:true,endereco_id:null}:{})}});
   const documents=deactivateOnly?[]:await tx.verificacoes_identidade.findMany({where:{usuario_id:id},select:{documentos:true}});
   if(!deactivateOnly){await tx.enderecos.deleteMany({where:{usuario_id:id}});await tx.verificacoes_identidade.deleteMany({where:{usuario_id:id}});}
+  if(!deactivateOnly)await tx.email_outbox.upsert({where:{chave:`conta_excluida:${id}`},create:{tipo:"exclusao_conta",destinatario:user.email,chave:`conta_excluida:${id}`,payload:{subject:"Conta VIZIN excluída",text:"Sua conta foi excluída e seus dados pessoais foram anonimizados conforme as obrigações de retenção."}},update:{}});
   await tx.usuarios.update({where:{id},data:{ativo:false,token_version:{increment:1},...(!deactivateOnly?{nome:"Usuário removido",email:`removido-${id}@invalid.local`,cpf:null,telefone:null,bio:null,foto_url:null,verificado:false,preferencias:{},privacidade:{perfilPublico:false}}:{})}});
-  if (adminId) await audit(tx, adminId, "arquivar", "usuario", id);
+  if (adminId) await audit(tx, adminId, "usuario_excluido", "usuario", id, { rotulo: user.nome });
   await tx.resetar_Senha.deleteMany({where:{userId:id}});await tx.emails_pendentes.deleteMany({where:{usuario_id:id}});
   return{avatar:deactivateOnly?null:user.foto_url,documents};
  },{isolationLevel:"Serializable"});

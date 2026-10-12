@@ -36,7 +36,8 @@ export function createRealtimeServer(httpServer: HttpServer): RealtimeServer {
   io.use((socket, next) => void authenticateSocket(socket, next));
   io.on("connection", (socket) => {
     void socket.join(userRoom(socket.data.userId));
-    registerChatSocket(socket);
+    // Conta suspensa mantém apenas a sala individual para alertas críticos.
+    if (socket.data.active) registerChatSocket(socket);
   });
   registerRealtimeServer(io);
   return io;

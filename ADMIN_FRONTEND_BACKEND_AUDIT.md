@@ -132,3 +132,51 @@ Considerando as 14 operações HTTP ativas (sessão, logout, fragmento de sideba
 - Incompatíveis: 0
 - Rotas inexistentes: 0
 
+## Auditoria final das regras operacionais — 2026-10-10
+
+Esta etapa não altera o resultado da integração estática já levantada. Ela cobre regras de execução que não estavam encerradas pelo inventário HTTP.
+
+| Ponto | Existia? | Lacuna encontrada | Correção |
+|---|---|---|---|
+| `usuario_reincidente` | Não. O tipo existia apenas no contrato visual. | Nenhum produtor criava o alerta ao terceiro relato recebido. | O job operacional passa a localizar usuários com pelo menos três denúncias recebidas e cria um alerta de alta prioridade, com referência ao usuário e chave única por usuário. |
+| `anuncio_muito_denunciado` | Não. O tipo existia apenas no contrato visual. | Nenhum produtor criava o alerta ao terceiro relato ligado ao objeto. | O mesmo job cria alerta de alta prioridade com referência ao objeto e chave única por objeto. |
+| `verificacao_atrasada` | Não. O tipo existia apenas no contrato visual. | Verificações pendentes por mais de 48 horas não geravam alerta. | O job cria alerta de alta prioridade por verificação, usando corte temporal estrito de 48 horas e chave única. |
+| Retirada com evidência unilateral | Parcial. O upload de uma parte preservava a locação durante a janela, mas o job posterior só tratava o caso de zero fotos e não abria ocorrência para uma foto. | Faltava encaminhamento automático e idempotente ao suporte depois do prazo. | Com exatamente uma confirmação, o job mantém locação e pagamento em `pago`, abre ocorrência ligada ao aluguel, registra evento operacional e notifica administradores e as duas partes. O fluxo de cancelamento/estorno continua restrito a zero confirmações. |
+| Migration `20261009000000_admin_frontend_sync` | Parcialmente compatível antes da validação isolada. | As FKs novas omitiam `ON UPDATE CASCADE`; quatro IDs tinham default SQL ausente no schema; e o índice de `denuncias.avaliacao_id` existia apenas na migration. A comparação também revelou uma representação divergente, anterior, do índice parcial de pagamentos. | Ações referenciais, defaults e índices foram alinhados entre migration, PostgreSQL e Prisma. Nenhuma migration foi aplicada ao banco original. |
+
+### Garantias aplicadas
+
+- Alertas administrativos e ocorrência unilateral usam restrições únicas já presentes no schema como barreira final contra concorrência e retries.
+- Os lotes de alertas excluem chaves já materializadas, evitando que os primeiros 100 registros bloqueiem itens posteriores.
+- A ocorrência unilateral é criada sob lock da locação e na mesma transação que evento e notificações; não executa estorno nem muda o status da reserva.
+- As URLs das fotos já armazenadas no repositório privado são anexadas à ocorrência; o download continua protegido pela autorização existente para participantes e administradores.
+- A ocorrência sistêmica de retirada unilateral não entra nos limiares de reincidência ou anúncio denunciado.
+- A trilha operacional da retirada é preservada em `eventos_aluguel`; decisões humanas continuam na auditoria administrativa existente.
+
+### Arquivos alterados nesta auditoria final
+
+- `backend/src/app/services/adminOperationalMaintenance.ts`
+- `backend/src/app/services/rentalMaintenance.ts`
+- `backend/src/app/controllers/adminOccurrencesController.ts`
+- `backend/prisma/migrations/20261009000000_admin_frontend_sync/migration.sql`
+- `backend/prisma/schema.prisma`
+- `backend/scripts/runIntegration.ts`
+- `backend/src/app/controllers/accountSettingsController.ts`
+- `backend/src/app/controllers/identityController.ts`
+- `backend/src/tests/integration/admin.integration.test.ts`
+- `backend/src/tests/integration/frontendContract.integration.test.ts`
+- `backend/src/tests/integration/payments.test.ts`
+- `ADMIN_FRONTEND_BACKEND_AUDIT.md`
+
+### Validações executadas
+
+- `npm run typecheck`: aprovado.
+- `npm test`: 57 testes aprovados, 0 falhas.
+- `npx prisma validate`: schema válido.
+- `npm run test:integration`, em `vizin_contract_test_audit_20261010`: 122 testes aprovados, 0 falhas — 31 de API, 59 financeiros/jobs, 20 administrativos e 12 do contrato do frontend.
+- Replay das 21 migrations, incluindo `20261009000000_admin_frontend_sync`, no banco isolado: aprovado.
+- `prisma migrate diff --from-config-datasource --to-schema`: migration vazia; PostgreSQL migrado e `schema.prisma` estão consistentes.
+- Testes bloqueados: nenhum. O banco original `vizin` não foi migrado nem alterado.
+
+Foram adicionados e executados testes para os três alertas, inclusive execução concorrente; retirada unilateral com preservação do pagamento/reserva; suspensão e reativação; CRUD/moderação de objetos; avaliações; ocorrências e suporte; comunicados agendados sob dois workers; notificações administrativas; identidade; retirada/estorno; e consistência Prisma/PostgreSQL. A execução também encontrou e corrigiu contratos antigos nos testes de retirada, isolamento dos buckets de rate limit, compatibilidade do runner sem arquivo `.env`, tipo implícito da verificação de identidade legada e o status HTTP de senha incorreta. Não foi executado E2E de navegador; os resultados acima são testes automatizados de API, serviços e banco real isolado.
+

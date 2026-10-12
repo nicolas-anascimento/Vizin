@@ -8,7 +8,7 @@ import { releaseDemoWithdrawal } from "../controllers/handoverController.ts";
 import { recordHandover, handoverStatus } from "../controllers/handoverController.ts";
 import { withdrawalUpload } from "../middlewares/upload.ts";
 import { verifyUploads } from "../middlewares/privateUpload.ts";
-import { createRentalReport, listRentalReports } from "../controllers/rentalReportsController.ts";
+import { listRentalReports } from "../controllers/rentalReportsController.ts";
 import { requireAuth } from "../middlewares/auth.ts";
 const router = Router();
 router.use(requireAuth);
@@ -17,7 +17,6 @@ router.post("/", createRentalRequest);
 router.get("/historico", listMyRentals);
 router.post("/:id/cancelamento", cancelRentalRequest);
 router.get("/:id/relatos", listRentalReports);
-router.post("/:id/multa/contestacao", createRentalReport);
 router.get("/:id/retirada", handoverStatus(false));
 router.post("/:id/retirada/demo", rateLimit({windowMs:60000,max:10}), releaseDemoWithdrawal);
 // O upload valida as fotos antes de chegar ao controller que confirma a etapa no banco.

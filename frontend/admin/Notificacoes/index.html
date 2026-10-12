@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/assets/admin/admin-sidebar/admin-sidebar.css">
+    <link rel="stylesheet" href="/assets/admin/Usuarios/admin-shared.css">
+    <link rel="stylesheet" href="/assets/admin/Notificacoes/notificacoes.css?v=1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <title>Notificações — Admin Vizin</title>
+</head>
+<body class="admin-body" data-page="notificacoes">
+
+    <div id="adminSidebarContainer"></div>
+
+    <main class="admin-main">
+
+        <div class="admin-topbar-mobile">
+            <button id="adminMenuToggle" aria-label="Abrir menu"><i class="bi bi-list"></i></button>
+        </div>
+
+        <header class="admnot-header">
+            <h1>Central de Notificações</h1>
+            <p>Envie notificações e comunicados para os usuários</p>
+        </header>
+
+        <div class="admnot-grid">
+
+            <!-- ================= FORMULÁRIO ================= -->
+            <section class="admnot-card admnot-form-card">
+                <div class="admnot-form-titulo">
+                    <span class="admnot-form-icone"><i class="bi bi-bell"></i></span>
+                    <h2 id="admnotFormTitulo">Nova Notificação</h2>
+                </div>
+
+                <div class="admnot-editando" id="admnotEditando" hidden>
+                    <span>Você está editando um item do histórico.</span>
+                    <button type="button" id="admnotCancelarEdicao">Cancelar edição</button>
+                </div>
+
+                <div class="admnot-campo">
+                    <label for="admnotTitulo">Título</label>
+                    <input type="text" id="admnotTitulo" maxlength="100" placeholder="Ex: Atualização importante da plataforma" autocomplete="off">
+                </div>
+
+                <div class="admnot-campo">
+                    <label for="admnotMensagem">Mensagem</label>
+                    <textarea id="admnotMensagem" rows="6" maxlength="500" placeholder="Digite a mensagem que será enviada aos usuários..."></textarea>
+                    <small id="admnotContador">0 / 500 caracteres</small>
+                </div>
+
+                <div class="admnot-campo">
+                    <label for="admnotDestinatarios">Destinatários</label>
+                    <select id="admnotDestinatarios">
+                        <option value="todos">Todos os usuários</option>
+                        <option value="ativos">Usuários ativos</option>
+                        <option value="proprietarios">Proprietários</option>
+                        <option value="locatarios">Locatários</option>
+                        <option value="novos">Usuários novos (últimos 30 dias)</option>
+                    </select>
+                    <small id="admnotAlcance" aria-live="polite"></small>
+                    <p class="admnot-aviso" id="admnotAviso" role="status" hidden></p>
+                </div>
+
+                <p class="admnot-erro" id="admnotErro" role="alert"></p>
+
+                <div class="admnot-botoes">
+                    <button type="button" class="admnot-btn admnot-btn-rascunho" id="btnRascunho">Salvar Rascunho</button>
+                    <button type="button" class="admnot-btn admnot-btn-agendar" id="btnAgendar">Agendar Envio</button>
+                    <button type="button" class="admnot-btn admnot-btn-enviar" id="btnEnviar">
+                        <i class="bi bi-send"></i> Enviar Agora
+                    </button>
+                </div>
+
+                <button type="button" class="admnot-teste" id="btnTeste">
+                    <i class="bi bi-person-check"></i> Enviar teste para mim
+                </button>
+            </section>
+
+            <!-- ================= LATERAL ================= -->
+            <aside class="admnot-lateral">
+
+                <section class="admnot-card admnot-stats">
+                    <h2>Estatísticas de Envio</h2>
+
+                    <div class="admnot-stat enviadas">
+                        <span class="admnot-stat-rotulo"><i class="bi bi-bell"></i> Enviadas</span>
+                        <strong id="statEnviadas">—</strong>
+                    </div>
+                    <div class="admnot-stat agendadas">
+                        <span class="admnot-stat-rotulo"><i class="bi bi-calendar-event"></i> Agendadas</span>
+                        <strong id="statAgendadas">—</strong>
+                    </div>
+                    <div class="admnot-stat total">
+                        <span class="admnot-stat-rotulo"><i class="bi bi-people"></i> Total Usuários</span>
+                        <strong id="statTotalUsuarios">—</strong>
+                    </div>
+                </section>
+
+                <section class="admnot-dicas">
+                    <i class="bi bi-bell"></i>
+                    <h2>Dicas de Envio</h2>
+                    <ul>
+                        <li>Seja claro e objetivo</li>
+                        <li>Use títulos chamativos</li>
+                        <li>Evite envios em excesso</li>
+                        <li>Segmente seu público</li>
+                        <li>Agende horários estratégicos</li>
+                    </ul>
+                </section>
+
+            </aside>
+        </div>
+
+        <!-- ================= HISTÓRICO ================= -->
+        <section class="admnot-card admnot-historico">
+            <h2>Histórico de Notificações</h2>
+
+            <div id="admnotLista"></div>
+
+            <p class="admin-tabela-vazio" id="admnotVazio" hidden>Nenhuma notificação criada ainda.</p>
+
+            <div class="admnot-mais">
+                <button type="button" class="admnot-btn admnot-btn-rascunho" id="btnVerMais" hidden>Ver mais</button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ================= MODAL: AGENDAR ================= -->
+    <div class="admin-modal-overlay" id="modalAgendarOverlay" hidden>
+        <div class="admin-modal" role="dialog" aria-modal="true" aria-labelledby="modalAgendarTitulo">
+            <h3 id="modalAgendarTitulo">Agendar envio</h3>
+            <p>Escolha quando a notificação será enviada para <strong id="modalAgendarDestino"></strong>.</p>
+
+            <div class="admin-form-campo">
+                <label for="modalAgendarData">Data e horário</label>
+                <input type="datetime-local" id="modalAgendarData">
+                <small id="modalAgendarFuso"></small>
+            </div>
+
+            <p class="admin-form-erro" id="modalAgendarErro"></p>
+
+            <div class="admin-modal-botoes">
+                <button type="button" class="admin-btn-secundario" id="modalAgendarCancelar">Cancelar</button>
+                <button type="button" class="admin-btn-primario" id="modalAgendarConfirmar">Agendar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: CONFIRMAÇÃO GENÉRICA ================= -->
+    <div class="admin-modal-overlay" id="modalConfirmarOverlay" hidden>
+        <div class="admin-modal" role="dialog" aria-modal="true" aria-labelledby="modalConfirmarTitulo">
+            <h3 id="modalConfirmarTitulo"></h3>
+            <p id="modalConfirmarTexto"></p>
+
+            <div class="admin-modal-botoes">
+                <button type="button" class="admin-btn-secundario" id="modalConfirmarCancelar">Voltar</button>
+                <button type="button" class="admin-btn-primario" id="modalConfirmarOk">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="admin-toast"></div>
+
+    <script src="/assets/usuario/Login/api.js"></script>
+    <script src="/assets/admin/Notificacoes/admin-notificacoes-api.js"></script>
+    <script src="/assets/admin/admin-sidebar/admin-frame.js"></script>
+    <script src="/assets/admin/Notificacoes/notificacoes.js?v=1"></script>
+
+</body>
+</html>

@@ -137,7 +137,7 @@ function verificarSeFoiCancelada() {
         clearInterval(intervaloAcompanhamento);
         fotosJaEnviadas = true;
         alert(atual.canceladoPeloSistema
-            ? "O prazo para retirada deste objeto expirou e a locação foi cancelada automaticamente. Se houve pagamento, o estorno está em andamento."
+            ? "O prazo para registrar a retirada terminou às 23:59 do dia combinado e a locação foi cancelada automaticamente. O estorno do valor pago está em andamento."
             : "Esta locação foi cancelada.");
         window.location.href = `/historico`;
         return true;
@@ -169,13 +169,27 @@ document.getElementById("retirada-subtitulo").textContent =
         ? "Registre suas fotos com o objeto no momento da retirada"
         : "Registre suas fotos confirmando a entrega do objeto";
 
-// ================= PRAZO DA RETIRADA (visível na própria tela) =================
-function parseDataISOLocal(dataStr) {
-    if (!dataStr) return null;
-    const partes = dataStr.split("-").map(Number);
-    if (partes.length !== 3 || partes.some(Number.isNaN)) return null;
-    const [ano, mes, dia] = partes;
-    return new Date(ano, mes - 1, dia);
+// ================= JANELA DA RETIRADA (00:00–23:59 do dia agendado) =================
+// Regra de negócio: a retirada só pode ser registrada NO DIA combinado, das
+// 00:00 às 23:59 (fuso de São Paulo). Antes disso ainda não abriu; depois
+// disso o back cancela a locação sozinho e estorna o valor pago ao locatário.
+// Quem decide é o back (codigo_bloqueio no GET e códigos de erro no POST —
+// ver retirada-shared.js). O cálculo por data fica em RetiradaVizin.janela().
+let janelaAberta = true;      // false = não dá pra enviar fotos agora (ainda não abriu ou já fechou)
+let enviandoFotos = false;    // evita reabilitar o botão no meio de um envio
+let pediuAtualizacaoExpirada = false;
+
+function formatarDataBR(iso) {
+    return iso ? iso.split("-").reverse().join("/") : "";
+}
+
+function mensagemJanelaFechada(codigoErro) {
+    const { estado, dataISO } = RetiradaVizin.janela(aluguelId, solicitacao.dataRetirada);
+    const dataBR = formatarDataBR(dataISO);
+    const expirada = codigoErro ? codigoErro === "retirada_prazo_expirado" : estado === "expirada";
+    return expirada
+        ? `O prazo para registrar a retirada terminou às 23:59${dataBR ? ` de ${dataBR}` : ""}.`
+        : `A retirada só pode ser registrada a partir das 00:00${dataBR ? ` de ${dataBR}` : ""}.`;
 }
 
 const demoRetiradaCard = document.getElementById("demo-retirada-card");
@@ -201,6 +215,7 @@ btnDemoRetirada?.addEventListener("click", async () => {
     try {
         await RetiradaVizin.liberarRetiradaDemo(aluguelId);
         atualizarDemoRetirada();
+        atualizarJanela();
         mostrarToast("Retirada liberada para demonstração. Envie suas fotos normalmente.");
     } catch (erro) {
         btnDemoRetirada.disabled = false;
@@ -209,36 +224,68 @@ btnDemoRetirada?.addEventListener("click", async () => {
     }
 });
  
-(function mostrarPrazo() {
-    if (!solicitacao || !solicitacao.dataRetirada) return;
-    if (solicitacao.status !== "pago") return; // já retirado/cancelado: prazo não se aplica mais
- 
-    const dataRetirada = parseDataISOLocal(solicitacao.dataRetirada);
-    if (!dataRetirada) return;
- 
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    const diffDias = Math.round((dataRetirada - hoje) / (1000 * 60 * 60 * 24));
- 
+// Atualiza o card de prazo (topo da tela) e libera/bloqueia o envio de fotos
+// conforme a janela. Chamada após cada carga do back e a cada 30 s (a janela
+// abre e fecha à meia-noite, com a página aberta).
+function atualizarJanela() {
     const prazoCard = document.getElementById("prazo-card");
     const prazoTexto = document.getElementById("prazo-texto");
     if (!prazoCard || !prazoTexto) return;
- 
-    let texto;
-    if (diffDias > 1) {
-        texto = `Faltam ${diffDias} dias para o prazo da retirada (${solicitacao.dataRetirada.split("-").reverse().join("/")}).`;
-    } else if (diffDias === 1) {
-        texto = `A retirada precisa ser confirmada até amanhã (${solicitacao.dataRetirada.split("-").reverse().join("/")}).`;
-    } else if (diffDias === 0) {
-        texto = "A retirada precisa ser confirmada hoje, ou o aluguel poderá ser cancelado automaticamente.";
-        prazoCard.classList.add("prazo-urgente");
-    } else {
-        return; // já passou — verificarSeFoiCancelada cuida disso
+
+    const statusAtual = window.SolicitacoesVizin.obterPorId(solicitacao.id)?.status || solicitacao.status;
+    if (statusAtual !== "pago") {
+        // Já retirado/cancelado: a janela não se aplica mais.
+        prazoCard.style.display = "none";
+        definirJanelaAberta(true);
+        return;
     }
- 
+
+    const { estado, dataISO, diff } = RetiradaVizin.janela(aluguelId, solicitacao.dataRetirada);
+    const dataBR = formatarDataBR(dataISO);
+
+    let texto;
+    let classe = "";
+
+    if (estado === "futura") {
+        const quando = diff > 1 ? ` (em ${diff} dias)` : diff === 1 ? " (amanhã)" : "";
+        texto = `A retirada só abre às 00:00 de ${dataBR}${quando} e vai até as 23:59 desse dia.`;
+        classe = "prazo-info";
+    } else if (estado === "aberta") {
+        texto = (diff === 0 || diff === null)
+            ? "Retirada disponível hoje, até as 23:59. Se ninguém registrar até lá, a locação é cancelada automaticamente e o valor pago é estornado ao locatário."
+            : "Retirada liberada para demonstração (fora da data contratual).";
+        classe = "prazo-urgente";
+    } else {
+        texto = `O prazo da retirada terminou às 23:59 de ${dataBR}. A locação será cancelada automaticamente e o valor pago estornado ao locatário.`;
+        classe = "prazo-urgente";
+    }
+
+    prazoCard.classList.remove("prazo-info", "prazo-urgente");
+    if (classe) prazoCard.classList.add(classe);
     prazoTexto.textContent = texto;
     prazoCard.style.display = "flex";
-})();
+
+    definirJanelaAberta(estado === "aberta");
+
+    // Passou do prazo: o cancelamento é feito pelo back — força uma checagem
+    // (uma vez) sem esperar o próximo ciclo de 30 s.
+    if (estado === "expirada" && !pediuAtualizacaoExpirada) {
+        pediuAtualizacaoExpirada = true;
+        window.SolicitacoesVizin.atualizar().catch(() => {});
+    }
+}
+
+function definirJanelaAberta(aberta) {
+    janelaAberta = aberta;
+
+    document.getElementById("etapa-enviar").classList.toggle("janela-fechada", !aberta);
+    input.disabled = !aberta;
+    document.getElementById("observacoes").disabled = !aberta;
+
+    if (!enviandoFotos) {
+        btnEnviar.disabled = !aberta || minhasFotos.length === 0;
+    }
+}
  
 // ================= COMPRESSÃO DAS FOTOS ANTES DO ENVIO =================
 // O back aceita até 5 MB por foto. Fotos de celular costumam passar disso,
@@ -315,6 +362,11 @@ dropzone.addEventListener("drop", (e) => {
 });
  
 function adicionarArquivos(arquivos) {
+    if (!janelaAberta) {
+        mostrarToast(mensagemJanelaFechada(), "erro");
+        return;
+    }
+
     const espacoRestante = MAX_FOTOS - minhasFotos.length;
  
     if (arquivos.length > espacoRestante) {
@@ -369,7 +421,7 @@ function renderizarFotos() {
  
     badge.textContent = `${minhasFotos.length}/${MAX_FOTOS}`;
     dropzone.style.display = minhasFotos.length >= MAX_FOTOS ? "none" : "flex";
-    btnEnviar.disabled = minhasFotos.length === 0;
+    btnEnviar.disabled = minhasFotos.length === 0 || !janelaAberta;
 }
  
 // ================= ZOOM DE FOTO =================
@@ -399,6 +451,7 @@ window.addEventListener("beforeunload", (e) => {
 // ================= STATUS DAS DUAS PARTES (vem do back) =================
 function renderizarStatus() {
     atualizarDemoRetirada();
+    atualizarJanela();
     const status = RetiradaVizin.obterStatus(aluguelId);
     const statusLista = document.getElementById("status-lista");
     statusLista.innerHTML = "";
@@ -443,6 +496,15 @@ btnEnviar.addEventListener("click", async () => {
     if (minhasFotos.length === 0) return;
     if (verificarSeFoiCancelada()) return;
 
+    // A janela pode ter fechado (ou ainda não ter aberto) desde que a pessoa
+    // escolheu as fotos — confere de novo antes de mandar.
+    atualizarJanela();
+    if (!janelaAberta) {
+        mostrarToast(mensagemJanelaFechada(), "erro");
+        return;
+    }
+
+    enviandoFotos = true;
     btnEnviar.disabled = true;
     btnEnviar.innerHTML = `<span class="spinner"></span> Enviando...`;
 
@@ -467,10 +529,17 @@ btnEnviar.addEventListener("click", async () => {
 
     } catch (err) {
         console.error(err);
+        enviandoFotos = false;
 
         let mensagem;
         if (navigator.onLine === false || err.codigo === "rede") {
             mensagem = "Você está sem conexão com a internet. Verifique sua rede e tente novamente.";
+        } else if (err.codigo === "retirada_data_futura" || err.codigo === "retirada_prazo_expirado") {
+            // O back recusou por causa da janela (00:00–23:59 do dia agendado):
+            // sincroniza o estado da tela e explica o motivo certo.
+            try { await RetiradaVizin.carregar(aluguelId); } catch (e) { console.error(e); }
+            atualizarJanela();
+            mensagem = mensagemJanelaFechada(err.codigo);
         } else if (err.codigo === "conflito") {
             mensagem = "Esta locação não está mais na etapa de retirada. Atualize a página.";
         } else {
@@ -478,7 +547,7 @@ btnEnviar.addEventListener("click", async () => {
         }
 
         mostrarToast(mensagem, "erro");
-        btnEnviar.disabled = false;
+        btnEnviar.disabled = !janelaAberta;
         btnEnviar.innerHTML = `<i class="bi bi-check-circle"></i> Enviar Minhas Fotos`;
     }
 });
@@ -551,5 +620,17 @@ if (retiradaConcluida()) {
 } else if (RetiradaVizin.obterStatus(aluguelId)[meuPapel].enviado) {
     mostrarAguardando();
 }
+
+// ================= JANELA: REAVALIAR À MEIA-NOITE =================
+// A janela abre às 00:00 e fecha às 23:59 com a página aberta. A cada 30 s (e
+// ao voltar pra aba) busca o estado mais recente no back e reaplica a regra.
+async function sincronizarJanela() {
+    if (document.hidden) return;
+    try { await RetiradaVizin.carregar(aluguelId); } catch (e) { /* mantém o último estado */ }
+    atualizarJanela();
+}
+
+setInterval(sincronizarJanela, 30 * 1000);
+document.addEventListener("visibilitychange", sincronizarJanela);
 
 })();

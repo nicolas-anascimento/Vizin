@@ -17,8 +17,16 @@
             <div class="logo-mini"></div>
         </a>
 
+        <!-- Os contadores (.admin-nav-badge) NÃO ficam aqui: o admin-frame.js
+             cria a bolinha dentro de cada link conforme o data-page
+             (ver CONTADORES em admin-frame.js). -->
         <nav class="admin-sidebar-nav">
             <ul>
+                <li>
+                    <a href="/admin/inicio" class="admin-nav-link" data-page="inicio">
+                        <i class="bi bi-house"></i><span>Início</span><span class="nav-underline"></span>
+                    </a>
+                </li>
                 <li>
                     <a href="/admin/usuarios" class="admin-nav-link" data-page="usuarios">
                         <i class="bi bi-people-fill"></i><span>Usuários</span><span class="nav-underline"></span>
@@ -34,12 +42,56 @@
                         <i class="bi bi-credit-card"></i><span>Pagamentos</span><span class="nav-underline"></span>
                     </a>
                 </li>
+                <li>
+                    <a href="/admin/avaliacoes" class="admin-nav-link" data-page="avaliacoes">
+                        <i class="bi bi-star"></i><span>Avaliações</span><span class="nav-underline"></span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/admin/denuncias" class="admin-nav-link" data-page="denuncias">
+                        <i class="bi bi-exclamation-circle"></i><span>Denúncias / Suporte</span><span class="nav-underline"></span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/admin/verificacoes" class="admin-nav-link" data-page="verificacoes">
+                         <i class="bi bi-patch-check"></i><span>Verificações</span><span class="nav-underline"></span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/admin/categorias" class="admin-nav-link" data-page="categorias">
+                        <i class="bi bi-tag"></i><span>Categorias</span><span class="nav-underline"></span>
+                    </a>
+                </li>
+                <!-- NOVO: caixa de entrada do admin (notificações recebidas) -->
+                <li>
+                    <a href="/admin/notificacoes-recebidas" class="admin-nav-link" data-page="notificacoes-recebidas">
+                        <i class="bi bi-bell"></i><span>Notificações</span><span class="nav-underline"></span>
+                    </a>
+                </li>
+                <!-- Já existia: tela de enviar notificação aos usuários. Ícone trocado pra não
+                     confundir com o sino da caixa de entrada acima. -->
+                <li>
+                    <a href="/admin/notificacoes" class="admin-nav-link" data-page="notificacoes">
+                        <i class="bi bi-send"></i><span>Criar Notificação</span><span class="nav-underline"></span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/admin/auditoria" class="admin-nav-link" data-page="auditoria">
+                        <i class="bi bi-clock-history"></i><span>Histórico de ações</span><span class="nav-underline"></span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/admin/configuracoes" class="admin-nav-link" data-page="configuracoes">
+                        <i class="bi bi-gear"></i><span>Configurações</span><span class="nav-underline"></span>
+                    </a>
+                </li>
+
             </ul>
         </nav>
 
         <!-- Link de perfil do admin logado — em telas menores fica só
              o círculo do avatar (nome/badge/seta somem). -->
-        <a href="/admin/usuarios" class="admin-sidebar-perfil">
+        <a href="/admin/configuracoes" class="admin-sidebar-perfil">
             <div class="admin-sidebar-avatar" id="adminSidebarAvatar">?</div>
             <div class="admin-sidebar-perfil-info">
                 <span class="admin-sidebar-perfil-nome" id="adminSidebarNome">Carregando...</span>

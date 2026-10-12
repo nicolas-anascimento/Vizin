@@ -175,6 +175,36 @@ button {
 }
 .avatar--lg { width: 46px; height: 46px; }
  
+.avatar-inicial {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--purple-600), var(--purple-500));
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 16px;
+  user-select: none;
+}
+.avatar--lg .avatar-inicial { font-size: 18px; }
+.blocked-user-avatar-inicial {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--purple-600), var(--purple-500));
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+  user-select: none;
+}
+ 
 .status-dot {
   position: absolute;
   bottom: 0;

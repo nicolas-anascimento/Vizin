@@ -253,6 +253,13 @@ html{
 .disponibilidade-label.indisponivel {
   color: var(--cor-texto-suave);
 }
+
+/* Diferencia visualmente "pausado pelo próprio dono" de "arquivado/ocultado
+   pela administração" — antes os dois casos ficavam com o mesmo texto
+   ("Pausado pelo dono"), o que escondia do dono que a ação foi do admin. */
+.disponibilidade-label.admin {
+  color: var(--cor-perigo);
+}
  
 .card-objeto-actions {
   display: flex;

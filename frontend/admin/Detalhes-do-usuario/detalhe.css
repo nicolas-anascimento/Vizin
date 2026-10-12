@@ -79,6 +79,20 @@
     font-weight: 600;
 }
 
+/* Link dentro do campo (ex: "Analisar documentos" em Verificação) */
+.detalhe-campo-link{
+    display: block;
+    margin-top: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--admin-roxo-500);
+    text-decoration: none;
+}
+
+.detalhe-campo-link:hover{
+    text-decoration: underline;
+}
+
 .detalhe-secao{
     margin-bottom: 24px;
 }

@@ -29,7 +29,8 @@
         cartao_em_uso: "Este cartão está vinculado a uma operação em andamento.", decisao_concorrente: "Outra decisão foi registrada ao mesmo tempo.",
         usuario_com_multa_pendente: "Quite ou conteste a multa pendente antes de continuar.",
         usuario_com_devolucao_pendente: "Conclua a devolução pendente antes de continuar.",
-        admin_required: "Esta ação exige uma conta administradora."
+        admin_required: "Esta ação exige uma conta administradora.",
+        conta_suspensa: "Sua conta está suspensa. Fale com o Suporte para pedir a reativação."
     };
 
     function baseUrl() {
@@ -80,6 +81,13 @@
             sessionStorage.setItem("mensagemLogin", "Sua sessão expirou. Entre novamente para continuar.");
             window.location.href = "/login";
             throw new ApiError("Sessão expirada.", 401, "nao_autenticado");
+        }
+
+        // Conta suspensa: o back nega tudo (403 "conta_suspensa") fora das rotas
+        // liberadas. Avisa o guard (utils/conta-suspensa.js), que leva a pessoa
+        // pro Perfil — assim funciona mesmo se ela burlar o redirecionamento.
+        if (resposta.status === 403 && dados?.codigo === "conta_suspensa") {
+            window.dispatchEvent(new CustomEvent("vizin:conta-suspensa"));
         }
 
         if (!resposta.ok) {

@@ -644,9 +644,23 @@ function botaoContextual(item, jaAvaliadoPorId) {
         const papelChave = item.papel === "alugado" ? "locatario" : "proprietario";
         const statusRetirada = window.RetiradaVizin ? window.RetiradaVizin.obterStatus(item.id) : null;
         const jaEnviei = statusRetirada?.[papelChave]?.enviado;
- 
+
+        // Janela da retirada: se ainda não abriu, avisa a data em vez de
+        // convidar pra um clique que só vai bater de frente com o aviso lá
+        // dentro da tela de retirada. Mantém o link clicável mesmo assim —
+        // se o cálculo local divergir do back por fuso, o usuário ainda
+        // acessa a tela e vê o aviso oficial em vez de ficar travado aqui.
+        const { estado: estadoJanela } = window.RetiradaVizin
+            ? window.RetiradaVizin.janela(item.id, s.dataRetirada)
+            : { estado: "aberta" };
+
+        let textoBotaoRetirada = jaEnviei ? "Ver Status da Retirada" : "Registrar Retirada";
+        if (estadoJanela === "futura" && !jaEnviei) {
+            textoBotaoRetirada = `Disponível em ${item.dataRetirada}`;
+        }
+
         return `<a class="btn-historico preenchido" href="/retirada?${query.toString()}">
-                    <i class="bi bi-box-arrow-in-down"></i> ${jaEnviei ? "Ver Status da Retirada" : "Registrar Retirada"}
+                    <i class="bi bi-box-arrow-in-down"></i> ${textoBotaoRetirada}
                 </a>
                 ${linkVerStatus}`;
     }

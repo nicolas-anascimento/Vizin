@@ -57,12 +57,70 @@ async function obterAvaliacoesComoLocatarioSeguro(usuarioId) {
     }
 }
 
+// ================= CONTA SUSPENSA / PERFIL INDISPONÍVEL =================
+// Conta suspensa (a PRÓPRIA): a página inteira vira só o recado de suspensão
+// + o motivo informado pelo admin + o caminho pro Suporte. Nada de edição,
+// foto, objetos, avaliações ou configurações. Isso roda ANTES de qualquer
+// outra chamada de dados, porque o back nega essas rotas pra conta suspensa.
+async function mostrarContaSuspensa(usuario) {
+    ["banner-suspenso", "perfil-privado"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = "none";
+    });
+    const header = document.querySelector(".perfil-header");
+    const grid = document.querySelector(".perfil-grid");
+    if (header) header.style.display = "none";
+    if (grid) grid.style.display = "none";
+
+    // Motivo: o back deve mandar em /usuarios/me. Se ainda não mandar, cai
+    // pro texto da notificação "bloqueio_conta" (que também carrega o motivo).
+    let motivo = usuario.motivo_suspensao || usuario.motivoSuspensao || null;
+    if (!motivo && window.NotificacoesVizin) {
+        try {
+            await window.NotificacoesVizin.pronto;
+            const bloqueios = window.NotificacoesVizin.obterTodas()
+                .filter(n => n.tipo === "bloqueio_conta")
+                .sort((a, b) => (b.dataIso || "").localeCompare(a.dataIso || ""));
+            motivo = bloqueios[0]?.descricao || null;
+        } catch (_) { /* segue sem motivo */ }
+    }
+
+    const elMotivo = document.getElementById("suspensa-motivo");
+    if (elMotivo) {
+        elMotivo.textContent = motivo || "Nenhum motivo foi informado. Fale com o Suporte para saber mais.";
+    }
+    const card = document.getElementById("perfil-conta-suspensa");
+    if (card) card.style.display = "block";
+}
+
+// Perfil de OUTRA pessoa que não pode ser exibido (conta suspensa, removida
+// ou privada): mostra só o aviso, sem preencher nada no DOM.
+function mostrarPerfilIndisponivel() {
+    const header = document.querySelector(".perfil-header");
+    const grid = document.querySelector(".perfil-grid");
+    if (header) header.style.display = "none";
+    if (grid) grid.style.display = "none";
+    const card = document.getElementById("perfil-privado");
+    if (card) {
+        const texto = card.querySelector(".perfil-privado-texto");
+        if (texto) texto.textContent = "Este perfil não está disponível no momento.";
+        card.style.display = "block";
+    }
+}
+
 (async function main() {
 
 // As solicitações do usuário vêm do back (cache): espera a 1ª carga.
 if (window.SolicitacoesVizin) await window.SolicitacoesVizin.pronto;
 
 const usuarioServidor = await window.ApiVizin.get("/usuarios/me");
+
+// Conta suspensa: só o recado (ver mostrarContaSuspensa). Para aqui, antes de
+// buscar estatísticas, objetos, avaliações etc.
+if (usuarioServidor.ativo === false) {
+    await mostrarContaSuspensa(usuarioServidor);
+    return;
+}
  
 const usuarioLogado = {
     id: usuarioServidor.id,
@@ -106,6 +164,7 @@ const avaliacoesReaisLogado = await obterAvaliacoesComoLocatarioSeguro(usuarioLo
 usuarioLogado.avaliacaoMedia = avaliacoesReaisLogado.media;
 usuarioLogado.avaliacaoTotal = avaliacoesReaisLogado.total;
 usuarioLogado.avaliacoes = avaliacoesReaisLogado.lista.map(av => ({
+    id: av.id,
     nome: av.nomeAvaliador || "Usuário",
     avaliadorId: av.avaliadorId || null,
     data: new Date(av.data).toLocaleDateString("pt-BR"),
@@ -194,7 +253,23 @@ let usuarioExibido;
 if (ehProprioPerfilPorId) {
     usuarioExibido = usuarioLogado;
 } else {
-    const base = await window.ApiVizin.get(`/usuarios/${encodeURIComponent(idParam)}`);
+    let base;
+    try {
+        base = await window.ApiVizin.get(`/usuarios/${encodeURIComponent(idParam)}`);
+    } catch (erro) {
+        // O back não expõe perfil de conta suspensa (404/403): mostra o aviso
+        // em vez de uma mensagem de erro seca.
+        if (erro && (erro.status === 404 || erro.status === 403)) {
+            mostrarPerfilIndisponivel();
+            return;
+        }
+        throw erro;
+    }
+    // Segurança extra caso o back ainda devolva o perfil com a flag.
+    if (base.ativo === false || base.suspenso === true) {
+        mostrarPerfilIndisponivel();
+        return;
+    }
  
     // Avaliações reais também pro perfil de outra pessoa — só as que ela
     // recebeu como locatária, mesma regra do próprio perfil.
@@ -209,6 +284,7 @@ if (ehProprioPerfilPorId) {
         avaliacaoMedia: avaliacoesReaisOutro.media,
         avaliacaoTotal: avaliacoesReaisOutro.total,
         avaliacoes: avaliacoesReaisOutro.lista.map(av => ({
+            id: av.id,
             nome: av.nomeAvaliador || "Usuário",
             avaliadorId: av.avaliadorId || null,
             data: new Date(av.data).toLocaleDateString("pt-BR"),
@@ -354,6 +430,15 @@ function renderizarPerfil(usuario) {
                 elIcone.className = "bi bi-patch-exclamation-fill";
                 elTitulo.textContent = "Não foi possível verificar sua conta";
                 elTexto.textContent = usuario.motivoReprovacaoVerificacao || "Reveja seus documentos e tente novamente.";
+                // Quem discorda do motivo precisa de um caminho além de "tentar de novo".
+                const linkSuporteVerif = document.createElement("a");
+                linkSuporteVerif.href = "/suporte?" + new URLSearchParams({
+                    assunto: "Verificação de conta",
+                    mensagem: "Minha verificação de conta foi reprovada e gostaria de ajuda."
+                }).toString();
+                linkSuporteVerif.textContent = "Discordou do motivo? Fale com o Suporte";
+                linkSuporteVerif.style.cssText = "display:block;margin-top:6px;font-size:12.5px;font-weight:700;color:var(--roxo);";
+                elTexto.appendChild(linkSuporteVerif);
                 btnVerificarConta.textContent = "Tentar novamente";
             } else {
                 elIcone.className = "bi bi-patch-exclamation-fill";
@@ -432,6 +517,17 @@ function renderizarAvaliacoes(avaliacoesCompletas) {
             ? `<a class="avaliacao-nome avaliacao-nome-link" href="${linkPerfilAvaliador}">${nomeSeguro}</a>`
             : `<p class="avaliacao-nome">${nomeSeguro}</p>`;
  
+        // Não faz sentido a pessoa denunciar a própria avaliação (mesmo
+        // padrão de "Denunciar anúncio" no Produto): compara com QUEM ESTÁ
+        // LOGADO vendo a página, não com o dono do perfil — quem escreveu a
+        // avaliação pode estar vendo o próprio perfil de terceiro ali.
+        const souAutorDaAvaliacao = !!(usuarioLogado?.id && av.avaliadorId && usuarioLogado.id === av.avaliadorId);
+        const linkDenunciarHtml = souAutorDaAvaliacao ? "" : `
+            <button type="button" class="link-denunciar-avaliacao" data-avaliacao-id="${escaparHTMLPerfil(String(av.id ?? ""))}" data-avaliacao-autor="${nomeSeguro}">
+                <i class="bi bi-flag"></i> Denunciar
+            </button>
+        `;
+
         const item = document.createElement("div");
         item.className = "avaliacao-item";
         item.innerHTML = `
@@ -445,6 +541,7 @@ function renderizarAvaliacoes(avaliacoesCompletas) {
                     <span class="avaliacao-nota"><i class="bi bi-star-fill"></i> ${av.nota.toFixed(1)}</span>
                 </div>
                 <p class="avaliacao-comentario">${comentarioSeguro}</p>
+                ${linkDenunciarHtml}
             </div>
         `;
         elListaAvaliacoes.appendChild(item);
@@ -454,6 +551,20 @@ function renderizarAvaliacoes(avaliacoesCompletas) {
     elBtnMostrarMaisAvaliacoes.style.display = restantes > 0 ? "block" : "none";
     elBtnMostrarMaisAvaliacoes.textContent = `Mostrar mais ${restantes} avaliaç${restantes > 1 ? "ões" : "ão"}`;
 }
+
+// Delegado (a lista é recriada a cada renderizarAvaliacoes) — mesma query
+// string usada em "Denunciar anúncio"/"Denunciar avaliação" do Produto.
+elListaAvaliacoes.addEventListener("click", (e) => {
+    const btn = e.target.closest(".link-denunciar-avaliacao");
+    if (!btn) return;
+    const queryDenuncia = new URLSearchParams({
+        tipo: "denuncia",
+        motivo: "avaliacao_ofensiva",
+        avaliacaoId: btn.dataset.avaliacaoId || "",
+        avaliacaoAutor: btn.dataset.avaliacaoAutor || ""
+    });
+    window.location.href = `/suporte?${queryDenuncia.toString()}`;
+});
  
 elBtnMostrarMaisAvaliacoes.addEventListener("click", () => {
     mostrarTodasAvaliacoes = true;
@@ -611,8 +722,39 @@ if (telefoneInputEl) {
     });
 }
  
+// Conta verificada: o nome precisa continuar batendo com o documento enviado,
+// então não pode ser editado aqui. Quem precisa corrigir fala com o Suporte
+// (e, se o nome mudar de verdade, o admin revoga/refaz a verificação).
+// O back também precisa recusar a troca (ver CONTRATO-BACK.md).
+function nomeTravadoPorVerificacao() {
+    return !!usuarioExibido.verificado;
+}
+
+function aplicarTravaNomeVerificado() {
+    const travado = nomeTravadoPorVerificacao();
+    nomeInputEl.disabled = travado;
+
+    let aviso = document.getElementById("aviso-nome-verificado");
+    if (!travado) {
+        if (aviso) aviso.remove();
+        return;
+    }
+    if (!aviso) {
+        aviso = document.createElement("p");
+        aviso.id = "aviso-nome-verificado";
+        aviso.className = "perfil-campo-aviso";
+        campoNomeEdicao.appendChild(aviso);
+    }
+    const href = "/suporte?" + new URLSearchParams({
+        assunto: "Corrigir nome da conta verificada",
+        mensagem: "Preciso corrigir o nome da minha conta, que está verificada. O nome correto é: "
+    }).toString();
+    aviso.innerHTML = 'O nome não pode ser alterado enquanto a conta está verificada, porque precisa bater com o documento. Precisa corrigir? <a href="' + href + '">Fale com o Suporte</a>.';
+}
+
 function entrarModoEdicao() {
     nomeInputEl.value = usuarioExibido.nome;
+    aplicarTravaNomeVerificado();
     emailInputEl.value = usuarioExibido.email;
     telefoneInputEl.value = usuarioExibido.telefone || "";
     bioInputEl.value = usuarioExibido.bio;
@@ -724,7 +866,9 @@ document.getElementById("btn-salvar-edicao").addEventListener("click", async () 
             senhaEmail = window.prompt("Digite sua senha atual para solicitar a alteração de e-mail:");
             if (!senhaEmail) throw new Error("Alteração de e-mail cancelada.");
         }
-        const perfil = await window.ApiVizin.patch("/usuarios/me", { nome: novoNome, bio: novaBio, telefone: novoTelefone });
+        const dadosPerfil = { bio: novaBio, telefone: novoTelefone };
+        if (!nomeTravadoPorVerificacao()) dadosPerfil.nome = novoNome;
+        const perfil = await window.ApiVizin.patch("/usuarios/me", dadosPerfil);
         Object.assign(usuarioExibido, { nome: perfil.nome, bio: perfil.bio || "", telefone: perfil.telefone || "", avatarUrl: perfil.avatarUrl });
         if (emailMudou) {
             await window.ApiVizin.put("/usuarios/email", { email: novoEmail, senha: senhaEmail });

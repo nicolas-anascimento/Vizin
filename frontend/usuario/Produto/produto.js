@@ -1140,6 +1140,17 @@ async function renderizarAvaliacoesProduto() {
                 ? `<a class="produto-avaliacao-nome-link" href="${linkPerfilAvaliador}">${nomeSeguro}</a>`
                 : `<strong>${nomeSeguro}</strong>`;
 
+            // ================= DENUNCIAR AVALIAÇÃO =================
+            // Não faz sentido a pessoa denunciar a própria avaliação, então o
+            // link nem aparece pra quem a escreveu (mesmo padrão de "souDono"
+            // usado em "Denunciar anúncio").
+            const souAutorDaAvaliacao = !!(usuarioLogado?.id && av.avaliadorId && usuarioLogado.id === av.avaliadorId);
+            const linkDenunciarHtml = souAutorDaAvaliacao ? "" : `
+                <button type="button" class="link-denunciar-avaliacao" data-avaliacao-id="${escaparHTMLProduto(String(av.id ?? ""))}" data-avaliacao-autor="${escaparHTMLProduto(nome)}">
+                    <i class="bi bi-flag"></i> Denunciar
+                </button>
+            `;
+
             const item = document.createElement("div");
             item.className = "produto-avaliacao-item";
             item.innerHTML = `
@@ -1152,10 +1163,26 @@ async function renderizarAvaliacoesProduto() {
                     <div class="produto-avaliacao-nota-item"><i class="bi bi-star-fill"></i> ${av.nota.toFixed(1)}</div>
                 </div>
                 ${av.comentario ? `<p class="produto-avaliacao-comentario">${escaparHTMLProduto(av.comentario)}</p>` : ""}
+                ${linkDenunciarHtml}
             `;
             listaEl.appendChild(item);
         });
 }
+
+// Delegado (a lista é recriada a cada renderizarAvaliacoesProduto, então um
+// listener por botão se perderia) — mesmo padrão de query string usado em
+// "Denunciar anúncio" acima, só que com avaliacaoId em vez de produtoId.
+listaEl.addEventListener("click", (e) => {
+    const btn = e.target.closest(".link-denunciar-avaliacao");
+    if (!btn) return;
+    const queryDenuncia = new URLSearchParams({
+        tipo: "denuncia",
+        motivo: "avaliacao_ofensiva",
+        avaliacaoId: btn.dataset.avaliacaoId || "",
+        avaliacaoAutor: btn.dataset.avaliacaoAutor || ""
+    });
+    window.location.href = `/suporte?${queryDenuncia.toString()}`;
+});
 
 renderizarAvaliacoesProduto();
 

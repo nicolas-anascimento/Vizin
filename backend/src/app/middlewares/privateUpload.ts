@@ -15,7 +15,7 @@ const types: Record<string, string> = {
 // Restringe MIME, tamanho e quantidade antes de gravar arquivos privados com UUID.
 function upload(max: number, size: number, imagesOnly = false) {
  return multer({ storage: multer.diskStorage({ destination: privateRoot, filename: (_req, file, cb) => cb(null, crypto.randomUUID() + types[file.mimetype]) }), limits: { fileSize: size * 1024 * 1024, files: max, fields: 30, fieldSize: 10000 }, fileFilter: (_req, file, cb) => {
-  if (!types[file.mimetype] || (imagesOnly && !file.mimetype.startsWith("image/"))) cb(new HttpError(422, "Tipo de arquivo não permitido")); else cb(null, true);
+  if (!types[file.mimetype] || (imagesOnly && (!file.mimetype.startsWith("image/") || file.mimetype === "image/gif"))) cb(new HttpError(422, "Tipo de arquivo não permitido")); else cb(null, true);
  } });
 }
 export const identityUpload = upload(3, 5, true).fields([{ name: "documentoFrente", maxCount: 1 }, { name: "documentoVerso", maxCount: 1 }, { name: "selfie", maxCount: 1 }]);

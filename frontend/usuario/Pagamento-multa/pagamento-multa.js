@@ -39,7 +39,6 @@ const MENSAGENS_ERRO = {
     nao_pertence: "Esta cobrança não pertence à sua conta.",
     sem_multa: "Esta locação não tem nenhuma multa por atraso registrada.",
     ja_paga: "Esta multa já foi paga anteriormente.",
-    multa_contestada: "Esta multa está em contestação. Aguarde a análise antes de pagar.",
     multa_desabilitada: "O pagamento desta multa está indisponível no momento.",
     pagamento_em_andamento: "Já existe um pagamento em andamento. Consulte o status antes de tentar novamente.",
     conciliacao_pendente: "O pagamento está em conciliação. Aguarde a confirmação.",

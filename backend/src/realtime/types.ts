@@ -61,4 +61,5 @@ export interface SocketData {
   userId: string;
   email: string;
   role: "admin" | "usuario";
+  active: boolean;
 }

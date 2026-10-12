@@ -7,7 +7,7 @@ import { assertPayable,contractedPrice,rentalPrice,paymentDeadline,rentalDayEnd,
 import { verifyMercadoPagoSignature } from "../app/services/mercadoPagoGateway.ts";
 import { operationFingerprint } from "../app/services/gatewayOperations.ts";
 import { serializePublicPayment } from "../app/utils/serializers.ts";
-import { businessDate, businessLateDays } from "../app/utils/dates.ts";
+import { businessDate, businessLateDays, withdrawalWindowCode } from "../app/utils/dates.ts";
 import { nextRetry } from "../app/services/retryQueue.ts";
 
 // Protege o cálculo contra a interpretação de taxa por dia de aluguel.
@@ -33,6 +33,7 @@ test("multa começa somente à meia-noite de São Paulo",()=>{
  const rental={status:"retirado",data_fim:new Date("2026-09-19"),devolucoes:[]};
  try{assert.throws(()=>finePrice(rental,new Date("2026-09-20T02:59:59.999Z")),(e:any)=>e.codigo==="sem_multa");assert.equal(finePrice(rental,new Date("2026-09-20T03:00:00.000Z")).valor_total,10);}finally{if(old===undefined)delete process.env.MULTA_VALOR_DIA;else process.env.MULTA_VALOR_DIA=old;}
 });
+test("retirada abre somente no dia civil de São Paulo",()=>{const day=new Date("2026-10-10T00:00:00.000Z");assert.equal(withdrawalWindowCode(day,new Date("2026-10-10T02:59:59.999Z")),"retirada_data_futura");assert.equal(withdrawalWindowCode(day,new Date("2026-10-10T03:00:00.000Z")),null);assert.equal(withdrawalWindowCode(day,new Date("2026-10-11T02:59:59.999Z")),null);assert.equal(withdrawalWindowCode(day,new Date("2026-10-11T03:00:00.000Z")),"retirada_prazo_expirado");});
 test("retry financeiro aumenta atraso e permite novos lotes",()=>{const now=new Date("2026-01-01T00:00:00Z");assert.equal(nextRetry(1,now).getTime()-now.getTime(),1000);assert.equal(nextRetry(2,now).getTime()-now.getTime(),2000);assert.equal(nextRetry(20,now).getTime()-now.getTime(),3600000);});
 test("dados sensíveis de cartão são rejeitados inclusive campos aninhados",()=>{for(const field of ["PAN","CVV","card_number","security_code"])assert.throws(()=>rejectCardSecrets({card:{[field]:"secret"}}));rejectCardSecrets({token_cartao:"token",cartao_id:"id"});});
 test("fingerprint é canônico e distingue operações",()=>{assert.equal(operationFingerprint({a:1,b:{y:2,x:3}}),operationFingerprint({b:{x:3,y:2},a:1}));assert.notEqual(operationFingerprint({cartao_id:"a"}),operationFingerprint({cartao_id:"b"}));});

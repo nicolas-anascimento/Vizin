@@ -78,7 +78,69 @@ const DevolucaoVizin = (function () {
         return s.locatario.enviado && s.proprietario.enviado;
     }
 
-    return { carregar, obterStatus, enviarFotos, ambosConcluidos };
+
+    // ================= PRAZO DA DEVOLUÇÃO (regra única, usada nas duas telas) =================
+    // REGRA: a devolução vai até as 23:59 do dia agendado (fuso de São Paulo).
+    // A partir das 00:00 do dia seguinte a devolução está em atraso e conta
+    // multa diária (1 dia de atraso = 1ª diária). Quem cobra é o back; aqui só
+    // exibimos. O "dia de hoje" é calculado em America/Sao_Paulo (e não no fuso
+    // do aparelho), pra a tela concordar com a regra do back.
+    const FUSO = "America/Sao_Paulo";
+
+    function partesAgora() {
+        const partes = new Intl.DateTimeFormat("en-CA", {
+            timeZone: FUSO, hourCycle: "h23",
+            year: "numeric", month: "2-digit", day: "2-digit",
+            hour: "2-digit", minute: "2-digit", second: "2-digit"
+        }).formatToParts(new Date());
+        const o = {};
+        partes.forEach(x => { o[x.type] = x.value; });
+        return o;
+    }
+
+    function hojeISO() {
+        const p = partesAgora();
+        return `${p.year}-${p.month}-${p.day}`;
+    }
+
+    function diasEntre(isoDe, isoAte) {
+        const [a1, m1, d1] = isoDe.split("-").map(Number);
+        const [a2, m2, d2] = isoAte.split("-").map(Number);
+        return Math.round((Date.UTC(a2, m2 - 1, d2) - Date.UTC(a1, m1 - 1, d1)) / 86400000);
+    }
+
+    // dataISO: "aaaa-mm-dd" (dia agendado da devolução).
+    // estado: "futura" (antes do dia), "hoje" (até 23:59 de hoje) ou "atrasada".
+    // diff: dias que faltam (negativo = dias de atraso). diasAtraso: 0 se no prazo.
+    function prazo(dataISO) {
+        if (!dataISO || !/^\d{4}-\d{2}-\d{2}/.test(dataISO)) return null;
+        const dia = dataISO.slice(0, 10);
+        const diff = diasEntre(hojeISO(), dia);
+        return {
+            dataISO: dia,
+            diff,
+            diasAtraso: diff < 0 ? -diff : 0,
+            estado: diff > 0 ? "futura" : diff === 0 ? "hoje" : "atrasada"
+        };
+    }
+
+    function estaAtrasada(dataISO) {
+        const p = prazo(dataISO);
+        return !!p && p.estado === "atrasada";
+    }
+
+    // Chama cb() logo depois de cada meia-noite (São Paulo). Serve pra tela
+    // mudar sozinha de "hoje" pra "em atraso" sem precisar recarregar.
+    function aoVirarODia(cb) {
+        const p = partesAgora();
+        const segundosRestantes = (23 - Number(p.hour)) * 3600 + (59 - Number(p.minute)) * 60 + (60 - Number(p.second));
+        setTimeout(() => {
+            try { cb(); } catch (e) { console.error(e); }
+            aoVirarODia(cb);
+        }, segundosRestantes * 1000 + 1500);
+    }
+
+    return { carregar, obterStatus, enviarFotos, ambosConcluidos, prazo, estaAtrasada, aoVirarODia };
 })();
 
 window.DevolucaoVizin = DevolucaoVizin;

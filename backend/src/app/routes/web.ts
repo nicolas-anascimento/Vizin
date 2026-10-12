@@ -93,13 +93,24 @@ for (const [route, page] of Object.entries(authenticatedPages)) {
 
 // Páginas administrativas existentes.
 const adminPages: Record<string, RequestHandler> = {
-  "/admin": adminPage("Usuarios"),
+  "/admin/inicio": adminPage("Inicio"),
   "/admin/usuarios": adminPage("Usuarios"),
   "/admin/usuarios/detalhe": adminPage("Detalhes-do-usuario"),
   "/admin/usuarios/editar": adminPage("Editar-usuario"),
   "/admin/objetos": adminPage("Anuncios"),
   "/admin/pagamentos": adminPage("Pagamentos"),
+  "/admin/avaliacoes": adminPage("Avaliacoes"),
+  "/admin/denuncias": adminPage("Denuncias"),
+  "/admin/categorias": adminPage("Categorias"),
+  "/admin/notificacoes": adminPage("Notificacoes"),
+  "/admin/notificacoes-recebidas": adminPage("Notificações-recebidas"),
+  "/admin/auditoria": adminPage("Auditoria"),
+  "/admin/configuracoes": adminPage("Configuracoes"),
+  "/admin/verificacoes": adminPage("Verificacoes"),
+  "/admin/verificacoes/analise": adminPage("Analise-verificacao"),
 };
+
+router.get("/admin", requireAdminPage, (_req,res)=>res.redirect("/admin/inicio"));
 
 for (const [route, page] of Object.entries(adminPages)) {
   router.get(route, requireAdminPage, page);

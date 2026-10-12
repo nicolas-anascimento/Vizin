@@ -14,8 +14,10 @@ export const requestHelp: RequestHandler = async (req, res) => {
       assunto: text(req.body?.assunto, "Assunto", 150),
       mensagem: text(req.body?.mensagem, "Mensagem", 10000),
       protocolo: protocol(),
+      prioridade: ["normal", "alta", "critica"].includes(String(req.body?.prioridade)) ? String(req.body.prioridade) : "normal",
     },
   });
+  await prisma.notificacoes_admin.create({ data: { tipo: "ticket_suporte", categoria: "denuncias", prioridade: row.prioridade === "critica" ? "alta" : "normal", titulo: "Novo ticket de suporte", mensagem: "Um novo ticket de suporte aguarda análise.", referencia_tipo: "ocorrencia", referencia_id: row.id, chave_deduplicacao: `ticket_suporte:${row.id}` } });
   res
     .status(201)
     .json({
@@ -59,6 +61,13 @@ export const report: RequestHandler = async (req, res) => {
     !(await prisma.itens.findUnique({ where: { id: uuid(itemId) } }))
   )
     throw new HttpError(404, "Objeto não encontrado");
+  const reviewId = req.body?.avaliacaoId ?? req.body?.avaliacao_id;
+  if (reviewId) {
+    const review = await prisma.avaliacoes.findUnique({ where: { id: uuid(reviewId) } });
+    if (!review) throw new HttpError(404, "Avaliação não encontrada");
+    const authorized = review.avaliador_id === req.user!.id || review.avaliado_id === req.user!.id;
+    if (!authorized) throw new HttpError(403, "Você não pode denunciar esta avaliação");
+  }
   if (
     target &&
     (target === req.user!.id ||
@@ -82,6 +91,7 @@ export const report: RequestHandler = async (req, res) => {
       objeto_id: itemId ? uuid(itemId) : null,
       aluguel_id: rentalId ? uuid(rentalId) : null,
       conversa_id: conversationId,
+      avaliacao_id: reviewId ? uuid(reviewId) : null,
       motivo: text(req.body?.motivo, "Motivo", 150),
       assunto: req.body?.assunto
         ? text(req.body.assunto, "Assunto", 150)
@@ -89,8 +99,10 @@ export const report: RequestHandler = async (req, res) => {
       mensagem: text(req.body?.mensagem, "Mensagem", 10000),
       evidencias: ids,
       protocolo: protocol(),
+      prioridade: ["normal", "alta", "critica"].includes(String(req.body?.prioridade)) ? String(req.body.prioridade) : "normal",
     },
   });
+  await prisma.notificacoes_admin.create({ data: { tipo: "denuncia_recebida", categoria: "denuncias", prioridade: row.prioridade === "critica" ? "alta" : "normal", titulo: "Nova denúncia recebida", mensagem: "Uma nova denúncia aguarda moderação.", referencia_tipo: "ocorrencia", referencia_id: row.id, chave_deduplicacao: `denuncia_recebida:${row.id}` } });
   res
     .status(201)
     .json({
@@ -134,8 +146,8 @@ export const reportClaim: RequestHandler = async (req, res) => {
 export const mySupport: RequestHandler = async (req, res) => {
   const {page,limit,skip}=pagination(req);
   const [suporte, denuncias, sinistros, suporteTotal, denunciasTotal, sinistrosTotal] = await Promise.all([
-    prisma.suportes.findMany({ where: { usuario_id: req.user!.id },orderBy:{criado_em:"desc"},skip,take:limit,select:{id:true,assunto:true,mensagem:true,status:true,protocolo:true,resposta:true,criado_em:true,atualizado_em:true} }),
-    prisma.denuncias.findMany({ where: { usuario_id: req.user!.id },orderBy:{criado_em:"desc"},skip,take:limit,select:{id:true,denunciado_id:true,objeto_id:true,aluguel_id:true,motivo:true,assunto:true,mensagem:true,evidencias:true,status:true,protocolo:true,resposta_usuario:true,criado_em:true,atualizado_em:true} }),
+    prisma.suportes.findMany({ where: { usuario_id: req.user!.id },orderBy:{criado_em:"desc"},skip,take:limit,select:{id:true,assunto:true,mensagem:true,status:true,protocolo:true,resposta:true,motivo_improcedencia:true,criado_em:true,atualizado_em:true,respostas:{orderBy:{criado_em:"asc"},select:{id:true,mensagem:true,criado_em:true,admin:{select:{id:true,nome:true}}}}} }),
+    prisma.denuncias.findMany({ where: { usuario_id: req.user!.id },orderBy:{criado_em:"desc"},skip,take:limit,select:{id:true,denunciado_id:true,objeto_id:true,aluguel_id:true,avaliacao_id:true,conversa_id:true,motivo:true,assunto:true,mensagem:true,evidencias:true,status:true,protocolo:true,resposta_usuario:true,motivo_improcedencia:true,criado_em:true,atualizado_em:true,respostas:{orderBy:{criado_em:"asc"},select:{id:true,mensagem:true,criado_em:true,admin:{select:{id:true,nome:true}}}}} }),
     prisma.sinistros.findMany({ where: { reportador_id: req.user!.id },orderBy:{criado_em:"desc"},skip,take:limit,select:{id:true,aluguel_id:true,status:true,descricao:true,valor_solicitado:true,valor_aprovado:true,resposta_usuario:true,criado_em:true,atualizado_em:true} }),
     prisma.suportes.count({where:{usuario_id:req.user!.id}}),
     prisma.denuncias.count({where:{usuario_id:req.user!.id}}),

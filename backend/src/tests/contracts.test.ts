@@ -12,7 +12,7 @@ test("redirect pós autenticação usa o tipo devolvido pelo backend", async()=>
  const source=await readFile(new URL("../../../frontend/usuario/Login/api.js",import.meta.url),"utf8");
  const context=vm.createContext({});
  new vm.Script(source).runInContext(context);
- assert.equal(vm.runInContext("destinoAposAutenticacao({ tipo: 'admin' })",context),"/admin");
+ assert.equal(vm.runInContext("destinoAposAutenticacao({ tipo: 'admin' })",context),"/admin/inicio");
  assert.equal(vm.runInContext("destinoAposAutenticacao({ tipo: 'usuario' })",context),"/home");
 });
 test("frontend admin usa contratos canônicos de usuário e objeto", async()=>{
@@ -23,6 +23,18 @@ test("frontend admin usa contratos canônicos de usuário e objeto", async()=>{
  assert.match(itemApi,/\{ disponivel,/);
  assert.doesNotMatch(itemApi,/\{ status,/);
  assert.match(itemApi,/\/objetos\/\$\{encodeURIComponent\(id\)\}/);
+});
+test("campanhas e alertas administrativos usam namespaces distintos",async()=>{
+ const routes=await readFile(new URL("../app/routes/admin.ts",import.meta.url),"utf8");
+ const campaignClient=await readFile(new URL("../../../frontend/admin/Notificacoes/admin-notificacoes-api.js",import.meta.url),"utf8");
+ assert.match(routes,/"\/comunicados"/);assert.match(routes,/"\/notificacoes"/);
+ assert.match(campaignClient,/\/admin\/comunicados/);assert.doesNotMatch(campaignClient,/apiRequest\(`?\/admin\/notificacoes/);
+ assert.ok(routes.indexOf('"/notificacoes/resumo"')<routes.indexOf('"/notificacoes/:id"'));
+});
+test("conta suspensa mantém somente sessão, perfil, suporte e notificações",async()=>{
+ const auth=await readFile(new URL("../app/middlewares/auth.ts",import.meta.url),"utf8");
+ const socket=await readFile(new URL("../realtime/chatSocket.ts",import.meta.url),"utf8");
+ assert.match(auth,/codigo: "conta_suspensa"/);assert.match(auth,/\/api\/suporte\/ajuda/);assert.match(auth,/\/api\/login\/sessao/);assert.match(socket,/assertActive/);
 });
 test("rotas limpas e sessão por cookie não dependem do cache local", async()=>{
  const web=await readFile(new URL("../app/routes/web.ts",import.meta.url),"utf8");

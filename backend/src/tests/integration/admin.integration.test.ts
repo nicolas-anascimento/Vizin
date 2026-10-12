@@ -16,6 +16,8 @@ test("admin: autorização, paginação, moderação, auditoria e conflitos", as
   const { default: prisma } = await import("../../app/config/database.ts");
   const { default: env } = await import("../../app/config/env.ts");
   const { default: jwt } = await import("jsonwebtoken");
+  const { resetRateLimitBucketsForTests } = await import("../../app/middlewares/rateLimit.ts");
+  t.beforeEach(() => resetRateLimitBucketsForTests());
   const server = app.listen(0, "127.0.0.1");
   await new Promise<void>(resolve => server.once("listening", resolve));
   t.after(async () => { await new Promise<void>(resolve => server.close(() => resolve())); await prisma.$disconnect(); });
@@ -41,7 +43,7 @@ test("admin: autorização, paginação, moderação, auditoria e conflitos", as
     await prisma.usuarios.update({ where: { id: admin.id }, data: { token_version: { increment: 1 } } });
     assert.equal((await api("/usuarios")).status, 401);
     await prisma.usuarios.update({ where: { id: admin.id }, data: { token_version: admin.token_version, ativo: false } });
-    assert.equal((await api("/usuarios")).status, 401);
+    assert.equal((await api("/usuarios")).status, 403);
     await prisma.usuarios.update({ where: { id: admin.id }, data: { ativo: true } });
   });
   await t.test("detalhe administrativo de usuário: autorização, UUID e DTO seguro", async () => {
@@ -83,12 +85,12 @@ test("admin: autorização, paginação, moderação, auditoria e conflitos", as
     const changed = await api(`/objetos/${item.id}`, "PATCH", { disponivel: false, motivo: "Irregular" });
     assert.equal(changed.status, 200, JSON.stringify(changed.data));
     assert.equal((await prisma.itens.findUniqueOrThrow({ where: { id: item.id } })).titulo, "Objeto terceiro");
-    const log = await prisma.admin_auditoria.findFirst({ where: { entidade: "objeto", entidade_id: item.id, acao: "ocultar" } });
+    const log = await prisma.admin_auditoria.findFirst({ where: { entidade: "objeto", entidade_id: item.id, acao: "anuncio_ocultado" } });
     assert.equal(log?.admin_id, admin.id); assert.equal((log?.metadata as any).motivo, "Irregular");
     assert.equal((await api(`/objetos/${crypto.randomUUID()}`, "DELETE", { motivo: "Teste" })).status, 404);
     const rental = await prisma.alugueis.create({ data: { item_id: item.id, locador_id: owner.id, locatario_id: renter.id, data_inicio: new Date("2027-01-01"), data_fim: new Date("2027-01-02"), valor_total: 10, status: "pago" } });
     assert.equal((await api(`/objetos/${item.id}`, "DELETE", { motivo: "Teste" })).status, 409);
-    assert.equal(await prisma.admin_auditoria.count({ where: { entidade: "objeto", entidade_id: item.id, acao: "arquivar" } }), 0);
+    assert.equal(await prisma.admin_auditoria.count({ where: { entidade: "objeto", entidade_id: item.id, acao: "anuncio_arquivado" } }), 0);
     await prisma.alugueis.update({ where: { id: rental.id }, data: { status: "finalizado" } });
     assert.equal((await api(`/objetos/${item.id}`, "DELETE", { motivo: "Teste" })).status, 200);
     assert.equal((await prisma.itens.findUniqueOrThrow({ where: { id: item.id } })).arquivado, true);
@@ -124,9 +126,9 @@ test("admin: autorização, paginação, moderação, auditoria e conflitos", as
   await t.test("status do usuário e obrigação", async () => {
     const activeItem = await prisma.itens.create({ data: { usuario_id: owner.id, titulo: "Em locação", preco_por_dia: 10, valor_mercado: 100 } });
     const rental = await prisma.alugueis.create({ data: { item_id: activeItem.id, locador_id: owner.id, locatario_id: renter.id, data_inicio: new Date("2027-02-01"), data_fim: new Date("2027-02-02"), valor_total: 10, status: "pago" } });
-    const blocked = await api(`/usuarios/${owner.id}/status`, "PATCH", { ativo: false }); assert.equal(blocked.status, 409); assert.equal(blocked.data.codigo, "usuario_com_obrigacoes_ativas");
+    const blocked = await api(`/usuarios/${owner.id}/status`, "PATCH", { ativo: false, motivo: "Análise preventiva" }); assert.equal(blocked.status, 409); assert.equal(blocked.data.codigo, "usuario_com_obrigacoes_ativas");
     await prisma.alugueis.update({ where: { id: rental.id }, data: { status: "finalizado" } });
-    assert.equal((await api(`/usuarios/${owner.id}/status`, "PATCH", { ativo: false })).status, 200);
+    assert.equal((await api(`/usuarios/${owner.id}/status`, "PATCH", { ativo: false, motivo: "Análise preventiva" })).status, 200);
     assert.equal((await api(`/usuarios/${owner.id}/status`, "PATCH", { ativo: true })).status, 200);
     await prisma.usuarios.update({ where: { id: owner.id }, data: { ativo: false, cpf: null } });
     assert.equal((await api(`/usuarios/${owner.id}/status`, "PATCH", { ativo: true })).data.codigo, "cpf_invalido_reativacao");
@@ -156,6 +158,48 @@ test("admin: autorização, paginação, moderação, auditoria e conflitos", as
     const rejected = await prisma.verificacoes_identidade.create({ data: { usuario_id: owner.id, documentos: {}, status: "pendente" } });
     assert.equal((await api(`/verificacoes/${rejected.id}`, "PATCH", { status: "rejeitado", motivo: "Ilegível" })).status, 200);
   });
+  await t.test("alertas operacionais: limiares, atraso e deduplicação concorrente", async () => {
+    const reportedItem = await prisma.itens.create({ data: { usuario_id: owner.id, titulo: "Objeto denunciado", preco_por_dia: 10, valor_mercado: 100 } });
+    await prisma.denuncias.createMany({ data: Array.from({ length: 3 }, () => ({ usuario_id: renter.id, denunciado_id: owner.id, objeto_id: reportedItem.id, motivo: "teste", mensagem: "Denúncia para limiar", protocolo: `ADM-${crypto.randomUUID()}` })) });
+    const delayed = await prisma.verificacoes_identidade.create({ data: { usuario_id: renter.id, documentos: {}, status: "pendente", criado_em: new Date(Date.now() - 49 * 60 * 60 * 1000) } });
+    const recent = await prisma.verificacoes_identidade.create({ data: { usuario_id: owner.id, documentos: {}, status: "pendente", criado_em: new Date(Date.now() - 47 * 60 * 60 * 1000) } });
+    const { processAdminOperationalAlerts } = await import("../../app/services/adminOperationalMaintenance.ts");
+    await Promise.all([processAdminOperationalAlerts(), processAdminOperationalAlerts()]);
+    for (const [tipo, referencia_id] of [["usuario_reincidente", owner.id], ["anuncio_muito_denunciado", reportedItem.id], ["verificacao_atrasada", delayed.id]] as const) {
+      assert.equal(await prisma.notificacoes_admin.count({ where: { tipo, referencia_id } }), 1);
+    }
+    assert.equal(await prisma.notificacoes_admin.count({ where: { tipo: "verificacao_atrasada", referencia_id: recent.id } }), 0);
+  });
+  await t.test("comunicados agendados: idempotência, concorrência e auditoria", async () => {
+    const key = `campanha-${crypto.randomUUID()}`;
+    const body = { titulo: "Aviso agendado", mensagem: "Mensagem operacional", destinatarios: "todos", status: "agendada", agendada_para: new Date(Date.now() + 3600000).toISOString(), chave_idempotencia: key };
+    const created = await api("/comunicados", "POST", body);
+    assert.equal(created.status, 201, JSON.stringify(created.data));
+    assert.equal((await api("/comunicados", "POST", body)).data.id, created.data.id);
+    assert.equal((await api("/comunicados", "POST", { ...body, mensagem: "Conteúdo diferente" })).status, 409);
+    const audience = await prisma.usuarios.count();
+    await prisma.comunicados_admin.update({ where: { id: created.data.id }, data: { agendada_para: new Date(Date.now() - 1000) } });
+    const { processAdminCampaigns } = await import("../../app/services/adminCampaigns.ts");
+    await Promise.all([processAdminCampaigns(), processAdminCampaigns()]);
+    const campaign = await prisma.comunicados_admin.findUniqueOrThrow({ where: { id: created.data.id } });
+    assert.equal(campaign.status, "enviada");
+    assert.equal(campaign.total_destinatarios, audience);
+    assert.equal(await prisma.comunicados_admin_entregas.count({ where: { comunicado_id: campaign.id } }), audience);
+    assert.equal(await prisma.notificacoes.count({ where: { chave: { startsWith: `comunicado:${campaign.id}:` } } }), audience);
+    assert.equal(await prisma.admin_auditoria.count({ where: { entidade: "comunicado", entidade_id: campaign.id, acao: "notificacao_enviada" } }), 1);
+  });
+  await t.test("notificações administrativas: leitura, preferências e dispensa", async () => {
+    const notice = await prisma.notificacoes_admin.create({ data: { tipo: "teste_operacional", categoria: "sistema", prioridade: "alta", titulo: "Atenção", mensagem: "Teste administrativo", chave_deduplicacao: `teste:${crypto.randomUUID()}` } });
+    const listed = await api("/notificacoes?categoria=sistema&prioridade=alta&lida=false");
+    assert.equal(listed.status, 200);
+    assert.ok(listed.data.data.some((row: any) => row.id === notice.id));
+    assert.equal((await api(`/notificacoes/${notice.id}`, "PATCH", { lida: true })).data.lida, true);
+    assert.equal((await api("/notificacoes/resumo")).status, 200);
+    const categories = Object.fromEntries(["usuarios", "anuncios", "denuncias", "pagamentos", "avaliacoes", "verificacoes", "sistema"].map(category => [category, true]));
+    assert.equal((await api("/notificacoes/preferencias", "PUT", { categorias: categories, somente_urgentes: true })).data.somente_urgentes, true);
+    assert.equal((await api(`/notificacoes/${notice.id}/dispensar`, "POST", {})).status, 200);
+    assert.equal((await api("/notificacoes?categoria=sistema")).data.data.some((row: any) => row.id === notice.id), false);
+  });
   await t.test("denúncia, sinistro e avaliação", async () => {
     const report = await prisma.denuncias.create({ data: { usuario_id: renter.id, denunciado_id: owner.id, objeto_id: item.id, motivo: "fraude", mensagem: "Teste", protocolo: `ADM-${crypto.randomUUID()}` } });
     assert.equal((await api("/denuncias?page=1&limit=1")).status, 200);
@@ -176,15 +220,15 @@ test("admin: autorização, paginação, moderação, auditoria e conflitos", as
     assert.equal(await prisma.admin_auditoria.count({ where: { entidade: "sinistro", entidade_id: claim.id } }), 1);
     const review = await prisma.avaliacoes.create({ data: { aluguel_id: rental.id, avaliador_id: renter.id, avaliado_id: owner.id, nota: 4 } });
     assert.equal((await api("/avaliacoes?page=1&limit=1")).status, 200);
-    assert.equal((await api(`/avaliacoes/${review.id}`, "DELETE")).status, 200);
+    assert.equal((await api(`/avaliacoes/${review.id}`, "DELETE", { motivo: "Conteúdo inadequado" })).status, 200);
     assert.equal(await prisma.admin_auditoria.count({ where: { entidade: "avaliacao", entidade_id: review.id } }), 1);
   });
   await t.test("categorias: slug, edição e uso", async () => {
     assert.equal((await api("/categorias")).status, 200);
     const name = `Nova categoria ${crypto.randomUUID().slice(0, 8)}`;
-    const created = await api("/categorias", "POST", { nome: name }); assert.equal(created.status, 201);
-    assert.equal((await api("/categorias", "POST", { nome: name.toUpperCase() })).status, 409);
-    assert.equal((await api(`/categorias/${created.data.id}`, "PATCH", { nome: `${name} editada` })).status, 200);
+    const created = await api("/categorias", "POST", { nome: name, icone: "bi-tag", cor: "#6D49F2" }); assert.equal(created.status, 201);
+    assert.equal((await api("/categorias", "POST", { nome: name.toUpperCase(), icone: "bi-tag", cor: "#6D49F2" })).status, 409);
+    assert.equal((await api(`/categorias/${created.data.id}`, "PATCH", { nome: `${name} editada`, icone: "bi-tools", cor: "#7257E8" })).status, 200);
     const used = await prisma.itens.create({ data: { usuario_id: owner.id, categoria_id: created.data.id, titulo: "Em uso", preco_por_dia: 10, valor_mercado: 100 } });
     assert.equal((await api(`/categorias/${created.data.id}`, "DELETE")).data.codigo, "categoria_em_uso");
     await prisma.itens.update({ where: { id: used.id }, data: { categoria_id: null } });
@@ -244,7 +288,7 @@ test("admin: autorização, paginação, moderação, auditoria e conflitos", as
     assert.equal(stats.data.timezone, "America/Sao_Paulo");
     assert.equal(stats.data.receita_base, "pago_em");
     assert.equal((await api("/pagamentos/estatisticas", "GET", undefined, null)).status, 401);
-    assert.equal((await api("/pagamentos/estatisticas", "GET", undefined, ownerToken)).status, 403);
+    assert.equal((await api("/pagamentos/estatisticas", "GET", undefined, token(renter))).status, 403);
   });
   await t.test("métricas financeiras seguem o pagamento no período civil", async () => {
     const range = "/metricas?dataInicio=2041-03-04&dataFim=2041-03-04";

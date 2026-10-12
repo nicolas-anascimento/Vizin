@@ -14,7 +14,7 @@ type ItemPhoto = { item_id: string; id: string; url: string; principal: boolean 
 
 // Carrega fotos, categoria, endereço, proprietário e avaliações usados no DTO do objeto.
 const itemInclude = {
-  avaliacoes: { where: { contexto: "objeto" }, select: { nota: true } },
+  avaliacoes: { where: { contexto: "objeto", oculta: false }, select: { nota: true } },
   fotos_item: true,
   categorias: true,
   enderecos: true,
@@ -24,7 +24,7 @@ const itemInclude = {
       nome: true,
       foto_url: true,
       ativo: true,
-      avaliacoes_avaliacoes_avaliado_idTousuarios: { where: { contexto: "objeto" }, select: { nota: true } },
+      avaliacoes_avaliacoes_avaliado_idTousuarios: { where: { contexto: "objeto", oculta: false }, select: { nota: true } },
     },
   },
 };
@@ -100,7 +100,7 @@ export const listItems: RequestHandler = async (req, res) => {
   const local = nonEmptyString(req.query.local ?? req.query.localizacao);
   const categoria = nonEmptyString(req.query.categoria);
   const ownerId = req.query.proprietarioId ?? req.query.proprietario_id;
-  const where: any = { arquivado: false, usuarios: { ativo: true } };
+  const where: any = { arquivado: false, oculto_pelo_admin: false, usuarios: { ativo: true } };
   if (ownerId) where.usuario_id = uuid(ownerId);
   if (req.query.disponivel !== undefined) where.disponivel = boolean(req.query.disponivel, "Disponível");
   else if (!ownerId || ownerId !== req.user?.id) where.disponivel = true;
@@ -142,7 +142,7 @@ export const listItems: RequestHandler = async (req, res) => {
 // Lista somente anúncios não arquivados do usuário autenticado, com total para paginação.
 export const myItems: RequestHandler = async (req, res) => {
   const {page,limit,skip}=pagination(req);
-  const where={usuario_id:req.user!.id,arquivado:false};
+  const where={usuario_id:req.user!.id};
   const [items,total] = await Promise.all([prisma.itens.findMany({
     where,
     include: itemInclude,
@@ -156,7 +156,7 @@ export const myItems: RequestHandler = async (req, res) => {
 // Mostra anúncio pelo UUID; conteúdo arquivado ou de conta inativa só é visível ao dono ou admin.
 export const getItem: RequestHandler = async (req, res) => {
   const item = await prisma.itens.findUnique({ where: { id: uuid(req.params.id) }, include: itemInclude });
-  if (!item || ((!item.usuarios.ativo || item.arquivado) && item.usuario_id !== req.user?.id && req.user?.tipo !== "admin")) {
+  if (!item || ((!item.usuarios.ativo || item.arquivado || item.oculto_pelo_admin) && item.usuario_id !== req.user?.id && req.user?.tipo !== "admin")) {
     throw new HttpError(404, "Objeto não encontrado");
   }
   res.json(serializeItem(item));
@@ -196,6 +196,7 @@ export const createItem: RequestHandler = async (req, res) => {
     },
     include: itemInclude,
   });
+  await prisma.notificacoes_admin.create({ data: { tipo: "novo_anuncio", categoria: "anuncios", prioridade: "normal", titulo: "Novo anúncio", mensagem: "Um novo anúncio foi publicado.", referencia_tipo: "objeto", referencia_id: item.id, chave_deduplicacao: `novo_anuncio:${item.id}` } });
   res.status(201).json({ success: true, objeto: serializeItem(item), ...serializeItem(item) });
 };
 
@@ -252,6 +253,7 @@ export const updateItem: RequestHandler = async (req, res) => {
     const locked = await tx.itens.findUnique({ where: { id: current.id } });
     if (!locked || locked.arquivado) throw new HttpError(404, "Objeto não encontrado");
     if (locked.usuario_id !== req.user!.id) throw new HttpError(403, "Você não pode editar este objeto");
+    if (locked.oculto_pelo_admin && (body.disponivel !== undefined || body.disponivel_imediato !== undefined) && data.disponivel) throw new HttpError(409, "O objeto está oculto pela moderação e não pode ser reativado.", "objeto_oculto_admin");
     await assertItemMutation(tx, current.id, false,
       (body.disponivel !== undefined || body.disponivel_imediato !== undefined) && data.disponivel !== locked.disponivel);
     if (editingPhotos) {
@@ -317,13 +319,13 @@ export const deleteItem: RequestHandler = async (req, res) => {
 // Devolve as categorias cadastradas para filtros e formulários de objeto.
 export const listCategories: RequestHandler = async (_req, res) => {
   const categories = await prisma.categorias.findMany({ orderBy: { nome: "asc" } });
-  res.json(categories.map(({ id, nome, slug }) => ({ id, nome, slug })));
+  res.json(categories.map(({ id, nome, slug, icone, cor }) => ({ id, nome, slug, icone, cor })));
 };
 
 // Calcula períodos ocupados do objeto após encerrar solicitações vencidas.
 export const itemAvailability: RequestHandler = async(req,res) => {
  await maintainRentals();
  const item=await prisma.itens.findUnique({where:{id:uuid(req.params.id)},include:{usuarios:{select:{ativo:true}},alugueis:{where:{status:{in:["aprovado","pago","retirado"]}},select:{data_inicio:true,data_fim:true,status:true}}}});
- if(!item || item.arquivado || !item.usuarios.ativo)throw new HttpError(404,"Objeto não encontrado");
+ if(!item || item.arquivado || item.oculto_pelo_admin || !item.usuarios.ativo)throw new HttpError(404,"Objeto não encontrado");
  res.json({objetoId:item.id,disponivel:item.disponivel,periodosReservados:item.alugueis.map(r=>({data_inicio:r.data_inicio.toISOString().slice(0,10),data_fim:r.data_fim.toISOString().slice(0,10),status:r.status}))});
 };

@@ -12,6 +12,25 @@ async function carregarMeusObjetos() {
     return window.ObjetosVizin.obterDoProprietario(meuId);
 }
  
+// Mensagem única pros 3 pontos que bloqueiam uma ação (title do botão,
+// toast de disponibilidade e toast de clique em editar/excluir) — motivo
+// "arquivado"/"admin" são os dois novos casos de moderação administrativa.
+function mensagemBloqueio(motivo, acao) {
+    const verbo = acao === "editar" ? "editar" : acao === "excluir" ? "excluir" : "alterar a disponibilidade de";
+    switch (motivo) {
+        case "locacao":
+            return `Não é possível ${verbo} um objeto em locação no momento`;
+        case "pendente":
+            return `Não é possível ${verbo} um objeto com solicitação pendente — responda a solicitação antes`;
+        case "arquivado":
+            return `Este objeto foi arquivado pela administração e não pode mais ser ${acao === "excluir" ? "excluído" : acao === "editar" ? "editado" : "alterado"}`;
+        case "admin":
+            return `Este objeto foi ocultado pela administração — entre em contato com o suporte para mais detalhes`;
+        default:
+            return `Não é possível ${verbo} este objeto agora`;
+    }
+}
+
 // ================= CARD DE OBJETO (via DOM, não innerHTML) =================
 // Monta o card criando elementos e usando textContent para todo dado vindo
 // do objeto (título, descrição, categoria, imagem). Evita que esses campos
@@ -30,7 +49,17 @@ function criarCardMeuObjeto(obj) {
     // objeto agora faria o interessado ver dados diferentes dos que pediu,
     // ou deixaria a solicitação dele órfã.
     const temPendente = window.ObjetosVizin.temSolicitacaoPendente(obj.id);
-    const bloqueado = emLocacao || temPendente;
+
+    // Moderação administrativa: um objeto pode ter sido arquivado (status
+    // "arquivado", ação irreversível pelo lado do dono) ou apenas ocultado
+    // (disponivel:false por decisão do admin, com motivo registrado) pelo
+    // painel Anúncios do admin. `oculto_pelo_admin`/`motivo_ocultacao` são
+    // campos OPCIONAIS que ainda precisam ser confirmados/expostos pelo
+    // back (ver mensagem sobre isso) — o card já sabe lidar com eles quando
+    // existirem, e ignora silenciosamente quando não vierem.
+    const arquivado = obj.status === "arquivado";
+    const ocultoPeloAdmin = !arquivado && !obj.disponivel && !!obj.oculto_pelo_admin;
+    const bloqueado = emLocacao || temPendente || arquivado || ocultoPeloAdmin;
  
     const card = document.createElement("div");
     card.className = "card-objeto";
@@ -85,14 +114,18 @@ function criarCardMeuObjeto(obj) {
     if (bloqueado) {
         label.title = emLocacao
             ? "Não é possível alterar durante uma locação em andamento"
-            : "Não é possível alterar enquanto houver uma solicitação pendente — responda antes";
+            : temPendente
+                ? "Não é possível alterar enquanto houver uma solicitação pendente — responda antes"
+                : arquivado
+                    ? "Este objeto foi arquivado pela administração"
+                    : "Este objeto foi ocultado pela administração" + (obj.motivo_ocultacao ? `: ${obj.motivo_ocultacao}` : "");
     }
  
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.className = "toggle-disponivel";
     checkbox.dataset.id = obj.id;
-    checkbox.dataset.motivo = emLocacao ? "locacao" : (temPendente ? "pendente" : "");
+    checkbox.dataset.motivo = emLocacao ? "locacao" : (temPendente ? "pendente" : (arquivado ? "arquivado" : (ocultoPeloAdmin ? "admin" : "")));
     checkbox.checked = !!obj.disponivel;
     checkbox.disabled = bloqueado;
  
@@ -104,12 +137,23 @@ function criarCardMeuObjeto(obj) {
     toggleWrap.appendChild(label);
  
     const dispLabel = document.createElement("span");
-    dispLabel.className = obj.disponivel
+    // Aqui NÃO reaproveitamos mais cegamente "Pausado pelo dono" quando
+    // disponivel:false — antes disso era a única leitura possível, mas
+    // mascarava uma ocultação feita pela administração como se o próprio
+    // dono tivesse pausado o anúncio.
+    let textoDisp;
+    if (emLocacao) textoDisp = "Em locação";
+    else if (temPendente) textoDisp = "Solicitação pendente";
+    else if (arquivado) textoDisp = "Arquivado pela administração";
+    else if (ocultoPeloAdmin) textoDisp = "Ocultado pela administração";
+    else textoDisp = obj.disponivel ? "Disponível" : "Pausado pelo dono";
+
+    dispLabel.className = (obj.disponivel && !arquivado)
         ? "disponibilidade-label"
-        : "disponibilidade-label indisponivel";
-    dispLabel.textContent = emLocacao
-        ? "Em locação"
-        : (temPendente ? "Solicitação pendente" : (obj.disponivel ? "Disponível" : "Pausado pelo dono"));
+        : (arquivado || ocultoPeloAdmin)
+            ? "disponibilidade-label admin"
+            : "disponibilidade-label indisponivel";
+    dispLabel.textContent = textoDisp;
     toggleWrap.appendChild(dispLabel);
  
     info.appendChild(toggleWrap);
@@ -132,15 +176,21 @@ function criarCardMeuObjeto(obj) {
     btnVisualizar.append("Visualizar");
     actions.appendChild(btnVisualizar);
  
+    // Motivo único (o mesmo texto serve pro title do botão e pro toast do
+    // clique — ver mensagemBloqueio() e o listener de clique mais abaixo).
+    const motivoBloqueio = emLocacao ? "locacao"
+        : temPendente ? "pendente"
+        : arquivado ? "arquivado"
+        : ocultoPeloAdmin ? "admin"
+        : "";
+
     const btnEditar = document.createElement("button");
     btnEditar.type = "button";
     btnEditar.className = bloqueado ? "btn-acao editar bloqueado" : "btn-acao editar";
     btnEditar.dataset.id = obj.id;
     if (bloqueado) {
-        btnEditar.dataset.motivo = emLocacao ? "locacao" : "pendente";
-        btnEditar.title = emLocacao
-            ? "Não é possível editar um objeto em locação no momento"
-            : "Não é possível editar um objeto com solicitação pendente — responda a solicitação antes";
+        btnEditar.dataset.motivo = motivoBloqueio;
+        btnEditar.title = mensagemBloqueio(motivoBloqueio, "editar");
         btnEditar.setAttribute("aria-disabled", "true");
     }
     btnEditar.innerHTML = '<i class="bi bi-pencil"></i> ';
@@ -152,9 +202,8 @@ function criarCardMeuObjeto(obj) {
     btnExcluir.className = bloqueado ? "btn-acao excluir bloqueado" : "btn-acao excluir";
     btnExcluir.dataset.id = obj.id;
     if (bloqueado) {
-        btnExcluir.title = emLocacao
-            ? "Não é possível excluir um objeto em locação no momento"
-            : "Não é possível excluir um objeto com solicitação pendente — responda a solicitação antes";
+        btnExcluir.dataset.motivo = motivoBloqueio;
+        btnExcluir.title = mensagemBloqueio(motivoBloqueio, "excluir");
         btnExcluir.setAttribute("aria-disabled", "true");
     }
     btnExcluir.innerHTML = '<i class="bi bi-trash"></i> ';
@@ -486,7 +535,7 @@ function abrirModalExcluir(obj) {
     // "pausado" pelo dono (disponivel: false, sem solicitação ativa) pode
     // ser excluído normalmente.
     if (window.ObjetosVizin.temLocacaoAtiva(obj.id)) {
-        mostrarToast("Não é possível excluir um objeto em locação no momento", "erro");
+        mostrarToast(mensagemBloqueio("locacao", "excluir"), "erro");
         return;
     }
  
@@ -494,7 +543,18 @@ function abrirModalExcluir(obj) {
     // respondida): excluir agora deixaria essa solicitação órfã, apontando
     // pra um objeto que não existe mais na tela de quem pediu.
     if (window.ObjetosVizin.temSolicitacaoPendente(obj.id)) {
-        mostrarToast("Você tem uma solicitação pendente para este objeto — responda antes de excluir", "erro");
+        mostrarToast(mensagemBloqueio("pendente", "excluir"), "erro");
+        return;
+    }
+
+    // Idem para moderação administrativa (arquivado/oculto) — defesa extra
+    // caso o botão seja acionado por outro caminho além do clique normal.
+    if (obj.status === "arquivado") {
+        mostrarToast(mensagemBloqueio("arquivado", "excluir"), "erro");
+        return;
+    }
+    if (!obj.disponivel && obj.oculto_pelo_admin) {
+        mostrarToast(mensagemBloqueio("admin", "excluir"), "erro");
         return;
     }
  
@@ -560,12 +620,7 @@ listaContainer.addEventListener("click", (e) => {
  
     if (btnEditar) {
         if (btnEditar.classList.contains("bloqueado")) {
-            mostrarToast(
-                btnEditar.dataset.motivo === "pendente"
-                    ? "Não é possível editar um objeto com solicitação pendente — responda antes"
-                    : "Não é possível editar um objeto em locação no momento",
-                "erro"
-            );
+            mostrarToast(mensagemBloqueio(btnEditar.dataset.motivo, "editar"), "erro");
             return;
         }
         window.location.href = `/editar-objeto?id=${btnEditar.dataset.id}`;
@@ -573,23 +628,23 @@ listaContainer.addEventListener("click", (e) => {
     }
  
     if (btnExcluir) {
+        if (btnExcluir.classList.contains("bloqueado")) {
+            mostrarToast(mensagemBloqueio(btnExcluir.dataset.motivo, "excluir"), "erro");
+            return;
+        }
         const obj = window.ObjetosVizin.obterDoCache(btnExcluir.dataset.id);
         if (obj) abrirModalExcluir(obj);
         return;
     }
  
     // Toque/clique no toggle de disponibilidade quando ele está travado
-    // (locação ativa): o checkbox disabled não reage a toque no celular
-    // (sem hover pro title aparecer), então avisamos por toast também.
+    // (locação ativa, solicitação pendente, arquivado ou ocultado pelo
+    // admin): o checkbox disabled não reage a toque no celular (sem hover
+    // pro title aparecer), então avisamos por toast também.
     if (toggleWrap) {
         const chk = toggleWrap.querySelector(".toggle-disponivel");
         if (chk && chk.disabled) {
-            mostrarToast(
-                chk.dataset.motivo === "pendente"
-                    ? "Não é possível alterar a disponibilidade enquanto houver uma solicitação pendente"
-                    : "Não é possível alterar a disponibilidade durante uma locação em andamento",
-                "erro"
-            );
+            mostrarToast(mensagemBloqueio(chk.dataset.motivo, "disponibilidade"), "erro");
         }
         return;
     }

@@ -1,0 +1,504 @@
+/* Estilos compartilhados (modal, botões de modal, campos de modal, toast e estado
+   vazio) ficam em admin-shared.css. Aqui só o que é da Central de Notificações.
+   Todas as classes usam o prefixo "admnot-" pra não colidir com outras telas. */
+
+/* ================= CABEÇALHO DA PÁGINA ================= */
+.admnot-header{
+    margin-bottom: 24px;
+}
+
+.admnot-header h1{
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--admin-texto);
+}
+
+.admnot-header p{
+    margin-top: 4px;
+    font-size: 14.5px;
+    color: var(--admin-texto-muted);
+}
+
+/* ================= LAYOUT ================= */
+.admnot-grid{
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 24px;
+    align-items: start;
+    margin-bottom: 24px;
+}
+
+.admnot-card{
+    background: var(--admin-surface);
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: 0 8px 24px rgba(36, 19, 72, .06);
+}
+
+.admnot-lateral{
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* ================= FORMULÁRIO ================= */
+.admnot-form-titulo{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.admnot-form-titulo h2{
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--admin-texto);
+}
+
+.admnot-form-icone{
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--admin-roxo-500);
+    color: #F2F2F2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex: 0 0 auto;
+}
+
+.admnot-editando{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    background: var(--admin-ambar-bg);
+    color: var(--admin-ambar-txt);
+    border-radius: 12px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    font-size: 13.5px;
+    font-weight: 600;
+}
+
+.admnot-editando[hidden]{
+    display: none;
+}
+
+.admnot-editando button{
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-weight: 700;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0;
+}
+
+.admnot-campo{
+    margin-bottom: 16px;
+}
+
+.admnot-campo label{
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--admin-texto);
+    margin-bottom: 8px;
+}
+
+.admnot-campo input,
+.admnot-campo select,
+.admnot-campo textarea{
+    width: 100%;
+    border: 1px solid var(--admin-borda);
+    border-radius: 999px;
+    padding: 12px 18px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--admin-texto);
+    background: var(--admin-surface);
+    outline: none;
+    transition: border-color .2s ease;
+}
+
+.admnot-campo textarea{
+    border-radius: 20px;
+    resize: vertical;
+    min-height: 140px;
+    line-height: 1.5;
+}
+
+.admnot-campo select{
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 44px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' stroke='%236B6485' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 4.5l5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 18px center;
+    cursor: pointer;
+}
+
+.admnot-campo input::placeholder,
+.admnot-campo textarea::placeholder{
+    color: #A6A0BF;
+}
+
+.admnot-campo input:focus,
+.admnot-campo select:focus,
+.admnot-campo textarea:focus{
+    border-color: var(--admin-roxo-500);
+}
+
+.admnot-campo small{
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--admin-texto-muted);
+}
+
+.admnot-erro{
+    color: var(--admin-vermelho-txt);
+    font-size: 13px;
+    min-height: 18px;
+    margin-bottom: 10px;
+}
+
+/* ================= BOTÕES ================= */
+.admnot-botoes{
+    display: flex;
+    gap: 12px;
+}
+
+.admnot-btn{
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 44px;
+    padding: 0 20px;
+    border-radius: 999px;
+    font-size: 13.5px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    border: 1px solid var(--admin-borda);
+    transition: opacity .2s ease, background .2s ease, transform .1s ease;
+}
+
+.admnot-botoes .admnot-btn{
+    flex: 1;
+}
+
+.admnot-btn:active{ transform: scale(.98); }
+
+.admnot-btn:disabled{
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+.admnot-btn-rascunho{
+    background: var(--admin-surface);
+    color: var(--admin-texto);
+}
+
+.admnot-btn-rascunho:hover:not(:disabled){
+    background: var(--admin-bg);
+}
+
+.admnot-btn-agendar{
+    background: var(--admin-surface);
+    border-color: var(--admin-roxo-500);
+    color: var(--admin-roxo-500);
+}
+
+.admnot-btn-agendar:hover:not(:disabled){
+    background: #F4F1FF;
+}
+
+.admnot-btn-enviar{
+    background: var(--admin-roxo-500);
+    border-color: var(--admin-roxo-500);
+    color: #F2F2F2;
+}
+
+.admnot-btn-enviar:hover:not(:disabled){
+    opacity: .9;
+}
+
+.admnot-btn:focus-visible,
+.admnot-editando button:focus-visible,
+.admnot-item-acao:focus-visible{
+    outline: 2px solid var(--admin-roxo-500);
+    outline-offset: 2px;
+}
+
+/* ================= ESTATÍSTICAS ================= */
+.admnot-stats h2{
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--admin-texto);
+    margin-bottom: 14px;
+}
+
+.admnot-stat{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-radius: 999px;
+    padding: 12px 18px;
+    margin-bottom: 10px;
+    font-size: 13.5px;
+    font-weight: 600;
+}
+
+.admnot-stat:last-child{
+    margin-bottom: 0;
+}
+
+.admnot-stat-rotulo{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.admnot-stat strong{
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.admnot-stat.enviadas{ background: var(--admin-verde-bg); color: var(--admin-verde-txt); }
+.admnot-stat.agendadas{ background: #EAF2FF; color: #2F6FB8; }
+.admnot-stat.total{ background: var(--admin-bg); color: var(--admin-texto); }
+
+/* ================= DICAS DE ENVIO ================= */
+.admnot-dicas{
+    background: linear-gradient(135deg, var(--admin-roxo-700), var(--admin-roxo-500));
+    color: #F2F2F2;
+    border-radius: 20px;
+    padding: 24px;
+}
+
+.admnot-dicas > i{
+    font-size: 20px;
+    display: block;
+    margin-bottom: 12px;
+}
+
+.admnot-dicas h2{
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.admnot-dicas ul{
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.admnot-dicas li{
+    font-size: 12.5px;
+    line-height: 1.9;
+}
+
+.admnot-dicas li::before{
+    content: "• ";
+}
+
+/* ================= HISTÓRICO ================= */
+.admnot-historico h2{
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--admin-texto);
+    margin-bottom: 18px;
+}
+
+.admnot-item{
+    border: 1px solid var(--admin-borda);
+    border-radius: 20px;
+    padding: 16px 20px;
+    margin-bottom: 12px;
+}
+
+.admnot-item-topo{
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.admnot-item-topo h3{
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--admin-texto);
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.admnot-badge{
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.admnot-badge.enviada{ color: var(--admin-verde-txt); background: var(--admin-verde-bg); }
+.admnot-badge.agendada{ color: #2F6FB8; background: #EAF2FF; }
+.admnot-badge.rascunho{ color: var(--admin-texto-muted); background: var(--admin-bg); }
+
+.admnot-item-acoes{
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+}
+
+.admnot-item-acao{
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background .2s ease;
+}
+
+.admnot-item-acao:hover{ background: var(--admin-bg); }
+.admnot-item-acao.editar{ color: var(--admin-roxo-500); }
+.admnot-item-acao.excluir{ color: var(--admin-vermelho-txt); }
+
+.admnot-item-msg{
+    margin-top: 6px;
+    font-size: 13.5px;
+    color: var(--admin-texto-muted);
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    white-space: pre-line;
+}
+
+.admnot-item-meta{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--admin-texto-muted);
+}
+
+.admnot-item-meta span{
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.admnot-mais{
+    display: flex;
+    justify-content: center;
+    margin-top: 8px;
+}
+
+.admnot-mais [hidden]{
+    display: none;
+}
+
+/* ================= RESPONSIVO ================= */
+@media (max-width: 980px){
+    .admnot-grid{
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 640px){
+    .admnot-header h1{
+        font-size: 21px;
+    }
+
+    .admnot-card{
+        padding: 18px;
+    }
+
+    .admnot-botoes{
+        flex-direction: column;
+    }
+
+    .admnot-item{
+        padding: 14px 16px;
+    }
+}
+
+/* ================= ALCANCE / AVISO DE EXCESSO ================= */
+.admnot-aviso{
+    margin-top: 8px;
+    background: var(--admin-ambar-bg);
+    color: var(--admin-ambar-txt);
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.45;
+}
+
+.admnot-aviso[hidden]{
+    display: none;
+}
+
+/* ================= ENVIAR TESTE ================= */
+.admnot-teste{
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px;
+    border: none;
+    background: none;
+    color: var(--admin-roxo-500);
+    font-size: 13px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    padding: 4px 2px;
+}
+
+.admnot-teste:hover:not(:disabled){ text-decoration: underline; }
+.admnot-teste:disabled{ opacity: .5; cursor: not-allowed; }
+.admnot-teste:focus-visible{ outline: 2px solid var(--admin-roxo-500); outline-offset: 2px; }
+
+/* ================= STATUS "ENVIANDO" E "FALHOU" ================= */
+.admnot-badge.enviando{
+    color: var(--admin-ambar-txt);
+    background: var(--admin-ambar-bg);
+    animation: admnotPulsar 1.4s ease-in-out infinite;
+}
+
+.admnot-badge.falhou{
+    color: var(--admin-vermelho-txt);
+    background: var(--admin-vermelho-bg);
+}
+
+@keyframes admnotPulsar{
+    0%, 100%{ opacity: 1; }
+    50%{ opacity: .55; }
+}
+
+@media (prefers-reduced-motion: reduce){
+    .admnot-badge.enviando{ animation: none; }
+}
+
+.admnot-item-erro{
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin-top: 8px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--admin-vermelho-txt);
+    line-height: 1.45;
+}

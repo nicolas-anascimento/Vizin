@@ -13,6 +13,13 @@ export function businessLateDays(due: Date, at = new Date()): number {
   return Math.max(0, Math.round((businessDate(at).getTime() - due.getTime()) / 86_400_000));
 }
 
+export function withdrawalWindowCode(rentalDay:Date,at=new Date()):"retirada_data_futura"|"retirada_prazo_expirado"|null{
+  const today=businessDate(at);
+  if(rentalDay>today)return "retirada_data_futura";
+  if(rentalDay<today)return "retirada_prazo_expirado";
+  return null;
+}
+
 // Encontra o instante UTC que corresponde à meia-noite local, corrigindo o deslocamento do fuso.
 export function businessDayStart(day: Date): Date {
   const target = Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate());

@@ -50,6 +50,39 @@ async function alterarVisibilidadeAnuncioAdmin(id, disponivel, motivo = '') {
     }
 }
 
+// ================= AVALIAÇÕES (só leitura, pro admin analisar o anúncio) =================
+// Reaproveita a mesma rota pública paginada que avaliacoes-shared.js usa
+// (obterAvaliacoesDoProduto: GET /objetos/:id/avaliacoes?page=&limit=), mas
+// com o cliente `apiRequest` do admin, que não expõe cabeçalhos de resposta.
+// Por isso a paginação aqui é feita pelo tamanho da página (para de buscar
+// quando a página vier com menos itens que o limite) em vez de
+// X-Total-Count — mesmo resultado, sem precisar mudar o api.js do admin.
+async function obterAvaliacoesAnuncioAdmin(id) {
+    const LIMITE = 100;
+    let pagina = 1;
+    let linhas = [];
+    let paginaAtual;
+    do {
+        paginaAtual = await apiRequest(
+            `/objetos/${encodeURIComponent(id)}/avaliacoes?page=${pagina}&limit=${LIMITE}`,
+            'GET',
+            null,
+            'Não foi possível carregar as avaliações deste objeto.'
+        );
+        if (!Array.isArray(paginaAtual)) throw new Error('Resposta de avaliações inválida.');
+        linhas = linhas.concat(paginaAtual);
+        pagina++;
+    } while (paginaAtual.length === LIMITE);
+
+    const lista = linhas.map(r => ({
+        ...r,
+        data: r.criado_em,
+        nomeAvaliador: r.nomeAvaliador || 'Usuário'
+    }));
+    const media = lista.length ? lista.reduce((s, r) => s + Number(r.nota), 0) / lista.length : 0;
+    return { media, total: lista.length, lista };
+}
+
 async function arquivarAnuncioAdmin(id, motivo) {
     try {
         return await apiRequest(

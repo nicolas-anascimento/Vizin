@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/assets/admin/admin-sidebar/admin-sidebar.css?v=13">
+    <link rel="stylesheet" href="/assets/admin/Usuarios/admin-shared.css">
+    <link rel="stylesheet" href="/assets/admin/Configuracoes/admin-tema.css">
+    <link rel="stylesheet" href="/assets/admin/Auditoria/auditoria.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <title>Histórico de ações — Admin Vizin</title>
+    <script src="/assets/admin/Configuracoes/admin-preferencias.js"></script>
+</head>
+<body class="admin-body" data-page="auditoria">
+
+    <div id="adminSidebarContainer"></div>
+
+    <main class="admin-main">
+
+        <div class="admin-topbar-mobile">
+            <button id="adminMenuToggle" aria-label="Abrir menu"><i class="bi bi-list"></i></button>
+        </div>
+
+        <header class="admin-page-header">
+            <h1>Histórico de ações</h1>
+            <p>Registro de tudo o que os administradores fizeram na plataforma. Somente leitura.</p>
+        </header>
+
+        <div class="admin-filtros-container">
+
+            <section class="admin-toolbar">
+                <div class="admin-search-box">
+                    <i class="bi bi-search"></i>
+                    <input type="text" id="buscaAuditoria" placeholder="Buscar por administrador, alvo ou motivo...">
+                </div>
+
+                <button class="admin-btn-filtro" id="btnFiltros" type="button">
+                    <i class="bi bi-funnel"></i> Filtros
+                </button>
+            </section>
+
+            <section class="admin-filtro-status" id="filtroStatusBar">
+
+                <div class="admin-filtro-grupo">
+                    <span class="admin-filtro-status-label">Área:</span>
+                    <div class="admin-filtro-pills">
+                        <button type="button" class="admin-filtro-pill active" data-valor="todas">Todas</button>
+                        <button type="button" class="admin-filtro-pill" data-valor="usuarios">Usuários</button>
+                        <button type="button" class="admin-filtro-pill" data-valor="anuncios">Anúncios</button>
+                        <button type="button" class="admin-filtro-pill" data-valor="avaliacoes">Avaliações</button>
+                        <button type="button" class="admin-filtro-pill" data-valor="denuncias">Denúncias</button>
+                        <button type="button" class="admin-filtro-pill" data-valor="verificacoes">Verificações</button>
+                        <button type="button" class="admin-filtro-pill" data-valor="categorias">Categorias</button>
+                        <button type="button" class="admin-filtro-pill" data-valor="notificacoes">Notificações enviadas</button>
+                    </div>
+                </div>
+
+                <div class="admin-filtro-grupo">
+                    <span class="admin-filtro-status-label">Período:</span>
+                    <div class="audit-periodo">
+                        <label>De <input type="date" id="filtroDe"></label>
+                        <label>Até <input type="date" id="filtroAte"></label>
+                        <button type="button" class="audit-link-limpar" id="btnLimparPeriodo">Limpar período</button>
+                    </div>
+                </div>
+
+            </section>
+
+        </div>
+
+        <section class="admin-card">
+
+            <div class="admin-tabela-scroll">
+                <table class="admin-tabela">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Administrador</th>
+                            <th>Ação</th>
+                            <th>Alvo</th>
+                            <th>Motivo</th>
+                        </tr>
+                    </thead>
+                    <tbody id="corpoTabelaAuditoria"></tbody>
+                </table>
+            </div>
+
+            <p id="tabelaEstadoVazio" class="admin-tabela-vazio" hidden>Nenhuma ação registrada ainda.</p>
+
+            <div class="admin-tabela-rodape">
+                <span id="infoPaginacao"></span>
+                <div class="admin-paginacao" id="paginacao"></div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <div id="toast" class="admin-toast"></div>
+
+    <script src="/assets/usuario/Login/api.js"></script>
+    <script src="/assets/admin/Auditoria/auditoria-api.js"></script>
+    <script src="/assets/admin/admin-sidebar/admin-frame.js"></script>
+    <script src="/assets/admin/Auditoria/auditoria.js"></script>
+
+</body>
+</html>

@@ -33,6 +33,20 @@
             <h2 class="perfil-privado-titulo">Este perfil não está disponível</h2>
             <p class="perfil-privado-texto">A pessoa optou por não deixar o perfil visível publicamente.</p>
         </div>
+
+        <div class="card perfil-suspensa-card" id="perfil-conta-suspensa" style="display:none;">
+    <div class="perfil-suspensa-icone"><i class="bi bi-slash-circle-fill"></i></div>
+    <h2 class="perfil-suspensa-titulo">Sua conta foi banida</h2>
+    <p class="perfil-suspensa-texto">Enquanto a conta estiver suspensa, você só pode ver esta página e suas notificações.</p>
+    <div class="perfil-suspensa-motivo">
+        <strong>Motivo</strong>
+        <p id="suspensa-motivo"></p>
+    </div>
+    <div class="perfil-suspensa-acoes">
+        <a class="btn btn-secondary" href="/notificacoes">Ver notificações</a>
+        <a class="btn btn-perfil-salvar" href="/suporte?tipo=reativacao">Pedir reativação ao Suporte</a>
+    </div>
+</div>
  
         <!-- CABEÇALHO DO PERFIL -->
         <div class="perfil-header">
@@ -233,6 +247,8 @@
     <!-- Configuração e cliente da API: SEMPRE antes dos módulos compartilhados -->
     <script src="/assets/usuario/utils/config.js"></script>
     <script src="/assets/usuario/utils/api-client.js"></script>
+
+    <script src="/assets/usuario/utils/conta-suspensa.js"></script>
  
     <script src="/assets/usuario/Notificacoes/notificacoes-shared.js?v=10"></script>
  

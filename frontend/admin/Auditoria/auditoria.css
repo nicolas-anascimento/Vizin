@@ -1,0 +1,145 @@
+/* Histórico de ações. admin-card, badge base, botões e toast vêm de admin-shared.css;
+   cabeçalho, toolbar, filtros, tabela e paginação são redefinidos aqui (cada página do admin tem o seu CSS). */
+
+.admin-page-header{ margin-bottom: 24px; }
+.admin-page-header h1{ font-size: 26px; font-weight: 700; color: var(--admin-texto); }
+.admin-page-header p{ margin-top: 4px; font-size: 14.5px; color: var(--admin-texto-muted); }
+
+/* ================= BUSCA + FILTROS ================= */
+.admin-toolbar{ display: flex; gap: 14px; margin-bottom: 14px; }
+
+.admin-search-box{
+    flex: 1; display: flex; align-items: center; gap: 10px;
+    background: var(--admin-surface); border: 1px solid var(--admin-borda);
+    border-radius: 12px; padding: 0 16px; height: 46px;
+}
+.admin-search-box i{ color: var(--admin-texto-muted); font-size: 15px; }
+.admin-search-box input{
+    flex: 1; border: none; outline: none; background: transparent;
+    font-size: 14.5px; font-family: inherit; color: var(--admin-texto);
+}
+.admin-search-box input::placeholder{ color: #A6A0BF; }
+
+.admin-btn-filtro{
+    display: flex; align-items: center; gap: 8px; height: 46px; padding: 0 18px;
+    background: var(--admin-surface); border: 1px solid var(--admin-borda); border-radius: 12px;
+    font-size: 14.5px; font-weight: 600; color: var(--admin-texto); cursor: pointer; font-family: inherit;
+    transition: border-color .2s ease, color .2s ease;
+}
+.admin-btn-filtro:hover, .admin-btn-filtro.active{ border-color: var(--admin-roxo-500); color: var(--admin-roxo-500); }
+
+.admin-filtro-status{
+    display: none; flex-direction: column; gap: 14px;
+    background: var(--admin-faixa, #F1F0F8); border: 1px solid var(--admin-borda);
+    border-radius: 14px; padding: 16px 18px; margin-bottom: 20px;
+}
+.admin-filtro-status.aberta{ display: flex; }
+
+.admin-filtro-grupo{ display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.admin-filtro-status-label{ font-size: 14px; font-weight: 700; color: var(--admin-texto); flex: 0 0 auto; min-width: 76px; }
+.admin-filtro-pills{ display: flex; flex-wrap: wrap; gap: 8px; }
+
+.admin-filtro-pill{
+    padding: 7px 16px; border-radius: 999px; border: 1px solid var(--admin-borda);
+    background: var(--admin-surface); color: var(--admin-texto);
+    font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer;
+    transition: background .2s ease, color .2s ease, border-color .2s ease;
+}
+.admin-filtro-pill:hover{ border-color: var(--admin-roxo-500); color: var(--admin-roxo-500); }
+.admin-filtro-pill.active{ background: var(--admin-roxo-500); border-color: var(--admin-roxo-500); color: #F2F2F2; }
+
+.audit-periodo{ display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.audit-periodo label{ display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--admin-texto-muted); }
+.audit-periodo input[type="date"]{
+    height: 36px; padding: 0 10px; border: 1px solid var(--admin-borda); border-radius: 10px;
+    background: var(--admin-surface); color: var(--admin-texto); font-family: inherit; font-size: 13.5px; outline: none;
+}
+.audit-periodo input[type="date"]:focus{ border-color: var(--admin-roxo-500); }
+
+.audit-link-limpar{
+    border: none; background: none; padding: 0; margin-left: 4px;
+    color: var(--admin-roxo-500); font-size: 13px; font-weight: 700; font-family: inherit;
+    cursor: pointer; text-decoration: underline;
+}
+
+/* ================= TABELA ================= */
+.admin-tabela-scroll{ overflow-x: auto; }
+.admin-tabela{ width: 100%; border-collapse: collapse; min-width: 860px; }
+
+.admin-tabela thead th{
+    text-align: left; font-size: 13px; font-weight: 700; color: var(--admin-texto-muted);
+    padding: 14px 16px; border-bottom: 1px solid var(--admin-borda); white-space: nowrap;
+}
+.admin-tabela tbody td{
+    padding: 14px 16px; font-size: 14px; color: var(--admin-texto);
+    border-bottom: 1px solid var(--admin-borda); vertical-align: top;
+}
+.admin-tabela tbody tr:last-child td{ border-bottom: none; }
+.admin-tabela tbody tr:hover{ background: var(--admin-faixa, #FAFAFD); }
+
+.admin-nome{ font-weight: 600; }
+.audit-data{ white-space: nowrap; color: var(--admin-texto-muted); }
+.audit-motivo{ max-width: 340px; overflow-wrap: anywhere; color: var(--admin-texto-muted); }
+
+.audit-alvo-link{ color: var(--admin-roxo-500); font-weight: 600; text-decoration: none; }
+.audit-alvo-link:hover{ text-decoration: underline; }
+
+/* Pílula da ação, na cor da área (mesma paleta das notificações) */
+.cat-usuarios{ --cat: #3B82C4; }
+.cat-anuncios{ --cat: #F27C38; }
+.cat-denuncias{ --cat: #C4362B; }
+.cat-avaliacoes{ --cat: #B4770A; }
+.cat-verificacoes{ --cat: var(--admin-roxo-500); }
+.cat-categorias{ --cat: #1F9D66; }
+.cat-notificacoes{ --cat: #5B5870; }
+
+.audit-acao{
+    display: inline-block; padding: 4px 12px; border-radius: 20px;
+    font-size: 12.5px; font-weight: 700; color: var(--cat);
+    background: color-mix(in srgb, var(--cat) 14%, var(--admin-surface));
+}
+
+/* ================= RODAPÉ / PAGINAÇÃO ================= */
+.admin-tabela-rodape{ display: flex; align-items: center; justify-content: space-between; padding: 16px; flex-wrap: wrap; gap: 12px; }
+#infoPaginacao{ font-size: 13.5px; color: var(--admin-texto-muted); }
+.admin-paginacao{ display: flex; align-items: center; gap: 6px; }
+
+.admin-pagina-btn{
+    min-width: 34px; height: 34px; padding: 0 10px; border-radius: 8px;
+    border: 1px solid var(--admin-borda); background: var(--admin-surface); color: var(--admin-texto);
+    font-size: 13.5px; font-weight: 600; cursor: pointer; font-family: inherit; transition: .2s ease;
+}
+.admin-pagina-btn:hover:not(:disabled){ border-color: var(--admin-roxo-500); color: var(--admin-roxo-500); }
+.admin-pagina-btn:disabled{ opacity: .45; cursor: not-allowed; }
+.admin-pagina-btn.active{ background: var(--admin-roxo-500); border-color: var(--admin-roxo-500); color: #F2F2F2; }
+
+/* ================= RESPONSIVO ================= */
+@media (max-width: 640px){
+    .admin-toolbar{ flex-direction: column; }
+    .admin-toolbar .admin-btn-filtro{ width: 100%; justify-content: center; }
+    .admin-filtro-grupo{ flex-direction: column; align-items: flex-start; }
+    .admin-filtro-pills{ width: 100%; }
+}
+
+@media (max-width: 680px){
+    .admin-tabela-scroll{ overflow-x: visible; }
+    .admin-tabela{ min-width: 0; }
+    .admin-tabela thead{ display: none; }
+    .admin-tabela, .admin-tabela tbody, .admin-tabela tr{ display: block; width: 100%; }
+
+    .admin-tabela tbody tr{
+        border: 1px solid var(--admin-borda); border-radius: 12px; margin: 10px 4px; padding: 6px 14px;
+    }
+    .admin-tabela tbody tr:hover{ background: var(--admin-surface); }
+
+    .admin-tabela td{
+        display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+        padding: 10px 0; border-bottom: 1px solid var(--admin-borda); text-align: right;
+    }
+    .admin-tabela tr td:last-child{ border-bottom: none; }
+    .admin-tabela td::before{
+        content: attr(data-label); font-size: 12.5px; font-weight: 700;
+        color: var(--admin-texto-muted); text-align: left; flex: 0 0 auto;
+    }
+    .audit-motivo{ max-width: none; }
+}

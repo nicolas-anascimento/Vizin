@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/assets/admin/admin-sidebar/admin-sidebar.css?v=13">
+    <link rel="stylesheet" href="/assets/admin/Usuarios/admin-shared.css">
+    <!-- Reaproveita busca, pills, tabela (vira cards no mobile) e paginação da lista de usuários -->
+    <link rel="stylesheet" href="/assets/admin/Usuarios/usuarios.css?v=12">
+    <link rel="stylesheet" href="/assets/admin/Verificacoes/verificacoes.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <title>Verificações — Admin Vizin</title>
+</head>
+<body class="admin-body" data-page="verificacoes">
+
+    <div id="adminSidebarContainer"></div>
+
+    <main class="admin-main">
+
+        <div class="admin-topbar-mobile">
+            <button id="adminMenuToggle" aria-label="Abrir menu"><i class="bi bi-list"></i></button>
+        </div>
+
+        <header class="admin-page-header">
+            <h1>Verificação de contas</h1>
+            <p>Analise os documentos enviados pelos usuários</p>
+        </header>
+
+        <div class="admin-filtros-container">
+
+            <section class="admin-toolbar">
+                <div class="admin-search-box">
+                    <i class="bi bi-search"></i>
+                    <input type="text" id="buscaVerificacoes" placeholder="Buscar por nome, email ou CPF...">
+                </div>
+            </section>
+
+            <!-- Sempre aberta aqui: o status é o filtro principal da fila -->
+            <section class="admin-filtro-status aberta" id="filtroStatusBar">
+                <span class="admin-filtro-status-label">Status:</span>
+                <div class="admin-filtro-pills">
+                    <button type="button" class="admin-filtro-pill active" data-status="pendente">Em análise</button>
+                    <button type="button" class="admin-filtro-pill" data-status="aprovado">Aprovadas</button>
+                    <button type="button" class="admin-filtro-pill" data-status="rejeitado">Reprovadas</button>
+                    <button type="button" class="admin-filtro-pill" data-status="todos">Todas</button>
+                </div>
+            </section>
+
+        </div>
+
+        <section class="admin-card">
+
+            <div class="admin-tabela-scroll">
+                <table class="admin-tabela">
+                    <thead>
+                        <tr>
+                            <th>Foto</th>
+                            <th>Nome</th>
+                            <th>Email</th>
+                            <th>Enviado em</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="corpoTabelaVerificacoes"></tbody>
+                </table>
+            </div>
+
+            <p id="tabelaEstadoVazio" class="admin-tabela-vazio" hidden>Nenhuma verificação encontrada.</p>
+
+            <div class="admin-tabela-rodape">
+                <span id="infoPaginacao"></span>
+                <div class="admin-paginacao" id="paginacao"></div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <div id="toast" class="admin-toast"></div>
+
+    <script src="/assets/usuario/Login/api.js"></script>
+    <script src="/assets/admin/Verificacoes/verificacoes-api.js"></script>
+    <script src="/assets/admin/admin-sidebar/admin-frame.js"></script>
+    <script src="/assets/admin/Verificacoes/verificacoes.js"></script>
+
+</body>
+</html>

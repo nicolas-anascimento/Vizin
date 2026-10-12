@@ -1,0 +1,204 @@
+/* Complementa detalhe.css + admin-shared.css. Só o que é específico da análise. */
+
+/* ================= DOCUMENTOS ================= */
+.analise-docs{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+}
+
+.analise-doc{
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-borda);
+    border-radius: 14px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.analise-doc figcaption{
+    padding: 12px 16px;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--admin-texto);
+    border-bottom: 1px solid var(--admin-borda);
+}
+
+.analise-doc-imagem{
+    position: relative;
+    height: 260px;
+    background: var(--admin-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    width: 100%;
+    cursor: zoom-in;
+}
+
+.analise-doc-imagem img{
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.analise-doc-imagem.erro{
+    cursor: default;
+}
+
+.analise-doc-status{
+    font-size: 13px;
+    color: var(--admin-texto-muted);
+    padding: 0 16px;
+    text-align: center;
+}
+
+.analise-doc-imagem.erro .analise-doc-status{
+    color: var(--admin-vermelho-txt);
+}
+
+.analise-doc-imagem img[hidden]{
+    display: none;
+}
+
+/* ================= DECISÃO ================= */
+.analise-decisao{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-borda);
+    border-radius: 14px;
+    padding: 18px 20px;
+}
+
+.analise-decisao p{
+    font-size: 14px;
+    color: var(--admin-texto-muted);
+    line-height: 1.5;
+    max-width: 520px;
+}
+
+.analise-decisao-botoes{
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.analise-decisao-botoes button{
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Resultado de uma análise já feita */
+.analise-resultado{
+    border-radius: 14px;
+    padding: 16px 20px;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.analise-resultado strong{
+    display: block;
+    margin-bottom: 4px;
+}
+
+.analise-resultado p{
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.analise-resultado.aprovado{
+    background: var(--admin-verde-bg);
+    color: var(--admin-verde-txt);
+}
+
+.analise-resultado.rejeitado{
+    background: var(--admin-vermelho-bg);
+    color: var(--admin-vermelho-txt);
+}
+
+/* Aviso sobre a conta (ex.: suspensa) antes da decisão */
+.analise-aviso{
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    background: var(--admin-ambar-bg);
+    color: var(--admin-ambar-txt);
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 14px;
+    font-size: 13.5px;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.analise-aviso i{
+    margin-top: 2px;
+}
+
+/* Resultado + ação (aprovada -> revogar) na mesma faixa */
+.analise-resultado.com-acao{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.analise-resultado.com-acao button{
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ================= MOTIVOS RÁPIDOS (modal de reprovar) ================= */
+.analise-motivos-rapidos{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.analise-motivos-rapidos button{
+    border: 1px solid var(--admin-borda);
+    background: var(--admin-surface);
+    color: var(--admin-texto);
+    border-radius: 999px;
+    padding: 5px 12px;
+    font-size: 12.5px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: border-color .2s ease, color .2s ease;
+}
+
+.analise-motivos-rapidos button:hover{
+    border-color: var(--admin-roxo-500);
+    color: var(--admin-roxo-500);
+}
+
+/* ================= IMAGEM AMPLIADA ================= */
+.admin-modal.analise-lightbox{
+    max-width: 920px;
+}
+
+.analise-lightbox img{
+    width: 100%;
+    max-height: 75vh;
+    object-fit: contain;
+    display: block;
+    border-radius: 10px;
+    background: var(--admin-bg);
+}
+
+@media (max-width: 640px){
+    .analise-decisao-botoes{ width: 100%; }
+    .analise-decisao-botoes button{ flex: 1; justify-content: center; }
+    .analise-doc-imagem{ height: 220px; }
+}

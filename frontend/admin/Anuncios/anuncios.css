@@ -419,3 +419,138 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* ================= MODAL "VER ANÚNCIO" — AVALIAÇÕES =================
+   Mesma ideia visual do modal de avaliações do usuário (Meus Objetos),
+   só que embutida dentro do modal "Ver anúncio" do admin em vez de um
+   modal próprio — o admin já está olhando os dados do item, faz sentido
+   ver a nota/comentários dos locatários no mesmo lugar. */
+.admin-ver-anuncio-avaliacoes{
+    border-top: 1px solid var(--admin-borda);
+    margin-top: 16px;
+    padding-top: 16px;
+}
+
+.admin-ver-anuncio-avaliacoes > span{
+    display: block;
+    font-size: 12px;
+    color: var(--admin-texto-muted);
+    margin-bottom: 8px;
+}
+
+.admin-ver-anuncio-aval-vazio{
+    font-size: 13.5px;
+    color: var(--admin-texto-muted);
+    padding: 4px 0;
+}
+
+.admin-ver-anuncio-aval-resumo-box{
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding-bottom: 14px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--admin-borda);
+}
+
+.admin-ver-anuncio-aval-nota{
+    font-size: 30px;
+    font-weight: 800;
+    color: var(--admin-texto);
+    line-height: 1;
+}
+
+.admin-ver-anuncio-aval-detalhes{
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.admin-ver-anuncio-aval-estrelas{
+    color: var(--admin-roxo-500);
+    font-size: 13px;
+    letter-spacing: 2px;
+}
+
+.admin-ver-anuncio-aval-estrelas .bi-star{ color: var(--admin-borda); }
+
+.admin-ver-anuncio-aval-total{
+    font-size: 12.5px;
+    color: var(--admin-texto-muted);
+}
+
+.admin-ver-anuncio-aval-lista-scroll,
+#admModalVerAnuncioAvalLista{
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+.admin-ver-anuncio-aval-item{
+    padding: 12px 0;
+    border-top: 1px solid var(--admin-borda);
+}
+
+.admin-ver-anuncio-aval-item:first-child{
+    border-top: none;
+    padding-top: 0;
+}
+
+.admin-ver-anuncio-aval-topo{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+.admin-ver-anuncio-aval-avatar{
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--admin-roxo-500);
+    color: #F2F2F2;
+    font-weight: 700;
+    font-size: 12.5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.admin-ver-anuncio-aval-info{
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    gap: 1px;
+    min-width: 0;
+}
+
+.admin-ver-anuncio-aval-info strong{
+    font-size: 13.5px;
+    color: var(--admin-texto);
+}
+
+.admin-ver-anuncio-aval-data{
+    font-size: 11.5px;
+    color: var(--admin-texto-muted);
+}
+
+.admin-ver-anuncio-aval-nota-pill{
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12.5px;
+    font-weight: 700;
+    background: #F1F0F8;
+    color: var(--admin-roxo-500);
+    padding: 3px 9px;
+    border-radius: 20px;
+    white-space: nowrap;
+    margin-left: auto;
+}
+
+.admin-ver-anuncio-aval-comentario{
+    font-size: 13.5px;
+    color: var(--admin-texto);
+    line-height: 1.5;
+    margin: 0 0 0 40px;
+}

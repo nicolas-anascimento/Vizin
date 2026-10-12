@@ -1,3 +1,6 @@
+/* Estilos compartilhados (card, avatar, badge, botões de ação, modal, botões,
+   toast e estado vazio) ficam em admin-shared.css. Aqui só o que é da lista. */
+
 /* ================= CABEÇALHO DA PÁGINA ================= */
 .admin-page-header{
     margin-bottom: 24px;
@@ -132,13 +135,6 @@
 }
 
 /* ================= CARD / TABELA ================= */
-.admin-card{
-    background: var(--admin-surface);
-    border: 1px solid var(--admin-borda);
-    border-radius: 16px;
-    padding: 8px 8px 4px;
-    box-shadow: 0 8px 24px rgba(36, 19, 72, .06);
-}
 
 .admin-tabela-scroll{
     overflow-x: auto;
@@ -176,18 +172,6 @@
     background: #FAFAFD;
 }
 
-.admin-avatar{
-    width: 38px;
-    height: 38px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #F2F2F2;
-    font-size: 13px;
-    font-weight: 700;
-}
-
 .admin-nome{
     font-weight: 600;
 }
@@ -196,64 +180,11 @@
     color: var(--admin-roxo-500);
 }
 
-/* ================= BADGE DE STATUS ================= */
-.admin-badge{
-    display: inline-block;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 12.5px;
-    font-weight: 700;
-}
-
-.admin-badge.ativo{
-    color: var(--admin-verde-txt);
-    background: var(--admin-verde-bg);
-}
-
-.admin-badge.suspenso{
-    color: var(--admin-ambar-txt);
-    background: var(--admin-ambar-bg);
-}
-
-.admin-badge.banido{
-    color: var(--admin-vermelho-txt);
-    background: var(--admin-vermelho-bg);
-}
-
 /* ================= AÇÕES ================= */
 .admin-acoes{
     display: flex;
     align-items: center;
     gap: 6px;
-}
-
-.admin-acao-btn{
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    border: none;
-    background: transparent;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 15px;
-    transition: background .2s ease;
-}
-
-.admin-acao-btn.ver{ color: #3B82C4; }
-.admin-acao-btn.editar{ color: var(--admin-verde-txt); }
-.admin-acao-btn.excluir{ color: var(--admin-vermelho-txt); }
-
-.admin-acao-btn:hover{
-    background: var(--admin-bg);
-}
-
-.admin-tabela-vazio{
-    text-align: center;
-    padding: 40px 16px;
-    color: var(--admin-texto-muted);
-    font-size: 14.5px;
 }
 
 /* ================= RODAPÉ / PAGINAÇÃO ================= */
@@ -308,104 +239,6 @@
     color: #F2F2F2;
 }
 
-/* ================= MODAL DE EXCLUSÃO ================= */
-.admin-modal-overlay{
-    position: fixed;
-    inset: 0;
-    background: rgba(15, 8, 36, .55);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 300;
-    padding: 20px;
-}
-
-/* O display:flex acima vale sempre, mesmo com o atributo [hidden] no
-   HTML — regra do site sobrepõe a regra padrão do navegador
-   ([hidden]{display:none}), então sem isto aqui o modal nunca some. */
-.admin-modal-overlay[hidden]{
-    display: none;
-}
-
-.admin-modal{
-    background: var(--admin-surface);
-    border-radius: 16px;
-    padding: 26px;
-    max-width: 380px;
-    width: 100%;
-}
-
-.admin-modal h3{
-    font-size: 18px;
-    margin-bottom: 10px;
-    color: var(--admin-texto);
-}
-
-.admin-modal p{
-    font-size: 14px;
-    color: var(--admin-texto-muted);
-    line-height: 1.5;
-}
-
-.admin-modal p strong{
-    color: var(--admin-texto);
-}
-
-.admin-modal-botoes{
-    display: flex;
-    gap: 10px;
-    margin-top: 20px;
-}
-
-.admin-btn-secundario, .admin-btn-perigo{
-    flex: 1;
-    height: 42px;
-    border-radius: 10px;
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-    font-family: inherit;
-    border: none;
-    transition: opacity .2s ease;
-}
-
-.admin-btn-secundario{
-    background: var(--admin-bg);
-    color: var(--admin-texto);
-}
-
-.admin-btn-perigo{
-    background: var(--admin-vermelho-txt);
-    color: #F2F2F2;
-}
-
-.admin-btn-secundario:hover, .admin-btn-perigo:hover{
-    opacity: .85;
-}
-
-/* ================= TOAST (mesma linguagem do site) ================= */
-.admin-toast{
-    position: fixed;
-    bottom: 30px;
-    right: 30px;
-    background: var(--admin-roxo-700);
-    color: #F2F2F2;
-    padding: 14px 20px;
-    border-radius: 12px;
-    font-size: 14px;
-    font-weight: 600;
-    box-shadow: 0 8px 24px rgba(36, 19, 72, .3);
-    opacity: 0;
-    transform: translateY(20px);
-    pointer-events: none;
-    transition: all .4s ease;
-    z-index: 9999;
-}
-
-.admin-toast.show{ opacity: 1; transform: translateY(0); }
-.admin-toast.sucesso{ background: linear-gradient(90deg, var(--admin-roxo-500), var(--admin-laranja)); }
-.admin-toast.erro{ background: linear-gradient(90deg, #b91c1c, var(--admin-laranja)); }
-
 /* ===================================================
    RESPONSIVO (mobile)
    =================================================== */
@@ -441,11 +274,6 @@
         text-align: center;
     }
 
-    .admin-toast{
-        left: 16px;
-        right: 16px;
-        bottom: 16px;
-    }
 }
 
 /* ===================================================

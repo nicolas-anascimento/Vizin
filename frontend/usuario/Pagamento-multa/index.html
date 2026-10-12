@@ -160,7 +160,6 @@
                             <button type="submit" class="btn btn-primary btn-block" id="btn-pagar-cartao">Pagar</button>
 
                             <div class="metodo-actions" id="cartao-acoes-erro" style="display:none;">
-                                <button type="button" class="btn-link" id="btn-tentar-outro-cartao">Tentar outro cartão</button>
                                 <button type="button" class="btn-link" id="btn-tentar-outro-metodo">Tentar outro método de pagamento</button>
                             </div>
                         </form>
@@ -168,15 +167,6 @@
 
                     <p class="seguranca-msg"><i class="bi bi-shield-lock"></i> Pagamento 100% seguro e criptografado</p>
 
-                    <!-- Sem a opção de contestar a multa, quem achar a cobrança
-                         incorreta precisa de algum jeito de sinalizar isso —
-                         leva pra página de Suporte já com motivo, assunto e
-                         mensagem preenchidos (ver preencherResumo em
-                         pagamento-multa.js). Ajuste o caminho do href se a
-                         pasta de Suporte tiver outro nome no seu projeto. -->
-                    <p class="suporte-ajuda">
-                        <a href="#" id="link-suporte" class="btn-link">Acha que essa cobrança está errada? Fale com o Suporte</a>
-                    </p>
                 </div>
 
                 <!-- ================= TELA: MULTA PAGA ================= -->
@@ -265,6 +255,7 @@
     <script src="/assets/usuario/header/frame.js"></script>
     <script src="/assets/usuario/utils/config.js"></script>
     <script src="/assets/usuario/utils/api-client.js"></script>
+    <script src="/assets/usuario/utils/conta-suspensa.js"></script>
     <script src="/assets/usuario/Notificacoes/notificacoes-shared.js"></script>
     <script src="/assets/usuario/Notificacoes/solicitacoes-shared.js"></script>
     <script src="/assets/usuario/utils/pagamentos-api.js?v=demo-1"></script>

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/assets/usuario/Produto/fluxo-aluguel.css?v=8">
-    <link rel="stylesheet" href="/assets/usuario/Retirada-objeto/retirada-objeto.css?v=demo-1">
+    <link rel="stylesheet" href="/assets/usuario/Retirada-objeto/retirada-objeto.css?v=janela-1">
     <link rel="stylesheet" href="/assets/usuario/header/header.css">
     <link rel="stylesheet" href="/assets/usuario/footer/footer.css">
     <link rel="stylesheet" href="/assets/usuario/Notificacoes/notificacoes-shared.css">
@@ -124,7 +124,7 @@
             </div>
  
             <div class="dica-box">
-                <strong>⏰ Atenção ao prazo:</strong> se ninguém registrar a retirada até o dia seguinte à data combinada, o aluguel poderá ser cancelado. Quando houver pagamento, eventual estorno seguirá as regras da locação e a confirmação do provedor. Se só uma das partes enviar as fotos, o caso é analisado pelo Suporte.
+                <strong>⏰ Atenção ao prazo:</strong> a retirada só pode ser registrada no dia combinado, das 00:00 às 23:59. Se ninguém registrar a retirada até as 23:59 desse dia, a locação é cancelada automaticamente e o valor pago é estornado ao locatário (o tempo para aparecer na conta depende do provedor de pagamento). Se só uma das partes enviar as fotos, o caso é analisado pelo Suporte.
             </div>
         </div>
  
@@ -148,6 +148,7 @@
             <div class="status-icone status-aprovado"><i class="bi bi-check-lg"></i></div>
             <h2 class="status-titulo">Retirada confirmada!</h2>
             <p class="status-texto">As fotos de ambas as partes foram registradas com sucesso.</p>
+            <p class="confirmada-pagamento-aviso"><i class="bi bi-check-circle"></i> Retirada confirmada com sucesso.</p>
             <p class="status-subtexto" id="confirmada-subtexto"></p>
         </div>
  
@@ -186,13 +187,15 @@
     <!-- Configuração e cliente da API: SEMPRE antes dos módulos compartilhados -->
     <script src="/assets/usuario/utils/config.js"></script>
     <script src="/assets/usuario/utils/api-client.js"></script>
+
+    <script src="/assets/usuario/utils/conta-suspensa.js"></script>
  
     <script src="/assets/usuario/Notificacoes/notificacoes-shared.js?v=10"></script>
  
     <script src="/assets/usuario/Notificacoes/solicitacoes-shared.js?v=9"></script>
  
-    <script src="/assets/usuario/Retirada-objeto/retirada-shared.js?v=demo-1"></script>
+    <script src="/assets/usuario/Retirada-objeto/retirada-shared.js?v=janela-1"></script>
  
-    <script src="/assets/usuario/Retirada-objeto/retirada-objeto.js?v=demo-1"></script>
+    <script src="/assets/usuario/Retirada-objeto/retirada-objeto.js?v=janela-1"></script>
 </body>
 </html>

@@ -1,0 +1,89 @@
+/* Só o que é da tela Início. Cabeçalho, stats, cards de notificação e vazio
+   vêm de notificacoes.css / admin-shared.css. */
+
+/* 4 cards em vez dos 3 padrão */
+.inicio-grid-4{
+    grid-template-columns: repeat(4, 1fr);
+}
+
+@media (max-width: 1100px){
+    .inicio-grid-4{ grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px){
+    .inicio-grid-4{ grid-template-columns: 1fr; }
+}
+
+/* O card inteiro é um link */
+.inicio-card-link{
+    display: block;
+    text-decoration: none;
+    color: inherit;
+}
+
+.admin-stat-valor.erro{ color: var(--admin-vermelho-txt); font-size: 17px; cursor: help; }
+.inicio-sub-alerta{ color: var(--admin-vermelho-txt) !important; font-weight: 700; }
+
+/* ================= SEÇÃO "PRECISA DE ATENÇÃO" ================= */
+.inicio-secao{ margin-bottom: 20px; }
+
+.inicio-secao-topo{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 12px 16px 8px;
+}
+
+.inicio-secao-topo h2{
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--admin-texto);
+}
+
+.inicio-ver-todas{
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--admin-roxo-500);
+    text-decoration: none;
+}
+.inicio-ver-todas:hover{ text-decoration: underline; }
+
+/* ================= ATALHOS ================= */
+.inicio-atalhos{
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+}
+
+.inicio-atalho{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-borda);
+    border-radius: 14px;
+    padding: 16px 18px;
+    color: var(--admin-texto);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    transition: border-color .2s ease, color .2s ease;
+}
+
+.inicio-atalho i{
+    font-size: 20px;
+    color: var(--admin-roxo-500);
+}
+
+.inicio-atalho:hover{
+    border-color: var(--admin-roxo-500);
+    color: var(--admin-roxo-500);
+}
+
+@media (max-width: 1100px){
+    .inicio-atalhos{ grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px){
+    .inicio-atalhos{ grid-template-columns: 1fr; }
+}

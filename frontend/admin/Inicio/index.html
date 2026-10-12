@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/assets/admin/admin-sidebar/admin-sidebar.css?v=13">
+    <link rel="stylesheet" href="/assets/admin/Usuarios/admin-shared.css">
+    <link rel="stylesheet" href="/assets/admin/Configuracoes/admin-tema.css">
+    <!-- Reaproveita cabeçalho, cards de resumo e os cards de notificação da central -->
+    <link rel="stylesheet" href="/assets/admin/Notificações-recebidas/notificacoes.css">
+    <link rel="stylesheet" href="/assets/admin/Inicio/inicio.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <title>Início — Admin Vizin</title>
+    <script src="/assets/admin/Configuracoes/admin-preferencias.js"></script>
+</head>
+<body class="admin-body" data-page="inicio">
+
+    <div id="adminSidebarContainer"></div>
+
+    <main class="admin-main">
+
+        <div class="admin-topbar-mobile">
+            <button id="adminMenuToggle" aria-label="Abrir menu"><i class="bi bi-list"></i></button>
+        </div>
+
+        <header class="admin-page-header">
+            <h1>Visão geral</h1>
+            <p>O que precisa da sua atenção agora</p>
+        </header>
+
+        <!-- ================= FILAS DE TRABALHO ================= -->
+        <section class="admin-stats-grid inicio-grid-4">
+            <a class="admin-stat-card admin-stat-card-clicavel inicio-card-link" href="/admin/denuncias">
+                <span class="admin-stat-label">Denúncias pendentes</span>
+                <div class="admin-stat-valor" id="cardDenuncias">—</div>
+                <span class="admin-stat-sublabel" id="cardDenunciasSub">Casos aguardando análise</span>
+            </a>
+            <a class="admin-stat-card admin-stat-card-clicavel inicio-card-link" href="/admin/verificacoes">
+                <span class="admin-stat-label">Verificações em análise</span>
+                <div class="admin-stat-valor" id="cardVerificacoes">—</div>
+                <span class="admin-stat-sublabel">Documentos aguardando decisão</span>
+            </a>
+            <a class="admin-stat-card admin-stat-card-clicavel inicio-card-link" href="/admin/pagamentos">
+                <span class="admin-stat-label">Transações falhadas</span>
+                <div class="admin-stat-valor alerta" id="cardPagamentos">—</div>
+                <span class="admin-stat-sublabel">Total acumulado, requer atenção</span>
+            </a>
+            <a class="admin-stat-card admin-stat-card-clicavel inicio-card-link" href="/admin/notificacoes-recebidas?lida=nao-lidas">
+                <span class="admin-stat-label">Notificações não lidas</span>
+                <div class="admin-stat-valor" id="cardNotificacoes">—</div>
+                <span class="admin-stat-sublabel" id="cardNotificacoesSub">Na sua central</span>
+            </a>
+        </section>
+
+        <!-- ================= PRECISA DE ATENÇÃO ================= -->
+        <section class="admin-card inicio-secao">
+            <div class="inicio-secao-topo">
+                <h2>Precisa de atenção</h2>
+                <a class="inicio-ver-todas" href="/admin/notificacoes-recebidas?lida=nao-lidas">Ver todas as notificações <i class="bi bi-arrow-right"></i></a>
+            </div>
+            <div class="admin-notif-lista" id="listaAtencao">
+                <p class="admin-tabela-vazio">Carregando...</p>
+            </div>
+            <p class="admin-tabela-vazio" id="atencaoVazio" hidden>Nada urgente no momento. Tudo em dia!</p>
+        </section>
+
+        <!-- ================= ATALHOS ================= -->
+        <section class="inicio-atalhos">
+            <a href="/admin/usuarios?status=inativo" class="inicio-atalho"><i class="bi bi-person-slash"></i><span>Usuários suspensos</span></a>
+            <a href="/admin/verificacoes" class="inicio-atalho"><i class="bi bi-patch-check"></i><span>Fila de verificações</span></a>
+            <a href="/admin/denuncias" class="inicio-atalho"><i class="bi bi-exclamation-circle"></i><span>Denúncias e suporte</span></a>
+            <a href="/admin/auditoria" class="inicio-atalho"><i class="bi bi-clock-history"></i><span>Histórico de ações</span></a>
+        </section>
+
+    </main>
+
+    <div id="toast" class="admin-toast"></div>
+
+    <script src="/assets/usuario/Login/api.js"></script>
+    <script src="/assets/admin/Notificações-recebidas/notificacoes-api.js"></script>
+    <script src="/assets/admin/Notificações-recebidas/notificacoes-shared.js"></script>
+    <script src="/assets/admin/admin-sidebar/admin-frame.js"></script>
+    <script src="/assets/admin/Inicio/inicio.js"></script>
+
+</body>
+</html>

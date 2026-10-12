@@ -92,13 +92,46 @@ export const adminPaymentStats: RequestHandler = async (_req, res) => {
 export const adminReviews: RequestHandler = async (req, res) => {
   const { page, limit, skip } = pagination(req);
   const range = dateFilters(req); const where = { ...(range ? { criado_em: range } : {}) };
-  const [rows, total] = await Promise.all([prisma.avaliacoes.findMany({ where, skip, take: limit, orderBy: { criado_em: "desc" } }), prisma.avaliacoes.count({ where })]);
-  res.json(paged(rows.map(serializeReview), total, page, limit));
+  const [rows, total] = await Promise.all([prisma.avaliacoes.findMany({ where, skip, take: limit, orderBy: { criado_em: "desc" }, include: { usuarios_avaliacoes_avaliador_idTousuarios: { select: { id: true, nome: true } }, usuarios_avaliacoes_avaliado_idTousuarios: { select: { id: true, nome: true } }, item: { select: { titulo: true } }, alugueis: { select: { itens: { select: { titulo: true } } } } } }), prisma.avaliacoes.count({ where })]);
+  res.json(paged(rows.map(row => ({ ...serializeReview(row), oculta: row.oculta, avaliador: row.usuarios_avaliacoes_avaliador_idTousuarios, avaliado: row.usuarios_avaliacoes_avaliado_idTousuarios, produtoTitulo: row.item?.titulo ?? row.alugueis.itens.titulo })), total, page, limit));
+};
+// Oculta ou reexibe sem apagar o conteúdo histórico.
+export const updateReview: RequestHandler = async (req, res) => {
+  const id = uuid(req.params.id);
+  if (typeof req.body?.oculta !== "boolean") throw new HttpError(422, "oculta deve ser booleano");
+  const reason = req.body.oculta ? text(req.body?.motivo, "Motivo", 1000) : null;
+  if (req.body.oculta && (!reason || reason.length < 5)) throw new HttpError(422, "O motivo deve ter ao menos 5 caracteres", "motivo_invalido");
+  const row = await prisma.$transaction(async tx => {
+    await tx.$queryRaw`SELECT id FROM avaliacoes WHERE id=${id}::uuid FOR UPDATE`;
+    const current = await tx.avaliacoes.findUnique({ where: { id } });
+    if (!current) throw new HttpError(404, "Avaliação não encontrada");
+    if (current.oculta === req.body.oculta) return current;
+    const updated = await tx.avaliacoes.update({ where: { id }, data: { oculta: req.body.oculta, motivo_ocultacao: reason } });
+    const action = req.body.oculta ? "avaliacao_ocultada" : "avaliacao_reexibida";
+    await audit(tx, req.user!.id, action, "avaliacao", id, { motivo: reason });
+    if (req.body.oculta) await tx.notificacoes.createMany({ data: [
+      { usuario_id: current.avaliador_id, chave: `${action}:${id}:autor`, tipo: "avaliacao_ocultada_admin", titulo: "Avaliação ocultada", mensagem: `Sua avaliação foi ocultada. Motivo: ${reason}`, contexto: { avaliacaoId: id } },
+      { usuario_id: current.avaliado_id, chave: `${action}:${id}:alvo`, tipo: "avaliacao_sobre_voce_ocultada_admin", titulo: "Avaliação ocultada", mensagem: "Uma avaliação sobre você foi ocultada pela moderação.", contexto: { avaliacaoId: id } },
+    ] });
+    return updated;
+  });
+  res.json(row);
 };
 // Remove avaliação indicada e registra a ação administrativa.
 export const removeReview: RequestHandler = async (req, res) => {
   const id = uuid(req.params.id);
-  await prisma.$transaction(async tx => { await tx.avaliacoes.delete({ where: { id } }); await audit(tx, req.user!.id, "remover", "avaliacao", id); });
+  const reason = text(req.body?.motivo, "Motivo", 1000);
+  if (reason.length < 5) throw new HttpError(422, "O motivo deve ter ao menos 5 caracteres", "motivo_invalido");
+  await prisma.$transaction(async tx => {
+    const current = await tx.avaliacoes.findUnique({ where: { id }, include: { usuarios_avaliacoes_avaliador_idTousuarios: { select: { nome: true } }, usuarios_avaliacoes_avaliado_idTousuarios: { select: { nome: true } } } });
+    if (!current) throw new HttpError(404, "Avaliação não encontrada");
+    await audit(tx, req.user!.id, "avaliacao_excluida", "avaliacao", id, { motivo: reason, avaliador: current.usuarios_avaliacoes_avaliador_idTousuarios.nome, avaliado: current.usuarios_avaliacoes_avaliado_idTousuarios.nome });
+    await tx.notificacoes.createMany({ data: [
+      { usuario_id: current.avaliador_id, chave: `avaliacao_excluida:${id}:autor`, tipo: "avaliacao_removida_admin", titulo: "Avaliação removida", mensagem: `Sua avaliação foi removida. Motivo: ${reason}`, contexto: { avaliacaoId: id } },
+      { usuario_id: current.avaliado_id, chave: `avaliacao_excluida:${id}:alvo`, tipo: "avaliacao_sobre_voce_removida_admin", titulo: "Avaliação removida", mensagem: "Uma avaliação sobre você foi removida pela moderação.", contexto: { avaliacaoId: id } },
+    ] });
+    await tx.avaliacoes.delete({ where: { id } });
+  });
   res.json({ success: true });
 };
 // Cria listagem paginada para suporte, denúncias ou sinistros.
@@ -169,20 +202,34 @@ export function reviewCase(kind: "suporte" | "denuncia" | "sinistro"): RequestHa
 export const saveCategory: RequestHandler = async (req, res) => {
   const nome = text(req.body?.nome, "Nome", 80).replace(/\s+/g, " "), normalized = slug(nome);
   if (!normalized) throw new HttpError(422, "Categoria inválida");
+  const icon = text(req.body?.icone, "Ícone", 50), color = text(req.body?.cor, "Cor", 7).toUpperCase();
+  if (!/^bi-[a-z0-9-]+$/.test(icon)) throw new HttpError(422, "Ícone inválido", "icone_invalido");
+  if (!/^#[0-9A-F]{6}$/.test(color)) throw new HttpError(422, "Cor inválida", "cor_invalida");
   const id = req.params.id ? uuid(req.params.id) : null;
   const row = await prisma.$transaction(async tx => {
-    if (await tx.categorias.findFirst({ where: { slug: normalized, ...(id ? { id: { not: id } } : {}) } })) throw new HttpError(409, "Slug já utilizado", "slug_duplicado");
-    const result = id ? await tx.categorias.update({ where: { id }, data: { nome, slug: normalized } }) : await tx.categorias.create({ data: { nome, slug: normalized } });
-    await audit(tx, req.user!.id, id ? "editar" : "criar", "categoria", result.id);
+    if (await tx.categorias.findFirst({ where: { nome: { equals: nome, mode: "insensitive" }, ...(id ? { id: { not: id } } : {}) } })) throw new HttpError(409, "Já existe categoria com esse nome", "nome_duplicado");
+    if (!id && await tx.categorias.findUnique({ where: { slug: normalized } })) throw new HttpError(409, "Slug já utilizado", "slug_duplicado");
+    const result = id ? await tx.categorias.update({ where: { id }, data: { nome, icone: icon, cor: color } }) : await tx.categorias.create({ data: { nome, slug: normalized, icone: icon, cor: color } });
+    await audit(tx, req.user!.id, "categoria_alterada", "categoria", result.id, { operacao: id ? "editar" : "criar" });
     return result;
   }); res.status(id ? 200 : 201).json(row);
+};
+export const listAdminCategories: RequestHandler = async (_req,res) => {
+  const rows=await prisma.categorias.findMany({orderBy:{nome:"asc"},include:{_count:{select:{itens:true}}}});
+  res.json(rows.map(({_count,...row})=>({...row,total_itens:_count.itens})));
+};
+export const moveCategoryItems: RequestHandler = async (req,res) => {
+  const source=uuid(req.params.id),destination=uuid(req.body?.destino_id,"Categoria de destino");
+  if(source===destination)throw new HttpError(422,"Origem e destino devem ser diferentes","categoria_destino_igual");
+  const moved=await prisma.$transaction(async tx=>{await tx.$queryRaw`SELECT id FROM categorias WHERE id IN (${source}::uuid,${destination}::uuid) ORDER BY id FOR UPDATE`;const count=await tx.categorias.count({where:{id:{in:[source,destination]}}});if(count!==2)throw new HttpError(404,"Categoria não encontrada");const result=await tx.itens.updateMany({where:{categoria_id:source},data:{categoria_id:destination}});await audit(tx,req.user!.id,"categoria_alterada","categoria",source,{operacao:"mover_itens",destino_id:destination,movidos:result.count});return result.count;});
+  res.json({movidos:moved});
 };
 // Exclui categoria quando as relações no banco permitem.
 export const deleteCategory: RequestHandler = async (req, res) => {
   const id = uuid(req.params.id);
   await prisma.$transaction(async tx => {
     if (await tx.itens.count({ where: { categoria_id: id } })) throw new HttpError(409, "Categoria em uso", "categoria_em_uso");
-    await tx.categorias.delete({ where: { id } }); await audit(tx, req.user!.id, "remover", "categoria", id);
+    await tx.categorias.delete({ where: { id } }); await audit(tx, req.user!.id, "categoria_alterada", "categoria", id, { operacao: "remover" });
   }); res.json({ success: true });
 };
 // Resume divergência financeira para análise no painel.

@@ -1,5 +1,4 @@
 import crypto from "node:crypto";
-import prisma from "../config/database.ts";
 
 // Ordena chaves recursivamente para que parâmetros equivalentes gerem a mesma impressão digital.
 function canonical(value: unknown): unknown {
@@ -17,6 +16,7 @@ export function operationFingerprint(value: unknown): string {
 
 // Reivindica a operação no banco com lease; evita duas chamadas simultâneas ao provedor.
 export async function claimGatewayOperation(chave: string, leaseMs = 60_000): Promise<boolean> {
+  const { default: prisma } = await import("../config/database.ts");
   const now = new Date();
   const claimed = await prisma.operacoes_gateway.updateMany({
     where: { chave, OR: [{ estado: { in: ["pendente", "falhou"] } }, { estado: "processando", lease_ate: { lt: now } }] },
@@ -27,6 +27,7 @@ export async function claimGatewayOperation(chave: string, leaseMs = 60_000): Pr
 
 // Aplica o mesmo lease a criação, cancelamento e estorno de pagamentos.
 export async function claimPaymentOperation(chave: string, leaseMs = 60_000): Promise<boolean> {
+  const { default: prisma } = await import("../config/database.ts");
   const now = new Date();
   const claimed = await prisma.operacoes_pagamento.updateMany({
     where: { chave, OR: [{ estado: { in: ["pendente", "falhou"] } }, { estado: "processando", lease_ate: { lt: now } }] },

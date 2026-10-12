@@ -1,0 +1,41 @@
+/* Complementa usuarios.css/admin-shared.css. Só o que é da fila de verificações. */
+
+.admin-tabela tbody tr[data-id]{
+    cursor: pointer;
+}
+
+/* Data de envio + há quanto tempo, na mesma célula */
+.verif-enviado{
+    display: block;
+}
+
+.verif-enviado small{
+    display: block;
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--admin-texto-muted);
+}
+
+/* Pendente há mais de 48 h (prazo prometido ao usuário) */
+.verif-enviado small.atrasada{
+    color: var(--admin-vermelho-txt);
+    font-weight: 700;
+}
+
+/* Conta suspensa com verificação na fila */
+.verif-tag-suspensa{
+    display: inline-block;
+    margin-left: 6px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--admin-ambar-txt);
+    background: var(--admin-ambar-bg);
+    vertical-align: middle;
+}
+
+@media (max-width: 680px){
+    /* No card mobile a data fica à direita, alinhada com os outros valores */
+    .verif-enviado{ text-align: right; }
+}

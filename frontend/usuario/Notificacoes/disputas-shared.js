@@ -1,7 +1,7 @@
 /* =====================================================
    DISPUTAS VIZIN — MÓDULO COMPARTILHADO (API REAL)
    -----------------------------------------------------
-   Relatos de problema na retirada, na devolução ou na multa (objeto
+   Relatos de problema na retirada ou na devolução (objeto
    diferente do anúncio, chegou danificado, a outra parte não aparece...).
 
    Rotas:
@@ -9,12 +9,12 @@
      GET  /solicitacoes/:id/relatos    -> lista (autor_id, status, resposta_usuario, criado_em)
 
    O back reaproveita o sistema de denúncias do Suporte, AVISA A OUTRA PARTE
-   (notificação "problema_reportado" ou "multa_contestada") e devolve o
+   (notificação "problema_reportado") e devolve o
    mesmo relato se o mesmo autor repetir aluguel + etapa + motivo (retry).
    Este módulo NÃO cria notificações.
 
    Erros (ApiError.codigo): nao_pertence, nao_encontrada, etapa_indisponivel,
-   sem_multa, relato_invalido, dados_invalidos.
+   relato_invalido, dados_invalidos.
    ===================================================== */
 
 const DisputasVizin = (function () {
@@ -28,11 +28,10 @@ const DisputasVizin = (function () {
         objeto_danificado: "O objeto chegou danificado",
         objeto_incompleto: "Faltam peças/acessórios do objeto",
         outra_parte_ausente: "A outra parte não apareceu / não responde",
-        multa_indevida: "A multa por atraso não deveria ser cobrada de mim",
         outro: "Outro motivo"
     };
 
-    // etapa = "retirada" | "devolucao" | "multa"
+    // etapa = "retirada" | "devolucao"
     async function abrirRelato({ aluguelId, etapa, motivo, descricao }) {
         return Api.post("/relatos", {
             solicitacao_id: aluguelId,

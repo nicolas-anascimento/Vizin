@@ -78,10 +78,13 @@ function showToast(message, variante = 'sucesso'){
                                             específico (vem do Histórico,
                                             ou do Produto quando já existe
                                             uma locação aprovada)
+     avaliacaoId / avaliacaoAutor       -> denúncia de uma avaliação
+                                            específica (vem do Produto ou
+                                            do Perfil, no botão "Denunciar"
+                                            de cada avaliação)
      assunto / mensagem       -> pré-preenche o campo de texto livre da aba
                                   atual (Ajuda ou Denúncia, o que estiver
-                                  ativo). Ex: link "Fale com o Suporte" da
-                                  página de Pagamento-multa.
+                                  ativo).
  
    Nenhum desses vem por acaso: back-end recebe motivo + contra +
    produtoId + aluguelId junto do texto livre (ver montarPayloadDenuncia).
@@ -97,10 +100,11 @@ const contexto = {
   proprietarioNome: params.get('proprietarioNome') || null,
   aluguelId: params.get('aluguelId') || null,
   outraParteNome: params.get('outraParteNome') || null,
+  avaliacaoId: params.get('avaliacaoId') || null,
+  avaliacaoAutor: params.get('avaliacaoAutor') || null,
   motivo: params.get('motivo') || null,
   // Pré-preenchimento de texto livre — usado por telas que já sabem
-  // exatamente o que a pessoa quer perguntar/denunciar (ex: o link "Fale
-  // com o Suporte" da página de Pagamento-multa), pra não fazer ela
+  // exatamente o que a pessoa quer perguntar/denunciar, pra não fazer ela
   // redigitar o contexto que a própria plataforma já tinha.
   assunto: params.get('assunto') || null,
   mensagem: params.get('mensagem') || null
@@ -109,7 +113,7 @@ const contexto = {
 const contraId = contexto.usuarioId || contexto.proprietarioId || null;
 const contraNome = contexto.usuarioNome || contexto.proprietarioNome || contexto.outraParteNome || null;
  
-const temContexto = !!(contraId || contexto.produtoId || contexto.aluguelId || params.get('tipo') === 'denuncia');
+const temContexto = !!(contraId || contexto.produtoId || contexto.aluguelId || contexto.avaliacaoId || params.get('tipo') === 'denuncia');
  
 const motivoSelect = document.getElementById('denuncia-motivo');
 const MOTIVOS_VALIDOS = Array.from(motivoSelect.options).map(o => o.value).filter(Boolean);
@@ -124,6 +128,11 @@ function montarTextoContexto(){
   if (contraNome) partes.push(`usuário <strong>${escapeHtml(contraNome)}</strong>`);
   if (contexto.produtoTitulo) partes.push(`anúncio <strong>${escapeHtml(contexto.produtoTitulo)}</strong>`);
   if (contexto.aluguelId) partes.push(`aluguel <strong>#${escapeHtml(contexto.aluguelId)}</strong>`);
+  if (contexto.avaliacaoId) {
+    partes.push(contexto.avaliacaoAutor
+      ? `avaliação de <strong>${escapeHtml(contexto.avaliacaoAutor)}</strong>`
+      : `uma avaliação`);
+  }
   if (!partes.length) return null;
   return `Denunciando: ${partes.join(' &middot; ')}`;
 }
@@ -369,6 +378,7 @@ function montarPayloadDenuncia({ motivo, aluguelId, assunto, mensagem }){
     contra: contraId,
     produtoId: contexto.produtoId || null,
     aluguelId: aluguelId || null,
+    avaliacaoId: contexto.avaliacaoId || null,
     assunto,
     mensagem,
     anexoIds: []
@@ -449,8 +459,26 @@ function classificarStatus(status) {
   const s = (status || '').toLowerCase();
   if (/resolvid|conclu[ií]d|finalizad|aceit/.test(s)) return 'resolvido';
   if (/andamento|an[aá]lise|revis/.test(s)) return 'andamento';
-  if (/rejeit|recusad|negad|cancelad/.test(s)) return 'rejeitado';
+  if (/rejeit|recusad|negad|cancelad|improcedent/.test(s)) return 'rejeitado';
+  if (/fechad|encerrad/.test(s)) return 'fechado';
   return 'aberto';
+}
+
+// O back manda a chave do status (aberta, andamento, resolvida, fechada,
+// improcedente); aqui vira o texto que a pessoa lê. Se vier outro texto,
+// mostra como veio.
+const ROTULOS_STATUS_CHAMADO = {
+  aberta: 'Aberta',
+  aberto: 'Aberto',
+  andamento: 'Em andamento',
+  resolvida: 'Resolvida',
+  fechada: 'Fechada',
+  improcedente: 'Improcedente'
+};
+
+function rotuloStatusChamado(status) {
+  const chave = String(status || '').toLowerCase();
+  return ROTULOS_STATUS_CHAMADO[chave] || status || 'Aberto';
 }
 
 // Formata qualquer data/hora ISO vinda do back (ex: "2026-09-20T14:23:00Z")
@@ -460,6 +488,29 @@ function formatarDataChamado(dataStr) {
   const d = new Date(dataStr);
   if (Number.isNaN(d.getTime())) return '';
   return d.toLocaleDateString('pt-BR');
+}
+
+function criarBlocoResposta(titulo, mensagem, criadoEm) {
+  const bloco = document.createElement('div');
+  bloco.className = 'chamado-resposta';
+
+  const cabecalho = document.createElement('div');
+  cabecalho.className = 'chamado-resposta-topo';
+  const autor = document.createElement('strong');
+  autor.textContent = titulo;
+  cabecalho.appendChild(autor);
+  const data = formatarDataChamado(criadoEm);
+  if (data) {
+    const dataEl = document.createElement('span');
+    dataEl.textContent = data;
+    cabecalho.appendChild(dataEl);
+  }
+  bloco.appendChild(cabecalho);
+
+  const texto = document.createElement('p');
+  texto.textContent = mensagem;
+  bloco.appendChild(texto);
+  return bloco;
 }
 
 function criarChamadoItem(chamado) {
@@ -480,7 +531,7 @@ function criarChamadoItem(chamado) {
   const statusTexto = chamado.status || 'Aberto';
   const statusBadge = document.createElement('span');
   statusBadge.className = `badge badge-status-${classificarStatus(statusTexto)}`;
-  statusBadge.textContent = statusTexto;
+  statusBadge.textContent = rotuloStatusChamado(statusTexto);
   badges.appendChild(statusBadge);
 
   top.appendChild(badges);
@@ -499,6 +550,20 @@ function criarChamadoItem(chamado) {
   desc.className = 'chamado-desc';
   desc.textContent = chamado.descricao || 'Sem assunto';
   item.appendChild(desc);
+
+  // Desfecho de uma denúncia improcedente: o admin escreve o motivo e a
+  // pessoa precisa conseguir ler (campo motivo_improcedencia, opcional).
+  if (chamado.motivo_improcedencia) {
+    item.appendChild(criarBlocoResposta('Motivo da análise', chamado.motivo_improcedencia, null));
+  }
+
+  // Respostas do atendente (opcional): [{ autor, mensagem, criado_em }].
+  if (Array.isArray(chamado.respostas)) {
+    chamado.respostas.forEach(r => {
+      if (!r || !r.mensagem) return;
+      item.appendChild(criarBlocoResposta(r.autor || 'Suporte', r.mensagem, r.criado_em));
+    });
+  }
 
   if (chamado.protocolo) {
     const meta = document.createElement('div');
@@ -552,3 +617,23 @@ async function carregarMeusChamados() {
   }
 }
 carregarMeusChamados();
+
+// ---------- Conta suspensa ----------
+// Quem está com a conta suspensa só pode pedir reativação: some a aba de
+// Denúncia (e o back também recusa /suporte/denuncia) e a aba Ajuda fica fixa.
+// O link "Pedir reativação" do Perfil já chega aqui com assunto/mensagem
+// preenchidos (parâmetros ?assunto= e ?mensagem=, tratados em aplicarContexto).
+if (window.ContaVizin) {
+  window.ContaVizin.pronto.then(() => {
+    if (!window.ContaVizin.estaSuspensa()) return;
+
+    tabDenuncia.style.display = 'none';
+    document.querySelector('.tabs').style.gridTemplateColumns = '1fr';
+    setActiveTab('ajuda');
+
+    const assuntoEl = document.getElementById('ajuda-assunto');
+    if (!assuntoEl.value) assuntoEl.value = 'Pedido de reativação da conta';
+
+    document.getElementById('faq-section').style.display = 'none';
+  });
+}

@@ -430,12 +430,24 @@ form.addEventListener("submit", async (e) => {
  
   } catch (err) {
     console.error(err);
-    // Erros de validação do back (campo inválido, foto grande demais...) trazem uma
-    // mensagem pronta; falha de rede/servidor cai na mensagem genérica.
-    const erroDeValidacao = err && err.status >= 400 && err.status < 500 && err.status !== 401;
-    statusMsg.textContent = erroDeValidacao
-      ? err.message
-      : (err?.codigo === "rede" ? err.message : "Não foi possível cadastrar o objeto. Tente novamente.");
+
+    // A categoria escolhida pode ter sido excluída pelo admin entre o
+    // carregamento da página e este envio (o <select> já estava carregado
+    // no navegador). ROTA ASSUMIDA / combinar com o back: nesse caso o back
+    // recusa com um `codigo` que menciona "categoria" (ex.: categoria_invalida
+    // ou categoria_nao_encontrada) — ajuste o regex abaixo se o back usar outro nome.
+    if (err && err.codigo && /categoria/i.test(err.codigo)) {
+      statusMsg.textContent = "A categoria selecionada não existe mais. Atualizamos a lista de categorias — escolha outra e envie de novo.";
+      window.CategoriasVizin.invalidar();
+      window.CategoriasVizin.carregar(document.getElementById("categoria")).catch(() => {});
+    } else {
+      // Erros de validação do back (campo inválido, foto grande demais...) trazem uma
+      // mensagem pronta; falha de rede/servidor cai na mensagem genérica.
+      const erroDeValidacao = err && err.status >= 400 && err.status < 500 && err.status !== 401;
+      statusMsg.textContent = erroDeValidacao
+        ? err.message
+        : (err?.codigo === "rede" ? err.message : "Não foi possível cadastrar o objeto. Tente novamente.");
+    }
     statusMsg.className = "status-msg error";
   } finally {
     btnSubmit.disabled = false;

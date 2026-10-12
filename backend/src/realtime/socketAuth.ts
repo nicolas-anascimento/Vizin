@@ -59,10 +59,11 @@ export async function authenticateSocket(
             token_version: true,
           },
         });
-        if (!user?.ativo || user.token_version !== payload.tokenVersion) continue;
+        if (!user || user.token_version !== payload.tokenVersion) continue;
         socket.data.userId = user.id;
         socket.data.email = user.email;
         socket.data.role = user.tipo;
+        socket.data.active = user.ativo;
         next();
         return;
       } catch {

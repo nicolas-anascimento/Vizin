@@ -11,7 +11,7 @@
         páginas não precisam virar assíncronas em todo lugar;
      2. traduz o DTO da API (snake_case, status do banco) pro formato
         que as telas já usavam (camelCase, status "rejeitado"/"concluido");
-     3. expõe as AÇÕES (criar, responder, cancelar, contestarMulta) como
+     3. expõe as AÇÕES (criar, responder e cancelar) como
         funções assíncronas que chamam o back e depois atualizam o cache.
 
    COMO USAR NAS PÁGINAS
@@ -313,14 +313,6 @@
         }
     }
 
-    // Só o locatário pode contestar. Suspende a cobrança e o bloqueio até o
-    // Suporte decidir; o back avisa a outra parte.
-    async function contestarMulta(id, descricao) {
-        const r = await Api.post(`/solicitacoes/${enc(id)}/multa/contestacao`, { descricao });
-        await atualizar();
-        return r;
-    }
-
     // ================= UTILITÁRIOS =================
     function formatarReal(valor) {
         return `R$ ${Number(valor).toFixed(2).replace(".", ",")}`;
@@ -347,7 +339,6 @@
         responder,
         cancelar,
         obterMulta,
-        contestarMulta,
 
         formatarReal
     };

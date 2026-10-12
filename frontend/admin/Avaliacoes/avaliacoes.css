@@ -1,0 +1,108 @@
+/**
+ * avaliacoes.css
+ * ------------------------------------------------------------------
+ * Só o que é específico desta página. Header, toolbar de busca, pills de
+ * filtro, admin-card, tabela, paginação, stats-grid e modais
+ * (admin-modal-overlay/admin-modal/admin-form-campo/admin-form-erro) vêm
+ * de admin-shared.css, reaproveitados como em Anúncios/Usuários/Pagamentos.
+ * ------------------------------------------------------------------
+ */
+
+/* ---------- Card "Nota Média" ---------- */
+.avaliacoes-stat-estrelas {
+  font-size: 15px;
+  color: var(--amarelo, #f5a623);
+  margin-left: 8px;
+}
+
+/* ---------- Card "Distribuição de Notas" ---------- */
+.avaliacoes-dist-linha {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+  color: var(--texto-suave, #6b7280);
+  margin-top: 8px;
+}
+
+.avaliacoes-dist-linha:first-child {
+  margin-top: 4px;
+}
+
+.avaliacoes-dist-linha span:first-child {
+  width: 22px;
+  font-weight: 600;
+  color: var(--texto, #1f2430);
+}
+
+.avaliacoes-dist-linha span:last-child {
+  width: 18px;
+  text-align: right;
+}
+
+.avaliacoes-dist-barra {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--borda, #e5e7eb);
+  overflow: hidden;
+}
+
+.avaliacoes-dist-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--laranja, #f2803c);
+  border-radius: 999px;
+  transition: width 0.25s ease;
+}
+
+/* ---------- Tabela ---------- */
+.avaliacoes-linha-oculta {
+  opacity: 0.55;
+}
+
+/* Reforço textual pra quem escaneia a tabela rápido não confundir uma
+   avaliação oculta (reversível) com uma exclusão — a opacidade sozinha
+   passa despercebida fácil. */
+.avaliacoes-tag-oculta {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  background: #fff3cd;
+  color: #8a5a00;
+  opacity: 1;
+}
+
+.avaliacoes-celula-estrelas {
+  color: var(--amarelo, #f5a623);
+  white-space: nowrap;
+}
+
+.avaliacoes-celula-comentario {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.avaliacoes-celula-acoes {
+  white-space: nowrap;
+}
+
+.avaliacoes-acao-icone {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 15px;
+  padding: 4px 6px;
+  color: var(--roxo, #6f5fe0);
+}
+
+.avaliacoes-acao-icone.avaliacoes-acao-perigo {
+  color: #dc2626;
+}

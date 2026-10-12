@@ -3,7 +3,7 @@ const API_URL = "/api";
 // Rota web canônica, independente da profundidade do arquivo que usa o cliente.
 const LOGIN_INDEX_URL = "/login";
 const HOME_INDEX_URL = "/home";
-const ADMIN_INDEX_URL = "/admin";
+const ADMIN_INDEX_URL = "/admin/inicio";
 
 // O papel vem sempre do usuário devolvido pelo back-end na autenticação
 // atual. O localStorage é somente cache e nunca decide o destino.

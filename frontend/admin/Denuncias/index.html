@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/assets/admin/admin-sidebar/admin-sidebar.css">
+    <link rel="stylesheet" href="/assets/admin/Usuarios/admin-shared.css">
+    <link rel="stylesheet" href="/assets/admin/Denuncias/denuncias-suporte.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <title>Denúncias e Suporte — Admin Vizin</title>
+</head>
+<body class="admin-body" data-page="denuncias-suporte">
+
+    <div id="adminSidebarContainer"></div>
+
+    <main class="admin-main">
+
+        <div class="admin-topbar-mobile">
+            <button id="adminMenuToggle" aria-label="Abrir menu"><i class="bi bi-list"></i></button>
+        </div>
+
+        <header class="admin-page-header admin-page-header-com-acao">
+            <div>
+                <h1>Denúncias e Suporte</h1>
+                <p>Gerencie denúncias e tickets de suporte da plataforma</p>
+            </div>
+            <span class="admin-pendentes-badge" id="pendentesBadge" hidden></span>
+        </header>
+
+        <!-- Banner de casos críticos sem resposta há mais de 24h — só
+             aparece quando existe pelo menos um (ver carregarResumo em
+             denuncias.js). Fica acima dos cards pra chamar atenção antes
+             de qualquer outra coisa na tela. -->
+        <div class="admin-banner-alerta" id="bannerCriticasSemResposta" hidden></div>
+
+        <!-- ================= CARDS DE RESUMO ================= -->
+        <section class="admin-stats-grid">
+            <div class="admin-stat-card">
+                <span class="admin-stat-label">Denúncias Abertas</span>
+                <div class="admin-stat-valor alerta" id="statAbertas">—</div>
+                <span class="admin-stat-sublabel">Aguardando análise</span>
+            </div>
+            <div class="admin-stat-card">
+                <span class="admin-stat-label">Casos Resolvidos</span>
+                <div class="admin-stat-valor" id="statResolvidas">—</div>
+                <span class="admin-stat-sublabel">Total já resolvido</span>
+            </div>
+            <div class="admin-stat-card">
+                <span class="admin-stat-label">Tickets de Suporte</span>
+                <div class="admin-stat-valor" id="statTickets">—</div>
+                <span class="admin-stat-sublabel">Dúvidas e pedidos de ajuda</span>
+            </div>
+        </section>
+
+        <!-- ================= BUSCA + FILTROS ================= -->
+        <div class="admin-filtros-container">
+
+            <section class="admin-toolbar">
+                <div class="admin-search-box">
+                    <i class="bi bi-search"></i>
+                    <input type="text" id="buscaOcorrencias" placeholder="Buscar por ID, denunciante, denunciado ou motivo...">
+                </div>
+
+                <button class="admin-btn-filtro" id="btnFiltros" type="button">
+                    <i class="bi bi-funnel"></i> Filtros
+                </button>
+            </section>
+
+            <!-- 3 grupos de pills (Tipo / Status / Prioridade) no mesmo
+                 painel — mesmo comportamento de abrir/fechar das outras
+                 telas, só que com mais de um grupo dentro (ver
+                 ligarGrupoFiltro em denuncias.js). -->
+            <section class="admin-filtro-status" id="filtroStatusBar">
+
+                <div class="admin-filtro-grupo">
+                    <span class="admin-filtro-status-label">Tipo:</span>
+                    <div class="admin-filtro-pills">
+                        <button type="button" class="admin-filtro-pill active" data-grupo="tipo" data-valor="todos">Todos</button>
+                        <button type="button" class="admin-filtro-pill" data-grupo="tipo" data-valor="denuncia">Denúncia</button>
+                        <button type="button" class="admin-filtro-pill" data-grupo="tipo" data-valor="suporte">Suporte</button>
+                    </div>
+                </div>
+
+                <div class="admin-filtro-grupo">
+                    <span class="admin-filtro-status-label">Status:</span>
+                    <div class="admin-filtro-pills">
+                        <button type="button" class="admin-filtro-pill active" data-grupo="status" data-valor="todos">Todos</button>
+                        <button type="button" class="admin-filtro-pill" data-grupo="status" data-valor="aberta">Aberta</button>
+                        <button type="button" class="admin-filtro-pill" data-grupo="status" data-valor="andamento">Em Progresso</button>
+                        <button type="button" class="admin-filtro-pill" data-grupo="status" data-valor="resolvida">Resolvida</button>
+                        <button type="button" class="admin-filtro-pill" data-grupo="status" data-valor="fechada">Fechada</button>
+                        <button type="button" class="admin-filtro-pill" data-grupo="status" data-valor="improcedente">Improcedente</button>
+                    </div>
+                </div>
+
+                <div class="admin-filtro-grupo">
+                    <span class="admin-filtro-status-label">Prioridade:</span>
+                    <div class="admin-filtro-pills">
+                        <button type="button" class="admin-filtro-pill active" data-grupo="prioridade" data-valor="todos">Todas</button>
+                        <button type="button" class="admin-filtro-pill" data-grupo="prioridade" data-valor="critica">Crítica</button>
+                        <button type="button" class="admin-filtro-pill" data-grupo="prioridade" data-valor="alta">Alta</button>
+                        <button type="button" class="admin-filtro-pill" data-grupo="prioridade" data-valor="media">Média</button>
+                        <button type="button" class="admin-filtro-pill" data-grupo="prioridade" data-valor="baixa">Baixa</button>
+                    </div>
+                </div>
+
+            </section>
+
+        </div>
+
+        <!-- ================= TABELA ================= -->
+        <section class="admin-card">
+
+            <div class="admin-tabela-scroll">
+                <table class="admin-tabela">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Denunciante</th>
+                            <th>Denunciado</th>
+                            <th>Motivo</th>
+                            <th>Prioridade</th>
+                            <th>Data</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="corpoTabelaOcorrencias">
+                        <!-- linhas inseridas via denuncias.js -->
+                    </tbody>
+                </table>
+            </div>
+
+            <p id="tabelaEstadoVazio" class="admin-tabela-vazio" hidden>Nenhuma ocorrência encontrada.</p>
+
+            <div class="admin-tabela-rodape">
+                <span id="infoPaginacao"></span>
+                <div class="admin-paginacao" id="paginacao"></div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Os modais (ver/responder, improcedente, confirmação rápida) são
+         injetados automaticamente por admin-denuncia-acoes.js, mesmo
+         padrão de admin-usuario-acoes.js / admin-avaliacao-acoes.js. -->
+
+    <div id="toast" class="admin-toast"></div>
+
+    <script src="/assets/usuario/Login/api.js"></script>
+    <script src="/assets/admin/Usuarios/admin-api.js"></script>
+    <script src="/assets/admin/Usuarios/admin-usuario-acoes.js"></script>
+    <script src="/assets/admin/Denuncias/denuncias-api.js"></script>
+    <script src="/assets/admin/Denuncias/admin-denuncia-acoes.js"></script>
+    <script src="/assets/admin/admin-sidebar/admin-frame.js"></script>
+    <script src="/assets/admin/Denuncias/denuncias.js"></script>
+
+</body>
+</html>

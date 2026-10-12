@@ -8,7 +8,7 @@ const params = new URLSearchParams(window.location.search);
 const idUsuario = params.get("id");
 
 function iniciais(nome) {
-    return nome.split(" ").filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase()).join("") || "?";
+    return String(nome ?? "").split(" ").filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase()).join("") || "?";
 }
 
 function corAvatar(id) {
@@ -18,8 +18,14 @@ function corAvatar(id) {
 
 function formatarData(iso) {
     if (!iso) return "—";
-    const [ano, mes, dia] = iso.slice(0, 10).split("-");
-    return `${dia}/${mes}/${ano}`;
+    // Data pura (AAAA-MM-DD): formata direto, sem passar por Date (evita voltar um dia por fuso).
+    if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+        const [ano, mes, dia] = iso.split("-");
+        return `${dia}/${mes}/${ano}`;
+    }
+    // Timestamp completo: converte pro fuso do navegador (o que o usuário vê no perfil).
+    const data = new Date(iso);
+    return Number.isNaN(data.getTime()) ? "—" : data.toLocaleDateString("pt-BR");
 }
 
 function labelStatus(status) {
@@ -34,9 +40,33 @@ async function carregarDetalhe() {
 
     let usuario;
     try { usuario = await buscarUsuarioAdminPorId(idUsuario); }
-    catch (err) { conteudo.textContent = err.message; return; }
+    catch (err) {
+        conteudo.innerHTML = `<p class="admin-tabela-vazio">${escAdmin(err.message)}</p>`;
+        return;
+    }
+    // Mesmo mapeamento da lista (usuarios.js): ativo -> status, criado_em -> dataCadastro.
     usuario = { ...usuario, status: usuario.ativo ? 'ativo' : 'inativo', dataCadastro: usuario.criado_em };
     renderizarDetalhe(usuario);
+}
+
+// Verificação de conta. O back manda `verificado` (selo) e `verificacao`
+// ({ id, status } do envio mais recente, ou null se nunca enviou). Sem
+// `verificacao` (back ainda não atualizado), cai no boolean, como antes.
+const VERIFICACAO_LABEL = { aprovado: "Verificado", pendente: "Em análise", rejeitado: "Reprovada" };
+
+function campoVerificacao(usuario) {
+    const v = usuario.verificacao || null;
+    const status = usuario.verificado ? "aprovado" : (v && v.status);
+    const revogada = !usuario.verificado && v && v.status === "rejeitado" && v.revogada;
+    const label = revogada ? "Revogada" : (VERIFICACAO_LABEL[status] || "Não verificado");
+
+    let link = "";
+    if (v && v.id) {
+        const texto = v.status === "pendente" ? "Analisar documentos" : "Ver análise";
+        link = `<a class="detalhe-campo-link" href="/admin/verificacoes/analise?id=${encodeURIComponent(v.id)}">${texto}</a>`;
+    }
+
+    return `<div class="detalhe-campo"><span>Verificação</span><strong>${label}</strong>${link}</div>`;
 }
 
 function renderizarDetalhe(usuario) {
@@ -51,7 +81,6 @@ function renderizarDetalhe(usuario) {
             </div>
             <div class="detalhe-acoes">
                 <button class="admin-btn-secundario" id="btnAlterarStatus"><i class="bi bi-shield-lock"></i> Alterar status</button>
-                
                 <button class="admin-btn-perigo" id="btnExcluir"><i class="bi bi-trash"></i> Excluir</button>
             </div>
         </div>
@@ -59,7 +88,7 @@ function renderizarDetalhe(usuario) {
         <div class="detalhe-grid-info">
             <div class="detalhe-campo"><span>Email</span><strong>${escAdmin(usuario.email)}</strong></div>
             <div class="detalhe-campo"><span>Tipo</span><strong>${usuario.tipo === 'admin' ? 'Administrador' : 'Usuário'}</strong></div>
-            <div class="detalhe-campo"><span>Verificação</span><strong>${usuario.verificado ? 'Verificado' : 'Não verificado'}</strong></div>
+            ${campoVerificacao(usuario)}
             <div class="detalhe-campo"><span>Data de Cadastro</span><strong>${formatarData(usuario.dataCadastro)}</strong></div>
         </div>
 

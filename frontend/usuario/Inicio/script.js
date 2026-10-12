@@ -59,7 +59,7 @@ async function carregarObjetos() {
             // `categoriaSlug` com o slug pra bater com o value do <select>
             // de filtro (que usa ferramentas/eletronicos/... como value).
             categoria: obj.categoria?.nome || obj.categoria_nome || obj.categoria || "",
-            categoriaSlug: obj.categoria?.slug || obj.categoria_slug || obj.categoria || "",
+            categoriaSlug: obj.categoria_slug || obj.categoria_id || "",
             preco: obj.preco_dia ?? obj.preco ?? obj.preco_por_dia,
             localizacao: obj.localizacao,
             imagem: obj.imagem || "/assets/usuario/img/sem-imagem.jpg",

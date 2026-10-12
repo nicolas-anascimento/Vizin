@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/assets/admin/admin-sidebar/admin-sidebar.css?v=13">
+    <link rel="stylesheet" href="/assets/admin/Usuarios/admin-shared.css">
+    <!-- Reaproveita cabeçalho, grid de campos e seções da tela de detalhe do usuário -->
+    <link rel="stylesheet" href="/assets/admin/Detalhes-do-usuario/detalhe.css">
+    <link rel="stylesheet" href="/assets/admin/Analise-verificacao/analise.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <title>Analisar verificação — Admin Vizin</title>
+</head>
+<body class="admin-body" data-page="verificacoes">
+
+    <div id="adminSidebarContainer"></div>
+
+    <main class="admin-main">
+
+        <div class="admin-topbar-mobile">
+            <button id="adminMenuToggle" aria-label="Abrir menu"><i class="bi bi-list"></i></button>
+        </div>
+
+        <a href="/admin/verificacoes" class="admin-voltar">
+            <i class="bi bi-arrow-left"></i> Voltar para Verificações
+        </a>
+
+        <div id="conteudoAnalise">
+            <p class="admin-tabela-vazio">Carregando...</p>
+        </div>
+
+    </main>
+
+    <!-- Confirmar aprovação -->
+    <div class="admin-modal-overlay" id="modalAprovarOverlay" hidden>
+        <div class="admin-modal">
+            <h3>Aprovar verificação</h3>
+            <p>Confirma que o documento é legível, que os dados conferem com o cadastro de <strong id="modalAprovarNome"></strong> e que a selfie mostra a mesma pessoa segurando o documento?
+               A conta receberá o selo de verificada.</p>
+            <p class="admin-form-erro" id="modalAprovarErro"></p>
+            <div class="admin-modal-botoes">
+                <button class="admin-btn-secundario" id="modalAprovarCancelar" type="button">Cancelar</button>
+                <button class="admin-btn-primario" id="modalAprovarConfirmar" type="button">Aprovar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reprovar (motivo obrigatório) -->
+    <div class="admin-modal-overlay" id="modalReprovarOverlay" hidden>
+        <div class="admin-modal">
+            <h3>Reprovar verificação</h3>
+            <p>Usuário: <strong id="modalReprovarNome"></strong></p>
+
+            <div class="admin-form-campo">
+                <label for="modalReprovarMotivo">Motivo da reprovação (o usuário vai ver este texto)</label>
+                <textarea id="modalReprovarMotivo" maxlength="500" rows="4"></textarea>
+                <div class="analise-motivos-rapidos" id="motivosRapidos">
+                    <button type="button" data-motivo="As fotos não estão legíveis. Envie imagens nítidas, com boa iluminação e sem reflexos.">Foto ilegível</button>
+                    <button type="button" data-motivo="O documento enviado está vencido ou inválido. Envie um documento dentro da validade.">Documento vencido</button>
+                    <button type="button" data-motivo="Na selfie, o rosto e o documento precisam aparecer juntos e legíveis.">Selfie sem documento</button>
+                    <button type="button" data-motivo="Os dados do documento não conferem com os dados do cadastro.">Dados não conferem</button>
+                </div>
+            </div>
+
+            <p class="admin-form-erro" id="modalReprovarErro"></p>
+            <div class="admin-modal-botoes">
+                <button class="admin-btn-secundario" id="modalReprovarCancelar" type="button">Cancelar</button>
+                <button class="admin-btn-perigo" id="modalReprovarConfirmar" type="button">Reprovar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Revogar verificação já aprovada (motivo obrigatório) -->
+    <div class="admin-modal-overlay" id="modalRevogarOverlay" hidden>
+        <div class="admin-modal">
+            <h3>Revogar verificação</h3>
+            <p><strong id="modalRevogarNome"></strong> perderá o selo de verificado e poderá enviar os documentos de novo. Use quando surgir indício de fraude ou os dados deixarem de bater com o documento.</p>
+
+            <div class="admin-form-campo">
+                <label for="modalRevogarMotivo">Motivo da revogação (o usuário vai ver este texto)</label>
+                <textarea id="modalRevogarMotivo" maxlength="500" rows="4"></textarea>
+            </div>
+
+            <p class="admin-form-erro" id="modalRevogarErro"></p>
+            <div class="admin-modal-botoes">
+                <button class="admin-btn-secundario" id="modalRevogarCancelar" type="button">Cancelar</button>
+                <button class="admin-btn-perigo" id="modalRevogarConfirmar" type="button">Revogar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Imagem ampliada -->
+    <div class="admin-modal-overlay" id="modalImagemOverlay" hidden>
+        <div class="admin-modal analise-lightbox">
+            <img id="modalImagemImg" src="" alt="">
+            <div class="admin-modal-botoes">
+                <button class="admin-btn-secundario" id="modalImagemFechar" type="button">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="admin-toast"></div>
+
+    <script src="/assets/usuario/Login/api.js"></script>
+    <script src="/assets/admin/Verificacoes/verificacoes-api.js"></script>
+    <script src="/assets/admin/admin-sidebar/admin-frame.js"></script>
+    <script src="/assets/admin/Analise-verificacao/analise.js"></script>
+
+</body>
+</html>

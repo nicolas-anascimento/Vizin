@@ -36,6 +36,7 @@ router.get("/privacidade", requireAuth, settings.preferences("privacidade"));
 router.put("/privacidade", requireAuth, settings.preferences("privacidade"));
 router.get("/me/verificacao", requireAuth, identity.identityStatus);
 router.post("/verificacao", requireAuth, identityUpload, verifyUploads, identity.submitIdentity);
+router.delete("/verificacao", requireAuth, identity.cancelIdentity);
 router.get("/me/enderecos", requireAuth, addresses.listAddresses);
 router.get("/me/enderecos/:id", requireAuth, addresses.getAddress);
 router.post("/me/enderecos", requireAuth, addresses.saveAddress);

@@ -1,0 +1,15 @@
+/* Tema do painel admin — carregar DEPOIS do admin-sidebar.css em TODA página do admin.
+   O admin-preferencias.js define data-tema="auto|claro|escuro" no <html>. */
+:root{ --admin-faixa:#F8F9FB; }
+:root[data-tema="escuro"]{
+    color-scheme:dark;
+    --admin-bg:#14101f; --admin-surface:#1f1933; --admin-faixa:#2a2342;
+    --admin-borda:#372d57; --admin-texto:#f2f0fa; --admin-texto-muted:#a9a3c2;
+}
+@media (prefers-color-scheme: dark){
+    :root[data-tema="auto"]{
+        color-scheme:dark;
+        --admin-bg:#14101f; --admin-surface:#1f1933; --admin-faixa:#2a2342;
+        --admin-borda:#372d57; --admin-texto:#f2f0fa; --admin-texto-muted:#a9a3c2;
+    }
+}

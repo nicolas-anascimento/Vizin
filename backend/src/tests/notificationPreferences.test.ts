@@ -89,7 +89,7 @@ test("pagamento, multa, retirada, devolução, suporte e segurança são obrigat
     "avaliacao_recebida", "mensagens", "novidades",
   ].map((key) => [key, false]));
   const { db, created } = database({ [userA]: disabled });
-  const mandatory = ["pagamento", "multa_paga", "multa_contestada", "retirada", "retirada_atrasada", "devolucao", "suporte", "bloqueio_conta"];
+  const mandatory = ["pagamento", "multa_paga", "retirada", "retirada_atrasada", "devolucao", "suporte", "bloqueio_conta"];
   for (const tipo of mandatory) {
     assert.equal(notificationPreferenceForType(tipo), null);
     await createNotification(db, { usuario_id: userA, tipo, titulo: tipo });

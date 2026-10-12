@@ -1,7 +1,7 @@
 const escAdmin = valor => String(valor ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
 
 
-const POR_PAGINA = 4;
+const POR_PAGINA = 25; // mesmo padrão de listarUsuariosAdmin (admin-api.js)
 const CORES_AVATAR = ["#6D49F2", "#F27C38", "#3B82C4", "#1F9D66", "#B4770A", "#C4362B"];
 
 let estado = {
@@ -11,6 +11,15 @@ let estado = {
     usuarios: [],
     total: 0
 };
+
+// Permite abrir a tela já filtrada via URL (ex: /admin/usuarios?status=inativo),
+// usado pelo atalho "Ver usuários suspensos" da tela de Denúncias/Suporte.
+// Só aceita os dois valores válidos do filtro — qualquer outra coisa na URL
+// é ignorada e a tela abre em "todos", sem quebrar.
+const _statusUrlUsuarios = new URLSearchParams(window.location.search).get("status");
+if (_statusUrlUsuarios === "ativo" || _statusUrlUsuarios === "inativo") {
+    estado.status = _statusUrlUsuarios;
+}
 
 const corpoTabela = document.getElementById("corpoTabelaUsuarios");
 const infoPaginacao = document.getElementById("infoPaginacao");
@@ -32,8 +41,8 @@ async function carregarUsuarios() {
             pagina: estado.pagina,
             porPagina: POR_PAGINA
         });
-        estado.total = resposta.total;
-        estado.usuarios = resposta.dados
+        estado.total = Number(resposta.total) || 0;
+        estado.usuarios = (resposta.dados || [])
             .map(u => ({ ...u, status: u.ativo ? 'ativo' : 'inativo', dataCadastro: u.criado_em }));
     } catch (err) {
         corpoTabela.innerHTML = `<tr><td colspan="6" class="admin-tabela-vazio">${escAdmin(err.message)}</td></tr>`;
@@ -59,7 +68,7 @@ async function carregarUsuarios() {
 // RENDER
 // =====================================================
 function iniciais(nome) {
-    return nome.split(" ").filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase()).join("") || "?";
+    return String(nome ?? "").split(" ").filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase()).join("") || "?";
 }
 
 function corAvatar(id) {
@@ -68,8 +77,14 @@ function corAvatar(id) {
 
 function formatarData(iso) {
     if (!iso) return "—";
-    const [ano, mes, dia] = iso.slice(0, 10).split("-");
-    return `${dia}/${mes}/${ano}`;
+    // Data pura (AAAA-MM-DD): formata direto, sem passar por Date (evita voltar um dia por fuso).
+    if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+        const [ano, mes, dia] = iso.split("-");
+        return `${dia}/${mes}/${ano}`;
+    }
+    // Timestamp completo: converte pro fuso do navegador (o que o usuário vê no perfil).
+    const data = new Date(iso);
+    return Number.isNaN(data.getTime()) ? "—" : data.toLocaleDateString("pt-BR");
 }
 
 function labelStatus(status) {
@@ -151,6 +166,12 @@ document.addEventListener("click", (e) => {
     }
 });
 
+// Reflete o status inicial (vindo da URL ou o padrão "todos") no pill e no
+// botão "Filtros" antes da 1ª renderização — sem isso o filtro aplicaria
+// certo mas a UI mostraria "todos" selecionado.
+pillsFiltro.forEach(p => p.classList.toggle("active", p.dataset.status === estado.status));
+btnFiltros.classList.toggle("active", estado.status !== "todos");
+
 pillsFiltro.forEach(pill => {
     pill.addEventListener("click", () => {
         pillsFiltro.forEach(p => p.classList.remove("active"));
@@ -199,7 +220,7 @@ corpoTabela.addEventListener("click", (e) => {
     const acao = btn.dataset.acao;
 
     if (acao === "ver") {
-        window.location.href = `/admin/usuarios/detalhe?id=${usuario.id}`;
+        window.location.href = `/admin/usuarios/detalhe?id=${encodeURIComponent(usuario.id)}`;
     }
 
 

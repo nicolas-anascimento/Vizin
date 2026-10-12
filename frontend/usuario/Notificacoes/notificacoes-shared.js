@@ -72,6 +72,31 @@
         document.dispatchEvent(new CustomEvent("notificacoesAtualizadas"));
     }
 
+    // ================= RESSINCRONIZAR SolicitacoesVizin =================
+    // notificacoes-shared.js recebe eventos em tempo real (Socket.IO) e faz
+    // polling a cada 20s; solicitacoes-shared.js só faz polling a cada 30s,
+    // sem socket. Resultado: quando chega uma notificação tipo
+    // "solicitacao_aluguel" (ou qualquer evento que muda o status de uma
+    // solicitação), a página de Notificações pode renderizar o card ANTES do
+    // cache de SolicitacoesVizin ter sido atualizado — ex.: criarCard() em
+    // notificacoes.js decide se mostra "Ver solicitação" checando
+    // SolicitacoesVizin.obterPorId(...).status === "pendente", e por até 30s
+    // essa leitura pode estar desatualizada ou vir null.
+    // Em vez de esperar o back expor um socket também pras solicitações,
+    // forçamos um refresh imediato do SolicitacoesVizin sempre que chega uma
+    // notificação de um tipo que reflete mudança de status de solicitação.
+    const TIPOS_QUE_AFETAM_SOLICITACAO = new Set([
+        "solicitacao_aluguel", "aluguel_aprovado", "aluguel_rejeitado", "aluguel_cancelado",
+        "retirada_confirmada", "retirada_atrasada", "devolucao_confirmada",
+        "pagamento_liberado", "multa_paga", "problema_reportado"
+    ]);
+
+    function ressincronizarSolicitacoesSeNecessario(notificacoes) {
+        if (!window.SolicitacoesVizin) return;
+        const precisa = notificacoes.some(n => TIPOS_QUE_AFETAM_SOLICITACAO.has(n.tipo));
+        if (precisa) window.SolicitacoesVizin.atualizar().catch(() => {});
+    }
+
     // ================= CARGA (polling) =================
     async function carregar() {
         if (carregando) return carregando;
@@ -95,7 +120,10 @@
 
                 if (mudou) avisarMudanca();
                 // Toast/som só das que chegaram enquanto a página estava aberta.
-                if (chegaram.length > 0) mostrarToastNotificacao(chegaram[0]);
+                if (chegaram.length > 0) {
+                    mostrarToastNotificacao(chegaram[0]);
+                    ressincronizarSolicitacoesSeNecessario(chegaram);
+                }
             } finally {
                 carregando = null;
             }
@@ -115,6 +143,7 @@
         primeiraCargaFeita = true;
         avisarMudanca();
         mostrarToastNotificacao(recebida);
+        ressincronizarSolicitacoesSeNecessario([recebida]);
     });
 
     setInterval(() => { if (!document.hidden) carregar().catch(() => {}); }, INTERVALO_POLLING_MS);
@@ -205,8 +234,6 @@
     // ================= ÍCONE POR TIPO =================
     function iconePorTipo(tipo) {
         switch (tipo) {
-            case "aluguel_confirmado": return "bi-check-lg";
-            case "avaliacao": return "bi-star-fill";
             case "lembrete": return "bi-bell";
             case "solicitacao_aluguel": return "bi-inbox";
             case "aluguel_aprovado": return "bi-check-lg";
@@ -220,11 +247,33 @@
             case "mensagem": return "bi-chat-dots-fill";
             case "resposta_email": return "bi-envelope-check-fill";
             case "bloqueio_conta": return "bi-slash-circle";
+            case "conta_reativada": return "bi-check-circle-fill";
+            case "verificacao_aprovada": return "bi-patch-check-fill";
+            case "verificacao_reprovada": return "bi-patch-exclamation-fill";
+            // O admin tirou o selo de uma conta que já estava verificada.
+            case "verificacao_revogada": return "bi-patch-minus-fill";
             case "problema_reportado": return "bi-flag-fill";
             case "multa_paga": return "bi-receipt";
-            case "multa_contestada": return "bi-shield-exclamation";
             case "dados_atualizados_admin": return "bi-pencil-square";
+            // Comunicado em massa enviado pela Central de Notificações do admin.
+            // Sem destino (obterDestino cai em null): mostra só "Marcar como lida".
+            case "comunicado_admin": return "bi-megaphone-fill";
+            // Desfecho de um chamado do Suporte/denúncia (resolvida, fechada ou
+            // improcedente). A resposta escrita pelo atendente usa "resposta_email".
+            case "ocorrencia_atualizada": return "bi-clipboard-check";
             case "anuncio_removido_admin": return "bi-x-octagon-fill";
+            // Ainda não existe no back (ver mensagem sobre isso) — preparado
+            // aqui pra quando o admin passar a notificar também a OCULTAÇÃO
+            // (não só o arquivamento) de um anúncio.
+            case "anuncio_ocultado_admin": return "bi-eye-slash-fill";
+            // Moderação de avaliação pelo admin — "ocultada" (reversível) e
+            // "removida" (permanente), tanto pra quem ESCREVEU a avaliação
+            // quanto pra quem foi AVALIADO por ela (a nota dele muda).
+            // Nenhum dos quatro existe no back ainda (ver mensagem sobre isso).
+            case "avaliacao_ocultada_admin": return "bi-eye-slash-fill";
+            case "avaliacao_removida_admin": return "bi-x-octagon-fill";
+            case "avaliacao_sobre_voce_ocultada_admin": return "bi-eye-slash-fill";
+            case "avaliacao_sobre_voce_removida_admin": return "bi-x-octagon-fill";
             default: return "bi-bell";
         }
     }
@@ -330,13 +379,34 @@
     const DESTINO_HISTORICO = () => "/historico";
 
     const TIPOS_EM_ANDAMENTO = new Set(["aluguel_aprovado", "retirada_confirmada", "retirada_atrasada", "lembrete", "problema_reportado"]);
-    const TIPOS_HISTORICO = new Set(["aluguel_rejeitado", "aluguel_cancelado", "devolucao_confirmada", "pagamento_liberado"]);
+    // multa_paga ficava de fora de qualquer mapa: tinha
+    // ícone e cor (notificacoes.css/iconePorTipo) mas obterDestino() caía no
+    // "null" e a notificação só mostrava "Marcar como lida", sem link nenhum
+    // pro Histórico — diferente de pagamento_liberado, que é do mesmo
+    // universo (financeiro/pós-locação) e sempre teve destino.
+    const TIPOS_HISTORICO = new Set(["aluguel_rejeitado", "aluguel_cancelado", "devolucao_confirmada", "pagamento_liberado", "multa_paga"]);
+
+    // Pra quem ESCREVEU a avaliação que o admin ocultou/removeu: manda pro
+    // Histórico (é onde está o aluguel ao qual a avaliação se referia).
+    const TIPOS_AVALIACAO_PROPRIA_MODERADA = new Set(["avaliacao_ocultada_admin", "avaliacao_removida_admin"]);
 
     // Notificações de conta/administrativas: não dependem de solicitacaoId.
     const TIPOS_CONTA = new Map([
         ["bloqueio_conta", () => "/perfil"],
+        ["conta_reativada", () => "/perfil"],
+        // O card "Verifique sua conta" (perfil.js) já mostra o motivo da reprovação e o botão pra tentar de novo.
+        ["verificacao_aprovada", () => "/perfil"],
+        ["verificacao_reprovada", () => "/perfil"],
+        ["verificacao_revogada", () => "/perfil"],
         ["dados_atualizados_admin", () => "/perfil"],
-        ["anuncio_removido_admin", () => "/meus-objetos"]
+        ["anuncio_removido_admin", () => "/meus-objetos"],
+        // Ver comentário em iconePorTipo — pronto pro back começar a mandar.
+        ["anuncio_ocultado_admin", () => "/meus-objetos"],
+        // Respostas e desfechos do Suporte: levam pra "Meus chamados", onde
+        // ficam a resposta do atendente e o motivo (ex.: denúncia improcedente).
+        // ATENÇÃO: confirme que "/suporte" é a rota da página de Suporte.
+        ["resposta_email", () => "/suporte#meus-chamados-titulo"],
+        ["ocorrencia_atualizada", () => "/suporte#meus-chamados-titulo"]
     ]);
 
     // "avaliacao_recebida" não tem UM destino fixo: se eu era o proprietário
@@ -356,7 +426,16 @@
     }
 
     function obterDestino(notificacao) {
-        if (notificacao.tipo === "avaliacao_recebida") return obterDestinoAvaliacao(notificacao);
+        // "sobre_voce" usa a MESMA regra de destino de avaliacao_recebida
+        // (produto se eu era proprietário, meu perfil se eu era locatário)
+        // porque é a mesma avaliação — só que agora ela sumiu/ficou oculta,
+        // e a pessoa quer ver a nota que mudou.
+        if (notificacao.tipo === "avaliacao_recebida"
+            || notificacao.tipo === "avaliacao_sobre_voce_ocultada_admin"
+            || notificacao.tipo === "avaliacao_sobre_voce_removida_admin") {
+            return obterDestinoAvaliacao(notificacao);
+        }
+        if (TIPOS_AVALIACAO_PROPRIA_MODERADA.has(notificacao.tipo)) return DESTINO_HISTORICO();
         if (TIPOS_CONTA.has(notificacao.tipo)) return TIPOS_CONTA.get(notificacao.tipo)();
 
         if (TIPOS_EM_ANDAMENTO.has(notificacao.tipo)) {

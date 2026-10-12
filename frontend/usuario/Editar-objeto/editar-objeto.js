@@ -619,6 +619,15 @@ form.addEventListener("submit", async (e) => {
       objetoExcluidoAlhures = true;
       aplicarBloqueioPorExclusao();
       statusMsg.textContent = "Este objeto foi excluído e não pôde ser salvo.";
+    } else if (err && err.codigo && /categoria/i.test(err.codigo)) {
+      // A categoria escolhida pode ter sido excluída pelo admin entre o
+      // carregamento da página e este envio. ROTA ASSUMIDA / combinar com o
+      // back: nesse caso o back recusa com um `codigo` que menciona "categoria"
+      // (ex.: categoria_invalida ou categoria_nao_encontrada) — ajuste o
+      // regex abaixo se o back usar outro nome.
+      statusMsg.textContent = "A categoria selecionada não existe mais. Atualizamos a lista de categorias — escolha outra e envie de novo.";
+      window.CategoriasVizin.invalidar();
+      window.CategoriasVizin.carregar(document.getElementById("categoria")).catch(() => {});
     } else if (err && err.status >= 400 && err.status < 500 && err.status !== 401) {
       statusMsg.textContent = err.message; // validação do back (campo/foto inválidos)
     } else {

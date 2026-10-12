@@ -39,13 +39,25 @@ async function carregarEstatisticas() {
     try {
         est = await obterEstatisticasPagamentosAdmin();
     } catch (err) {
-        document.getElementById("statReceitaTotal").textContent = "—";
-        document.getElementById("statPendentes").textContent = "—";
-        document.getElementById("statFalhadas").textContent = "—";
+        // "—" também é o estado inicial (carregando), então em erro real
+        // usamos um texto diferente + título com a mensagem, pra não parecer
+        // que a página só está demorando.
+        ["statReceitaTotal", "statPendentes", "statFalhadas"].forEach(id => {
+            const el = document.getElementById(id);
+            el.textContent = "Erro";
+            el.title = err.message;
+            el.classList.add("erro");
+        });
         document.getElementById("graficoReceitaMensal").innerHTML = `<p class="admin-grafico-erro">${escAdmin(err.message)}</p>`;
         document.getElementById("graficoMetodos").innerHTML = "";
         return;
     }
+
+    ["statReceitaTotal", "statPendentes", "statFalhadas"].forEach(id => {
+        const el = document.getElementById(id);
+        el.classList.remove("erro");
+        el.removeAttribute("title");
+    });
 
     document.getElementById("statReceitaTotal").textContent = formatarPrecoPagamento(est.receita_total);
     document.getElementById("statPendentes").textContent = est.pagamentos_pendentes ?? 0;
@@ -128,26 +140,39 @@ function renderizarGraficoMetodos(metodos) {
 // =====================================================
 // TABELA DE TRANSAÇÕES
 // =====================================================
+// Token da requisição em andamento: cada chamada gera um número novo, e só
+// a resposta cujo token ainda bate com o "mais recente pedido" é aplicada
+// na tela. Evita que uma resposta antiga (rede lenta, cliques rápidos em
+// paginação/busca) sobrescreva a tabela com dados de uma página/filtro que
+// o admin já deixou de estar vendo.
+let tokenRequisicaoTransacoes = 0;
+
 async function carregarTransacoes() {
+    const meuToken = ++tokenRequisicaoTransacoes;
+
     corpoTabela.innerHTML = `<tr><td colspan="7" class="admin-tabela-vazio">Carregando...</td></tr>`;
     tabelaEstadoVazio.hidden = true;
 
+    let resposta;
     try {
-        const resposta = await listarTransacoesAdmin({
+        resposta = await listarTransacoesAdmin({
             busca: estado.busca,
             status: estado.status,
             pagina: estado.pagina,
             porPagina: POR_PAGINA
         });
-
-        estado.transacoes = resposta.data || [];
-        estado.total = resposta.total || 0;
     } catch (err) {
+        if (meuToken !== tokenRequisicaoTransacoes) return; // resposta obsoleta, ignora
         corpoTabela.innerHTML = `<tr><td colspan="7" class="admin-tabela-vazio">${escAdmin(err.message)}</td></tr>`;
         infoPaginacao.textContent = '';
         paginacaoEl.innerHTML = '';
         return;
     }
+
+    if (meuToken !== tokenRequisicaoTransacoes) return; // já saiu uma requisição mais nova, ignora esta
+
+    estado.transacoes = resposta.data || [];
+    estado.total = resposta.total || 0;
 
     const totalPaginasAtual = Math.max(1, Math.ceil(estado.total / POR_PAGINA));
     if (estado.pagina > totalPaginasAtual) {
@@ -165,13 +190,29 @@ function idCurto(id) {
     return `#${String(id).slice(0, 8)}`;
 }
 
+// Nome + e-mail (ou link pro perfil) — só o nome não é suficiente numa
+// tela financeira, onde dois usuários com o mesmo nome não podem ficar
+// ambíguos. Reaproveitado pela tabela e pelo modal de detalhes.
+function celulaUsuarioPagamento(usuario) {
+    if (!usuario) return "—";
+
+    const nome = escAdmin(usuario.nome || "—");
+    const nomeHtml = usuario.id
+        ? `<a href="/admin/usuarios/detalhe?id=${encodeURIComponent(usuario.id)}" class="admin-usuario-link">${nome}</a>`
+        : nome;
+
+    return usuario.email
+        ? `${nomeHtml}<br><span class="admin-usuario-email">${escAdmin(usuario.email)}</span>`
+        : nomeHtml;
+}
+
 function renderizarTabela() {
     tabelaEstadoVazio.hidden = estado.transacoes.length > 0;
 
     corpoTabela.innerHTML = estado.transacoes.map(t => `
         <tr data-id="${t.id}">
             <td data-label="ID" class="admin-transacao-id">${escAdmin(idCurto(t.id))}</td>
-            <td data-label="Usuário">${escAdmin(t.usuario?.nome || "—")}</td>
+            <td data-label="Usuário">${celulaUsuarioPagamento(t.usuario)}</td>
             <td data-label="Método"><span class="admin-metodo-pill">${escAdmin(labelMetodoPagamento(t.metodo))}</span></td>
             <td data-label="Valor" class="admin-preco">${formatarPrecoPagamento(t.valor)}</td>
             <td data-label="Data">${t.criado_em ? new Date(t.criado_em).toLocaleDateString("pt-BR") : "—"}</td>
@@ -230,20 +271,47 @@ document.addEventListener("click", (e) => {
     }
 });
 
+function aplicarFiltroStatus(status) {
+    estado.status = status;
+    estado.pagina = 1;
+    btnFiltros.classList.toggle("active", estado.status !== "todos");
+    filtroStatusBar.classList.remove("aberta");
+
+    pillsFiltro.forEach(p => p.classList.toggle("active", p.dataset.status === status));
+
+    carregarTransacoes();
+}
+
 pillsFiltro.forEach(pill => {
-    pill.addEventListener("click", () => {
-        pillsFiltro.forEach(p => p.classList.remove("active"));
-        pill.classList.add("active");
-
-        estado.status = pill.dataset.status;
-        estado.pagina = 1;
-        btnFiltros.classList.toggle("active", estado.status !== "todos");
-
-        filtroStatusBar.classList.remove("aberta");
-
-        carregarTransacoes();
-    });
+    pill.addEventListener("click", () => aplicarFiltroStatus(pill.dataset.status));
 });
+
+// =====================================================
+// CARDS DO TOPO COMO ATALHO DE FILTRO
+// =====================================================
+// "Pendentes" e "Falhadas" já mostram uma contagem — deixá-los clicáveis
+// aplica o filtro correspondente direto na tabela, sem precisar abrir o
+// dropdown de Filtros e achar o pill certo.
+const cardPendentes = document.getElementById("statPendentes").closest(".admin-stat-card");
+const cardFalhadas = document.getElementById("statFalhadas").closest(".admin-stat-card");
+
+function tornarCardClicavel(card, status) {
+    if (!card) return;
+    card.classList.add("admin-stat-card-clicavel");
+    card.setAttribute("role", "button");
+    card.setAttribute("tabindex", "0");
+    const ativar = () => {
+        aplicarFiltroStatus(status);
+        card.closest("main")?.querySelector(".admin-card")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+    card.addEventListener("click", ativar);
+    card.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); ativar(); }
+    });
+}
+
+tornarCardClicavel(cardPendentes, "pendente");
+tornarCardClicavel(cardFalhadas, "falhou");
 
 // =====================================================
 // PAGINAÇÃO
@@ -284,3 +352,18 @@ corpoTabela.addEventListener("click", (e) => {
 // =====================================================
 carregarEstatisticas();
 carregarTransacoes();
+
+// =====================================================
+// ABRIR DIRETO UMA TRANSAÇÃO (?abrir=<id>) — usado pela central de
+// notificações. O modal já busca o detalhe e mostra o erro dele
+// (ex.: transação inexistente) dentro dele mesmo.
+// =====================================================
+(function abrirItemDaUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("abrir");
+    if (!id) return;
+    params.delete("abrir");
+    const resto = params.toString();
+    history.replaceState(null, "", window.location.pathname + (resto ? `?${resto}` : ""));
+    abrirModalDetalhesTransacao({ id });
+})();

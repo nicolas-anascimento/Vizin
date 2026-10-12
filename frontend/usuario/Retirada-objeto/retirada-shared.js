@@ -14,7 +14,15 @@
 // Fotos são privadas: use ApiVizin.urlBlob(caminho) pra exibi-las numa <img>.
 //
 // Erros (ApiError.codigo): nao_pertence, nao_encontrada, conflito (etapa fora
-// do estado), dados_invalidos (tipo/tamanho/quantidade de foto).
+// do estado), dados_invalidos (tipo/tamanho/quantidade de foto),
+// retirada_data_futura (ainda não é o dia da retirada) e
+// retirada_prazo_expirado (passou das 23:59 do dia da retirada).
+//
+// JANELA DA RETIRADA: só pode ser registrada NO DIA agendado, das 00:00 às
+// 23:59 (fuso America/Sao_Paulo). O back é quem decide e informa isso em
+// "codigo_bloqueio" (GET) e nos erros acima (POST). janela() abaixo traduz
+// isso pra as telas e, se o back não informou nada, cai num cálculo local
+// (sempre no fuso de São Paulo, nunca no do aparelho).
 
 const RetiradaVizin = (function () {
     "use strict";
@@ -81,12 +89,57 @@ const RetiradaVizin = (function () {
         return carregar(aluguelId);
     }
 
+    // ---------- Janela da retirada (00:00–23:59 do dia agendado) ----------
+    const FUSO_RETIRADA = "America/Sao_Paulo";
+
+    // "aaaa-mm-dd" de HOJE no fuso de São Paulo (não depende do fuso do aparelho).
+    function hojeISO() {
+        try {
+            return new Intl.DateTimeFormat("en-CA", {
+                timeZone: FUSO_RETIRADA, year: "numeric", month: "2-digit", day: "2-digit"
+            }).format(new Date());
+        } catch (e) {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        }
+    }
+
+    // Diferença em dias inteiros entre duas datas "aaaa-mm-dd" (ate - de).
+    function diasEntreISO(deISO, ateISO) {
+        const [a1, m1, d1] = deISO.split("-").map(Number);
+        const [a2, m2, d2] = ateISO.split("-").map(Number);
+        if ([a1, m1, d1, a2, m2, d2].some(Number.isNaN)) return null;
+        return Math.round((Date.UTC(a2, m2 - 1, d2) - Date.UTC(a1, m1 - 1, d1)) / 86400000);
+    }
+
+    // Estado da janela da retirada:
+    //   "futura"   -> ainda não é o dia (abre às 00:00 do dia agendado)
+    //   "aberta"   -> é o dia agendado (vai até 23:59) ou a demo liberou
+    //   "expirada" -> passou das 23:59 do dia agendado
+    // Prioridade: demo liberada > codigo_bloqueio do back > data (São Paulo).
+    // diff = dias entre hoje e a data agendada (>0 futura, 0 hoje, <0 passou),
+    // ou null se não há data.
+    function janela(aluguelId, dataFallback) {
+        const st = obterStatus(aluguelId);
+        const dataISO = String(st.dataRetirada || dataFallback || "").slice(0, 10);
+        const diff = dataISO ? diasEntreISO(hojeISO(), dataISO) : null;
+
+        let estado;
+        if (st.modoDemo && st.retiradaDemoLiberada) estado = "aberta";
+        else if (st.codigoBloqueio === "retirada_data_futura") estado = "futura";
+        else if (st.codigoBloqueio === "retirada_prazo_expirado") estado = "expirada";
+        else if (diff === null) estado = "aberta";
+        else estado = diff > 0 ? "futura" : diff < 0 ? "expirada" : "aberta";
+
+        return { estado, dataISO, diff };
+    }
+
     function ambosConcluidos(aluguelId) {
         const s = obterStatus(aluguelId);
         return s.locatario.enviado && s.proprietario.enviado;
     }
 
-    return { carregar, liberarRetiradaDemo, obterStatus, enviarFotos, ambosConcluidos };
+    return { carregar, liberarRetiradaDemo, obterStatus, enviarFotos, ambosConcluidos, janela };
 })();
 
 window.RetiradaVizin = RetiradaVizin;

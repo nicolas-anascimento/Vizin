@@ -9,6 +9,7 @@ import { serializeProfile } from "../utils/serializers.ts";
 // Relações usadas para avaliações, histórico e contadores exibidos no perfil.
 const profileInclude = {
   avaliacoes_avaliacoes_avaliado_idTousuarios: {
+    where: { oculta: false },
     orderBy: { criado_em: "desc" as const },
     include: { usuarios_avaliacoes_avaliador_idTousuarios: { select: { nome: true } } },
   },
@@ -19,9 +20,12 @@ const profileInclude = {
 
 // Entrega o perfil completo do usuário autenticado, incluindo os campos privados permitidos.
 export const ownProfile: RequestHandler = async (req, res) => {
-  const user = await prisma.usuarios.findUnique({ where: { id: req.user!.id }, include: profileInclude });
+  const [user, pending] = await Promise.all([
+    prisma.usuarios.findUnique({ where: { id: req.user!.id }, include: profileInclude }),
+    prisma.emails_pendentes.findUnique({ where: { usuario_id: req.user!.id }, select: { email: true, expira_em: true } }),
+  ]);
   if (!user) throw new HttpError(404, "Usuário não encontrado");
-  res.json(serializeProfile(user,true));
+  res.json({ ...serializeProfile(user,true), emailPendente: pending && pending.expira_em > new Date() ? pending.email : null });
 };
 
 // Respeita atividade e privacidade da conta antes de remover campos sensíveis do DTO público.
@@ -45,6 +49,10 @@ export const updateProfile: RequestHandler = async (req, res) => {
   const phone = body.telefone ?? body.whatsapp;
   const telefone = phone === "" ? "" : phone !== undefined ? text(phone,"Telefone",20) : undefined;
   if (telefone && !/^[+()\d\s-]{8,20}$/.test(telefone)) throw new HttpError(422,"Telefone inválido");
+  if (nome) {
+    const approved = await prisma.verificacoes_identidade.count({ where: { usuario_id: req.user!.id, status: "aprovado", revogada: false } });
+    if (approved) throw new HttpError(409, "O nome não pode ser alterado enquanto a identidade estiver verificada.", "nome_bloqueado_verificacao");
+  }
   const user = await prisma.usuarios.update({
     where: { id: req.user!.id },
     data: { ...(nome ? { nome } : {}), ...(bio !== undefined ? { bio } : {}), ...(telefone !== undefined ? { telefone } : {}), atualizado_em: new Date() },

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/assets/admin/admin-sidebar/admin-sidebar.css">
+    <link rel="stylesheet" href="/assets/admin/Usuarios/admin-shared.css">
+    <link rel="stylesheet" href="/assets/admin/Categorias/categorias.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <title>Categorias — Admin Vizin</title>
+</head>
+<body class="admin-body" data-page="categorias">
+
+    <div id="adminSidebarContainer"></div>
+
+    <main class="admin-main">
+
+        <div class="admin-topbar-mobile">
+            <button id="adminMenuToggle" aria-label="Abrir menu"><i class="bi bi-list"></i></button>
+        </div>
+
+        <header class="admin-page-header admin-page-header-com-acao">
+            <div>
+                <h1>Gerenciamento de Categorias</h1>
+                <p>Gerencie as categorias de itens da plataforma</p>
+            </div>
+            <button type="button" class="admin-btn-criar" id="btnCriarCategoria">
+                <i class="bi bi-plus-lg"></i> Criar Categoria
+            </button>
+        </header>
+
+        <!-- Estatísticas gerais -->
+        <section class="cat-stats-card">
+            <h2>Estatísticas Gerais</h2>
+            <div class="cat-stats-grid">
+                <div class="cat-stat cat-stat-roxo">
+                    <span>Total de Categorias</span>
+                    <strong id="statTotalCategorias">–</strong>
+                </div>
+                <div class="cat-stat cat-stat-laranja">
+                    <span>Total de Itens</span>
+                    <strong id="statTotalItens">–</strong>
+                </div>
+                <div class="cat-stat cat-stat-verde">
+                    <span>Média por Categoria</span>
+                    <strong id="statMedia">–</strong>
+                </div>
+            </div>
+        </section>
+
+        <!-- Grade de categorias (cards inseridos via categorias.js) -->
+        <section class="cat-grid" id="gradeCategorias"></section>
+
+    </main>
+
+    <!-- Os modais de Criar/Editar e Excluir categoria NÃO ficam aqui:
+         são injetados no <body> por categorias-acoes.js (garantirModaisCategoria),
+         no mesmo padrão de admin-usuario-acoes.js / admin-anuncio-acoes.js. -->
+
+    <div id="toast" class="admin-toast"></div>
+
+    <script src="/assets/usuario/Login/api.js"></script>
+    <script src="/assets/admin/Categorias/categorias-api.js"></script>
+    <script src="/assets/admin/Categorias/categorias-acoes.js"></script>
+    <script src="/assets/admin/admin-sidebar/admin-frame.js"></script>
+    <script src="/assets/admin/Categorias/categorias.js"></script>
+
+</body>
+</html>

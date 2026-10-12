@@ -66,7 +66,13 @@
             id: String(dto.id),
             imagens,
             imagem: imagens[0] || null,
-            categoria: dto.categoria?.nome ?? dto.categoria_nome ?? dto.categoria ?? "",
+            categoria: dto.categoria?.nome ?? dto.categoria_nome ?? (typeof dto.categoria === "string" ? dto.categoria : ""),
+            // Slug/id da categoria: o Início filtra por `categoria_slug` e o Editar
+            // preenche o <select> com `categoria_slug || categoria_id` (mesmo value
+            // que CategoriasVizin usa). Sem isto, a normalização acima jogava fora
+            // o objeto `categoria` e o slug se perdia.
+            categoria_slug: dto.categoria?.slug ?? dto.categoria_slug ?? null,
+            categoria_id: dto.categoria?.id != null ? String(dto.categoria.id) : (dto.categoria_id != null ? String(dto.categoria_id) : null),
             preco_dia: dto.preco_dia ?? dto.preco ?? dto.preco_por_dia,
             disponivel: dto.disponivel ?? true,
             proprietarioId: proprietario?.id ? String(proprietario.id) : (dto.proprietario_id ? String(dto.proprietario_id) : null),

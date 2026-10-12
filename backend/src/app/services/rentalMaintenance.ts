@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { HttpError } from "../utils/httpError.ts";
 import { paymentDeadline, PAYMENT_TIME_ZONE } from "./paymentRules.ts";
 import prisma from "../config/database.ts";
@@ -51,12 +52,56 @@ export async function maintainRentals(processFinancialOperations = false): Promi
   if (r.atraso_notificado === kind) continue;
   await prisma.$transaction(async tx => {
    const changed = await tx.alugueis.updateMany({ where: { id: r.id, status: r.status, atraso_notificado: r.atraso_notificado }, data: { atraso_notificado: kind } });
-   if (changed.count) await tx.notificacoes.createMany({ data: [r.locador_id, r.locatario_id].map(usuario_id => ({ usuario_id, tipo: kind === "devolucao" ? "bloqueio_conta" : "retirada_atrasada", titulo: "Aluguel em atraso", mensagem: `Existe atraso na ${kind}.`, contexto: { solicitacao_id: r.id, aluguelId: r.id, objetoId: r.item_id } })) });
+   if (changed.count) {
+    await tx.notificacoes.createMany({ data: [r.locador_id, r.locatario_id].map(usuario_id => ({ usuario_id, tipo: kind === "devolucao" ? "bloqueio_conta" : "retirada_atrasada", titulo: "Aluguel em atraso", mensagem: `Existe atraso na ${kind}.`, contexto: { solicitacao_id: r.id, aluguelId: r.id, objetoId: r.item_id } })) });
+    await tx.notificacoes_admin.create({ data: { tipo: "locacao_atrasada", categoria: "pagamentos", prioridade: "alta", titulo: "Locação atrasada", mensagem: `Uma locação está com ${kind} atrasada.`, referencia_tipo: "aluguel", referencia_id: r.id, chave_deduplicacao: `locacao_atrasada:${r.id}:${kind}` } });
+   }
   });
  }
  // A chamada leve encerra aqui; o ciclo periódico continua com estornos e conciliação.
  if(!processFinancialOperations)return;
  const { reconcilePaymentWebhooks, reconcileIncompletePayments, requestFinancial } = await import("../controllers/paymentsController.ts");
+ // Uma confirmação unilateral não prova que a retirada deixou de acontecer. Mantém
+ // a reserva e o pagamento intactos e abre uma única ocorrência para decisão humana.
+ // O bloqueio do aluguel serializa este job com o segundo upload e com outros workers.
+ while (true) {
+  const unilateral = await prisma.$queryRaw<{id:string}[]>`
+   SELECT a.id FROM alugueis a
+   WHERE a.status = 'pago'
+     AND a.data_inicio < ${today}
+     AND (SELECT COUNT(*) FROM retiradas r WHERE r.aluguel_id = a.id) = 1
+     AND NOT EXISTS (
+       SELECT 1 FROM denuncias d
+       WHERE d.relato_chave = 'retirada_evidencia_unilateral:' || a.id::text
+     )
+   ORDER BY a.id LIMIT 100`;
+  if (!unilateral.length) break;
+  for (const entry of unilateral) await prisma.$transaction(async tx => {
+   await tx.$queryRaw`SELECT id FROM alugueis WHERE id=${entry.id}::uuid FOR UPDATE`;
+   const rental = await tx.alugueis.findUniqueOrThrow({ where: { id: entry.id }, include: { retiradas: { select: { usuario_id: true, fotos: { select: { url: true } } } } } });
+   if (rental.status !== "pago" || rental.data_inicio >= today || rental.retiradas.length !== 1) return;
+   const key = `retirada_evidencia_unilateral:${rental.id}`;
+   if (await tx.denuncias.findUnique({ where: { relato_chave: key }, select: { id: true } })) return;
+   const submitterId = rental.retiradas[0]!.usuario_id;
+   const occurrence = await tx.denuncias.create({ data: {
+    usuario_id: submitterId,
+    objeto_id: rental.item_id,
+    aluguel_id: rental.id,
+    etapa: "retirada",
+    relato_chave: key,
+    motivo: "retirada_evidencia_unilateral",
+    assunto: "Retirada com evidência unilateral",
+    mensagem: "Somente uma das partes enviou as fotos de retirada dentro da janela contratual. A reserva e o pagamento foram preservados para análise do suporte.",
+    evidencias: rental.retiradas[0]!.fotos.map(photo => photo.url),
+    prioridade: "alta",
+    protocolo: `VIZIN-${new Date().toISOString().slice(0,10).replaceAll("-","")}-${crypto.randomUUID()}`,
+   } });
+   await tx.eventos_aluguel.create({ data: { aluguel_id: rental.id, status: rental.status, motivo: "Retirada com evidência unilateral encaminhada ao suporte" } });
+   await tx.notificacoes_admin.create({ data: { tipo: "retirada_evidencia_unilateral", categoria: "denuncias", prioridade: "alta", titulo: "Retirada com evidência unilateral", mensagem: "Somente uma parte enviou fotos no prazo; reserva e pagamento aguardam análise.", referencia_tipo: "ocorrencia", referencia_id: occurrence.id, chave_deduplicacao: key } });
+   await tx.notificacoes.createMany({ skipDuplicates: true, data: [rental.locador_id, rental.locatario_id].map(usuario_id => ({ usuario_id, chave: `${key}:${usuario_id}`, tipo: "suporte", titulo: "Retirada encaminhada ao suporte", mensagem: "Apenas uma parte enviou as fotos no prazo. A reserva foi preservada enquanto o suporte analisa o caso.", contexto: { solicitacao_id: rental.id, aluguelId: rental.id, recursoId: occurrence.id } })) });
+  });
+  if (unilateral.length < 100) break;
+ }
  // Pagamentos de retirada não realizada são estornados por intenção persistida;
  // a chamada externa ao gateway ocorre fora da transação do banco.
  let refundCursor: string | undefined;
@@ -67,9 +112,15 @@ export async function maintainRentals(processFinancialOperations = false): Promi
    const payment = rental.pagamentos[0];
    if (!payment) continue;
    try {
-    await prisma.alugueis.updateMany({ where: { id: rental.id, status: "pago", cancelado_por: null }, data: { cancelado_por: "sistema" } });
+    const claimed=await prisma.$transaction(async tx=>{
+     const changed=await tx.alugueis.updateMany({ where: { id: rental.id, status: "pago", cancelado_por: null, retiradas: { none: {} } }, data: { status:"cancelado",cancelado_por: "sistema",atualizado_em:new Date() } });
+     if(!changed.count)return false;
+     await tx.eventos_aluguel.create({data:{aluguel_id:rental.id,status:"cancelado",motivo:"Retirada não realizada até o fim do dia contratado"}});
+     await tx.notificacoes.createMany({ skipDuplicates: true, data: [rental.locador_id, rental.locatario_id].map(usuario_id => ({ usuario_id, chave: `${rental.id}:retirada_nao_realizada:${usuario_id}`, tipo: "aluguel_cancelado", titulo: "Retirada não realizada", mensagem: "O aluguel foi cancelado e o estorno será processado; acompanhe a confirmação do pagamento.", contexto: { solicitacao_id: rental.id } })) });
+     return true;
+    });
+    if(!claimed)continue;
     await requestFinancial(payment.id, "refund");
-    await prisma.notificacoes.createMany({ skipDuplicates: true, data: [rental.locador_id, rental.locatario_id].map(usuario_id => ({ usuario_id, chave: `${rental.id}:retirada_nao_realizada:${usuario_id}`, tipo: "aluguel_cancelado", titulo: "Retirada não realizada", mensagem: "O estorno foi solicitado; acompanhe a confirmação do pagamento.", contexto: { solicitacao_id: rental.id } })) });
    } catch (error) { console.error("Estorno por retirada não realizada continua pendente", rental.id, error instanceof HttpError ? error.codigo ?? error.message : error instanceof Error ? error.name : "Falha"); }
   }
   refundCursor = due[due.length - 1]!.id;

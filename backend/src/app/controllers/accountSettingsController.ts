@@ -4,7 +4,6 @@ import crypto from "node:crypto";
 import type { RequestHandler } from "express";
 import prisma from "../config/database.ts";
 import env from "../config/env.ts";
-import mailer from "../config/mailer.ts";
 import { HttpError } from "../utils/httpError.ts";
 import { password, email, text, boolean } from "../utils/validation.ts";
 import { cookieOptions } from "./authController.ts";
@@ -21,7 +20,7 @@ async function verifyPassword(id: string, value: unknown) {
     typeof value !== "string" ||
     !(await bcrypt.compare(value, user.senha_hash))
   )
-    throw new HttpError(401, "Senha atual incorreta");
+    throw new HttpError(401, "Senha atual incorreta.", "senha_atual_incorreta");
   return user;
 }
 // Confere senha atual, grava novo hash e invalida tokens anteriores.
@@ -67,33 +66,22 @@ export const changeEmail: RequestHandler = async (req, res) => {
   const novo = email(req.body?.email);
   if (await prisma.usuarios.findUnique({ where: { email: novo } }))
     throw new HttpError(409, "E-mail já cadastrado");
-  if (!mailer && env.NODE_ENV !== "dev")
-    throw new HttpError(503, "SMTP não configurado");
   const token = crypto.randomBytes(32).toString("hex");
-  await prisma.emails_pendentes.upsert({
-    where: { usuario_id: req.user!.id },
-    create: {
-      usuario_id: req.user!.id,
-      email: novo,
-      token: crypto.createHash("sha256").update(token).digest("hex"),
-      expira_em: new Date(Date.now() + 3600000),
-    },
-    update: {
-      email: novo,
-      token: crypto.createHash("sha256").update(token).digest("hex"),
-      expira_em: new Date(Date.now() + 3600000),
-    },
-  });
   const url = `${env.APP_URL}/api/usuarios/email/confirmar?token=${token}`;
-  if (mailer)
-    await mailer.sendMail({
-      from: env.SMTP_FROM,
-      to: novo,
-      subject: "Confirme seu e-mail VIZIN",
-      text: url,
+  const key = `troca-email:${req.user!.id}:${novo}`;
+  await prisma.$transaction(async tx => {
+    await tx.emails_pendentes.upsert({
+      where: { usuario_id: req.user!.id },
+      create: { usuario_id: req.user!.id, email: novo, token: crypto.createHash("sha256").update(token).digest("hex"), expira_em: new Date(Date.now() + 3600000) },
+      update: { email: novo, token: crypto.createHash("sha256").update(token).digest("hex"), expira_em: new Date(Date.now() + 3600000) },
     });
-  else console.log(`Confirmação de e-mail (desenvolvimento): ${url}`);
-  res.status(202).json({ success: true, pendente: true });
+    await tx.email_outbox.upsert({
+      where: { chave: key },
+      create: { tipo: "troca_email", destinatario: novo, chave: key, payload: { subject: "Confirme seu e-mail VIZIN", text: url } },
+      update: { payload: { subject: "Confirme seu e-mail VIZIN", text: url }, status: "pendente", proxima_em: null, ultimo_erro: null },
+    });
+  });
+  res.status(202).json({ success: true, pendente: true, emailEnfileirado: true });
 };
 // Confirma token válido, altera email e invalida sessões anteriores em transação.
 export const confirmEmail: RequestHandler = async (req, res) => {

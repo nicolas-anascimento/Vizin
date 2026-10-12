@@ -30,6 +30,7 @@ let _anuncioStatusAtual = null;
 let _callbackStatusAnuncio = null;
 let _anuncioExcluirAtual = null;
 let _callbackExcluirAnuncio = null;
+let _tokenAvalVerAnuncio = 0; // descarta resposta de avaliação se o admin trocar/fechar o modal antes dela chegar
 
 function labelStatusAnuncio(status) {
     return { ativo: "Ativo", arquivado: "Arquivado" }[status] || status;
@@ -58,6 +59,12 @@ function garantirModaisAnuncio() {
                 <div class="admin-ver-anuncio-descricao">
                     <span>Descrição</span>
                     <p id="admModalVerAnuncioDescricao"></p>
+                </div>
+
+                <div class="admin-ver-anuncio-avaliacoes">
+                    <span>Avaliações</span>
+                    <div id="admModalVerAnuncioAvalResumo"></div>
+                    <div id="admModalVerAnuncioAvalLista"></div>
                 </div>
 
                 <div class="admin-modal-botoes">
@@ -158,19 +165,93 @@ function abrirModalVerAnuncio(anuncio) {
     document.getElementById("admModalVerAnuncioCategoria").textContent = anuncio.categoria || "—";
     document.getElementById("admModalVerAnuncioPreco").textContent = formatarPrecoAcoes(anuncio.preco_dia);
     document.getElementById("admModalVerAnuncioLocalizacao").textContent = anuncio.localizacao || "Não informado";
-    document.getElementById("admModalVerAnuncioDisponibilidade").textContent = anuncio.emLocacao
-        ? "Em locação"
-        : anuncio.solicitacaoPendente
+    // Mesmos nomes de campo que o back manda em /objetos (snake_case) — ver
+    // objetos-shared.js e o comentário em anuncios.js:infoDisponibilidade.
+    document.getElementById("admModalVerAnuncioDisponibilidade").textContent = anuncio.oculto_pelo_admin
+        ? "Oculto pela moderação"
+        : anuncio.em_locacao ? "Em locação"
+        : anuncio.tem_solicitacao_pendente
             ? "Solicitação pendente"
             : (anuncio.disponivel ? "Disponível" : "Pausado pelo dono");
     document.getElementById("admModalVerAnuncioStatus").textContent = labelStatusAnuncio(anuncio.status);
     document.getElementById("admModalVerAnuncioDescricao").textContent = anuncio.descricao || "Sem descrição.";
 
     document.getElementById("admModalVerAnuncioOverlay").hidden = false;
+
+    carregarAvaliacoesVerAnuncio(anuncio.id);
 }
 
 function fecharModalVerAnuncio() {
     document.getElementById("admModalVerAnuncioOverlay").hidden = true;
+    _tokenAvalVerAnuncio++; // invalida qualquer busca de avaliação ainda em andamento
+}
+
+// Busca é separada da abertura do modal (não trava o "Ver anúncio" esperando
+// as avaliações): mostra "Carregando..." e substitui quando a resposta chega,
+// só se o modal ainda estiver mostrando o MESMO anúncio (token evita que a
+// resposta de um clique antigo sobrescreva o anúncio aberto depois).
+async function carregarAvaliacoesVerAnuncio(anuncioId) {
+    const meuToken = ++_tokenAvalVerAnuncio;
+    const resumoEl = document.getElementById("admModalVerAnuncioAvalResumo");
+    const listaEl = document.getElementById("admModalVerAnuncioAvalLista");
+
+    resumoEl.innerHTML = "";
+    listaEl.innerHTML = `<p class="admin-ver-anuncio-aval-vazio">Carregando avaliações...</p>`;
+
+    let media = 0, total = 0, lista = [];
+    try {
+        ({ media, total, lista } = await obterAvaliacoesAnuncioAdmin(anuncioId));
+    } catch (err) {
+        if (meuToken !== _tokenAvalVerAnuncio) return;
+        listaEl.innerHTML = `<p class="admin-ver-anuncio-aval-vazio">Não foi possível carregar as avaliações.</p>`;
+        return;
+    }
+    if (meuToken !== _tokenAvalVerAnuncio) return; // admin já trocou/fechou o modal
+
+    if (total > 0) {
+        const estrelasCheias = Math.round(media);
+        let estrelasHTML = "";
+        for (let i = 1; i <= 5; i++) {
+            estrelasHTML += `<i class="bi ${i <= estrelasCheias ? "bi-star-fill" : "bi-star"}"></i>`;
+        }
+        resumoEl.innerHTML = `
+            <div class="admin-ver-anuncio-aval-resumo-box">
+                <span class="admin-ver-anuncio-aval-nota">${media.toFixed(1)}</span>
+                <div class="admin-ver-anuncio-aval-detalhes">
+                    <span class="admin-ver-anuncio-aval-estrelas">${estrelasHTML}</span>
+                    <span class="admin-ver-anuncio-aval-total">${total} avaliação${total > 1 ? "ões" : ""}</span>
+                </div>
+            </div>
+        `;
+    }
+
+    if (total === 0) {
+        listaEl.innerHTML = `<p class="admin-ver-anuncio-aval-vazio">Este anúncio ainda não recebeu avaliações.</p>`;
+        return;
+    }
+
+    listaEl.innerHTML = lista
+        .slice()
+        .sort((a, b) => new Date(b.data) - new Date(a.data))
+        .map(av => {
+            const nome = av.nomeAvaliador || "Usuário";
+            const inicial = escAdminAcoes(nome.charAt(0).toUpperCase());
+            const data = av.data ? new Date(av.data).toLocaleDateString("pt-BR") : "";
+            const nota = Number(av.nota).toFixed(1);
+            return `
+                <div class="admin-ver-anuncio-aval-item">
+                    <div class="admin-ver-anuncio-aval-topo">
+                        <div class="admin-ver-anuncio-aval-avatar">${inicial}</div>
+                        <div class="admin-ver-anuncio-aval-info">
+                            <strong>${escAdminAcoes(nome)}</strong>
+                            <span class="admin-ver-anuncio-aval-data">${data}</span>
+                        </div>
+                        <div class="admin-ver-anuncio-aval-nota-pill"><i class="bi bi-star-fill"></i> ${nota}</div>
+                    </div>
+                    ${av.comentario ? `<p class="admin-ver-anuncio-aval-comentario">${escAdminAcoes(av.comentario)}</p>` : ""}
+                </div>
+            `;
+        }).join("");
 }
 
 // ================= ALTERAR STATUS =================
@@ -181,7 +262,7 @@ function abrirModalStatusAnuncio(anuncio, aoConfirmar) {
     _callbackStatusAnuncio = aoConfirmar;
 
     document.getElementById("admModalStatusAnuncioTitulo").textContent = anuncio.titulo;
-    document.getElementById("admModalStatusAnuncioSelect").value = anuncio.disponivel ? "disponivel" : "indisponivel";
+    document.getElementById("admModalStatusAnuncioSelect").value = anuncio.oculto_pelo_admin ? "indisponivel" : "disponivel";
     document.getElementById("admModalStatusAnuncioMotivo").value = "";
     document.getElementById("admModalStatusAnuncioErro").textContent = "";
     atualizarObrigatoriedadeMotivoAnuncio();

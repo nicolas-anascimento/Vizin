@@ -396,3 +396,9 @@
 .cta-retirada .cta-devolucao-icone {
   background: var(--roxo);
 }
+
+/* Prazo informativo (ex.: a retirada ainda não abriu) */
+.prazo-card.prazo-info {
+  background: var(--roxo-claro);
+  color: var(--roxo);
+}

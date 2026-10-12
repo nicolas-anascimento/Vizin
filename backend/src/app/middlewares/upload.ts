@@ -30,7 +30,7 @@ function uploader(folder: "items" | "avatars" | "withdrawals", maxFiles: number)
     }),
     limits: { fileSize: 5 * 1024 * 1024, files: maxFiles, fields: 30, fieldSize: 10000 },
     fileFilter: (_req: Request, file: Express.Multer.File, callback: FileFilterCallback) => {
-      if (!allowedImageTypes[file.mimetype]) {
+      if (!allowedImageTypes[file.mimetype] || (folder === "avatars" && file.mimetype === "image/gif")) {
         callback(new HttpError(422, "Use imagens JPG, PNG, WEBP ou GIF"));
         return;
       }

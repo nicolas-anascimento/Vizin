@@ -71,6 +71,9 @@ model avaliacoes {
   nota                                       Int?      @db.SmallInt
   comentario                                 String?
   criado_em                                  DateTime? @default(now()) @db.Timestamp(6)
+  oculta                                     Boolean   @default(false)
+  motivo_ocultacao                           String?
+  denuncias                                  denuncias[]
   alugueis                                   alugueis  @relation(fields: [aluguel_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   usuarios_avaliacoes_avaliado_idTousuarios  usuarios  @relation("avaliacoes_avaliado_idTousuarios", fields: [avaliado_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   usuarios_avaliacoes_avaliador_idTousuarios usuarios  @relation("avaliacoes_avaliador_idTousuarios", fields: [avaliador_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -84,6 +87,8 @@ model categorias {
   id    String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   nome  String  @unique @db.VarChar(80)
   slug  String  @unique @db.VarChar(100)
+  icone String  @default("bi-tag") @db.VarChar(50)
+  cor   String  @default("#6D49F2") @db.Char(7)
   itens itens[]
 }
 
@@ -155,6 +160,8 @@ model itens {
   localizacao_texto String?      @db.VarChar(200)
   disponivel        Boolean?     @default(true)
   arquivado         Boolean      @default(false)
+  oculto_pelo_admin Boolean      @default(false)
+  motivo_ocultacao  String?
   condicao          String?      @db.VarChar(20)
   segurado          Boolean?     @default(false)
   criado_em         DateTime?    @default(now()) @db.Timestamp(6)
@@ -210,6 +217,7 @@ model notificacoes {
   contexto   Json      @default("{}")
   chave      String?   @unique
   usuarios   usuarios  @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  comunicado_entrega comunicados_admin_entregas?
 
   @@index([usuario_id, lida])
 }
@@ -237,7 +245,7 @@ model pagamentos {
   conciliacoes conciliacoes_pagamento[]
   alugueis     alugueis  @relation(fields: [aluguel_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@unique([aluguel_id, tipo], map: "pagamentos_uma_cobranca_ativa", where: raw("status IN ('pendente','pago','cancelamento_pendente','estorno_pendente')"))
+  @@unique([aluguel_id, tipo], map: "pagamentos_uma_cobranca_ativa", where: raw("((status)::text = ANY ((ARRAY['pendente'::character varying, 'pago'::character varying, 'cancelamento_pendente'::character varying, 'estorno_pendente'::character varying])::text[]))"))
   @@unique([aluguel_id, tipo], map: "pagamentos_um_pago_por_aluguel", where: raw("((status)::text = 'pago'::text)"))
   @@index([aluguel_id])
   @@index([cartao_id, status])
@@ -321,6 +329,7 @@ model usuarios {
   cpf                                           String?                   @unique @db.VarChar(14)
   verificado                                    Boolean?                  @default(false)
   ativo                                         Boolean                   @default(true)
+  motivo_suspensao                              String?
   token_version                                 Int                       @default(0)
   saldo_carteira                                Decimal?                  @default(0.00) @db.Decimal(10, 2)
   criado_em                                     DateTime?                 @default(now()) @db.Timestamp(6)
@@ -352,6 +361,12 @@ model usuarios {
   emails_pendentes                              emails_pendentes[]
   retiradas                                     retiradas[]
   admin_auditoria admin_auditoria[]
+  respostas_ocorrencia respostas_ocorrencia[]
+  comunicados_admin comunicados_admin[]
+  notificacoes_admin_estado notificacoes_admin_estado[]
+  notificacoes_admin_preferencias notificacoes_admin_preferencias?
+  notificacoes_admin_tratadas notificacoes_admin[] @relation("admin_tratou_notificacao")
+  comunicados_admin_entregas comunicados_admin_entregas[]
 }
 
 /// Documentos privados e decisão sobre a verificação da conta.
@@ -367,6 +382,8 @@ model verificacoes_identidade {
   status       String?   @default("pendente") @db.VarChar(30)
   analisado_em DateTime? @db.Timestamp(6)
   criado_em    DateTime? @default(now()) @db.Timestamp(6)
+  revogada     Boolean   @default(false)
+  cancelado_em DateTime?
   usuarios     usuarios  @relation("titular_verificacao", fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
@@ -423,9 +440,12 @@ model suportes {
   status        String   @default("aberto")
   protocolo     String   @unique
   resposta      String?
+  prioridade    String   @default("normal") @db.VarChar(20)
+  motivo_improcedencia String?
   criado_em     DateTime @default(now())
   atualizado_em DateTime @updatedAt
   usuario       usuarios @relation(fields: [usuario_id], references: [id])
+  respostas     respostas_ocorrencia[]
 
   @@index([status, criado_em])
 }
@@ -441,11 +461,15 @@ model denuncias {
   objeto_id     String?    @db.Uuid
   aluguel_id    String?    @db.Uuid
   conversa_id   String?    @db.Uuid
+  avaliacao_id  String?    @db.Uuid
+  avaliacao     avaliacoes? @relation(fields: [avaliacao_id], references: [id])
   motivo        String
   assunto       String?
   mensagem      String
   evidencias    Json       @default("[]")
   status        String     @default("aberta")
+  prioridade    String     @default("normal") @db.VarChar(20)
+  motivo_improcedencia String?
   protocolo     String     @unique
   notas         String?
   resposta_usuario String?
@@ -455,8 +479,10 @@ model denuncias {
   atualizado_em DateTime   @updatedAt
   usuario       usuarios   @relation("autor_denuncia", fields: [usuario_id], references: [id])
   denunciado    usuarios?  @relation("alvo_denuncia", fields: [denunciado_id], references: [id])
+  respostas     respostas_ocorrencia[]
 
   @@index([status, criado_em])
+  @@index([avaliacao_id])
 }
 
 /// Valor congelado da multa, dias de atraso, divisão e estado de pagamento ou contestação.
@@ -631,4 +657,122 @@ model admin_auditoria {
   @@index([admin_id])
   @@index([entidade, entidade_id])
   @@index([criado_em])
+}
+
+/// Respostas públicas do suporte; notas internas continuam nos modelos de origem.
+model respostas_ocorrencia {
+  id          String     @id @default(uuid()) @db.Uuid
+  suporte_id  String?    @db.Uuid
+  denuncia_id String?    @db.Uuid
+  admin_id    String     @db.Uuid
+  mensagem    String
+  criado_em   DateTime   @default(now())
+  suporte     suportes?  @relation(fields: [suporte_id], references: [id], onDelete: Cascade)
+  denuncia    denuncias? @relation(fields: [denuncia_id], references: [id], onDelete: Cascade)
+  admin       usuarios   @relation(fields: [admin_id], references: [id], onDelete: Restrict)
+
+  @@index([suporte_id, criado_em])
+  @@index([denuncia_id, criado_em])
+}
+
+/// Evento operacional compartilhado por todos os administradores.
+model notificacoes_admin {
+  id              String   @id @default(uuid()) @db.Uuid
+  tipo            String   @db.VarChar(80)
+  categoria       String   @db.VarChar(30)
+  prioridade      String   @default("normal") @db.VarChar(10)
+  titulo          String   @db.VarChar(150)
+  mensagem        String
+  referencia_tipo String?  @db.VarChar(40)
+  referencia_id   String?  @db.Uuid
+  chave_deduplicacao String? @unique
+  tratado_por_id  String?  @db.Uuid
+  tratado_por     usuarios? @relation("admin_tratou_notificacao", fields: [tratado_por_id], references: [id], onDelete: SetNull)
+  tratada_em      DateTime?
+  criado_em       DateTime @default(now())
+  estados         notificacoes_admin_estado[]
+
+  @@index([categoria, prioridade, criado_em])
+  @@index([referencia_tipo, referencia_id])
+}
+
+/// Leitura e dispensa individuais de um alerta compartilhado.
+model notificacoes_admin_estado {
+  notificacao_id String @db.Uuid
+  admin_id       String @db.Uuid
+  lida           Boolean @default(false)
+  dispensada     Boolean @default(false)
+  lida_em        DateTime?
+  dispensada_em  DateTime?
+  notificacao    notificacoes_admin @relation(fields: [notificacao_id], references: [id], onDelete: Cascade)
+  admin          usuarios @relation(fields: [admin_id], references: [id], onDelete: Cascade)
+
+  @@id([notificacao_id, admin_id])
+  @@index([admin_id, lida, dispensada])
+}
+
+/// Preferências da caixa operacional de cada administrador.
+model notificacoes_admin_preferencias {
+  admin_id          String @id @db.Uuid
+  categorias        Json   @default("{}")
+  somente_urgentes  Boolean @default(false)
+  atualizado_em     DateTime @default(now()) @updatedAt
+  admin             usuarios @relation(fields: [admin_id], references: [id], onDelete: Cascade)
+}
+
+/// Campanha criada pelo administrador, separada dos alertas operacionais.
+model comunicados_admin {
+  id                   String   @id @default(uuid()) @db.Uuid
+  titulo               String   @db.VarChar(150)
+  mensagem             String
+  destinatarios        String   @db.VarChar(30)
+  status               String   @default("rascunho") @db.VarChar(20)
+  agendada_para        DateTime?
+  enviada_em           DateTime?
+  criado_em            DateTime @default(now())
+  atualizado_em        DateTime @default(now()) @updatedAt
+  total_destinatarios  Int      @default(0)
+  erro_envio           String?
+  chave_idempotencia   String?  @unique
+  payload_hash         String?
+  lease_ate            DateTime?
+  tentativas           Int      @default(0)
+  criado_por_id        String   @db.Uuid
+  criado_por           usuarios @relation(fields: [criado_por_id], references: [id], onDelete: Restrict)
+  entregas             comunicados_admin_entregas[]
+
+  @@index([status, agendada_para, lease_ate])
+}
+
+/// Uma entrega por usuário e comunicado garante retry sem duplicação.
+model comunicados_admin_entregas {
+  comunicado_id String @db.Uuid
+  usuario_id    String @db.Uuid
+  notificacao_id String? @unique @db.Uuid
+  entregue_em   DateTime?
+  erro          String?
+  comunicado    comunicados_admin @relation(fields: [comunicado_id], references: [id], onDelete: Cascade)
+  usuario       usuarios @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+  notificacao   notificacoes? @relation(fields: [notificacao_id], references: [id], onDelete: SetNull)
+
+  @@id([comunicado_id, usuario_id])
+  @@index([comunicado_id, entregue_em])
+}
+
+/// E-mails assíncronos: a ação principal não depende do SMTP.
+model email_outbox {
+  id             String @id @default(uuid()) @db.Uuid
+  tipo           String @db.VarChar(60)
+  destinatario   String @db.VarChar(150)
+  payload        Json   @default("{}")
+  chave          String @unique
+  status         String @default("pendente") @db.VarChar(20)
+  tentativas     Int    @default(0)
+  proxima_em     DateTime?
+  enviado_em     DateTime?
+  ultimo_erro    String?
+  lease_ate      DateTime?
+  criado_em      DateTime @default(now())
+
+  @@index([status, proxima_em, lease_ate])
 }

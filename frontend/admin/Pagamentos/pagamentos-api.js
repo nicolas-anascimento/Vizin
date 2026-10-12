@@ -12,6 +12,9 @@
  * ------------------------------------------------------------------
  */
 
+// Cada item de `data` precisa vir com usuario: { id, nome, email } — o
+// front usa id pra linkar pro perfil em Usuários e email pra diferenciar
+// usuários com o mesmo nome (tela financeira, então isso importa).
 async function listarTransacoesAdmin({ busca = '', status = 'todos', pagina = 1, porPagina = 10 } = {}) {
     const params = new URLSearchParams({ page: String(pagina), limit: String(porPagina) });
     if (busca) params.set('busca', busca);
@@ -19,6 +22,11 @@ async function listarTransacoesAdmin({ busca = '', status = 'todos', pagina = 1,
     return apiRequest(`/admin/pagamentos?${params}`, 'GET', null, 'Não foi possível carregar as transações.');
 }
 
+// Contrato esperado do detalhe (além dos campos já resumidos na listagem):
+//   usuario: { id, nome, email }
+//   cartao: { bandeira, final } — só quando metodo === "cartao"; mesmo
+//     resumo seguro (sem número completo) que pagamento.js já expõe pro
+//     usuário, não é dado novo sendo exposto pro admin.
 async function obterTransacaoAdmin(id) {
     return apiRequest(`/admin/pagamentos/${encodeURIComponent(id)}`, 'GET', null, 'Não foi possível carregar os detalhes da transação.');
 }

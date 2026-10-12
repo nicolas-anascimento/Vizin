@@ -6,6 +6,8 @@ import { removeAccount } from "../services/accountRemoval.ts";
 import { activeStatuses } from "../services/rentalRules.ts";
 import { asBoolean } from "../utils/strings.ts";
 import { audit, dateFilters, paged, pagination, statusFilter } from "../utils/admin.ts";
+import { publishNotification } from "../../realtime/realtimeService.ts";
+import { serializeNotification } from "../utils/serializers.ts";
 
 // Valida alterações administrativas de campos booleanos.
 function requiredBoolean(value: unknown): boolean {
@@ -63,7 +65,7 @@ export const getUser: RequestHandler = async (req, res) => {
     where: { id },
     select: {
       id: true, nome: true, email: true, tipo: true, ativo: true,
-      verificado: true, foto_url: true, criado_em: true,
+      verificado: true, foto_url: true, criado_em: true, motivo_suspensao: true,
       _count: { select: {
         itens: true,
         alugueis_alugueis_locatario_idTousuarios: true,
@@ -73,9 +75,19 @@ export const getUser: RequestHandler = async (req, res) => {
     },
   });
   if (!user) throw new HttpError(404, "Usuário não encontrado", "nao_encontrada");
+  const [approvedIdentity, latestIdentity, activeRentals, pendingRequests] = await Promise.all([
+    prisma.verificacoes_identidade.count({ where: { usuario_id: id, status: "aprovado", revogada: false } }),
+    prisma.verificacoes_identidade.findFirst({ where: { usuario_id: id }, orderBy: { criado_em: "desc" }, select: { id: true, status: true, revogada: true } }),
+    prisma.alugueis.count({ where: { OR: [{ locador_id: id }, { locatario_id: id }], status: { in: ["aprovado", "pago", "retirado", "devolvido"] } } }),
+    prisma.alugueis.count({ where: { OR: [{ locador_id: id }, { locatario_id: id }], status: "pendente" } }),
+  ]);
   const { _count, ...dados } = user;
   res.json({
     ...dados,
+    verificado: approvedIdentity > 0,
+    verificacao: latestIdentity,
+    em_locacao: activeRentals > 0,
+    tem_solicitacao_pendente: pendingRequests > 0,
     estatisticas: {
       objetos: _count.itens,
       alugueis_como_locatario: _count.alugueis_alugueis_locatario_idTousuarios,
@@ -96,25 +108,33 @@ async function obligations(tx: any, id: string) {
 export const updateUserStatus: RequestHandler = async (req, res) => {
   const id = uuid(req.params.id), active = requiredBoolean(req.body?.ativo);
   if (id === req.user!.id && !active) throw new HttpError(409, "Você não pode suspender sua própria conta");
+  const motivo = !active ? text(req.body?.motivo, "Motivo", 500) : null;
+  if (!active && (!motivo || motivo.length < 5)) throw new HttpError(422, "O motivo deve ter entre 5 e 500 caracteres", "motivo_invalido");
   const user = await prisma.$transaction(async tx => {
     await tx.$queryRaw`SELECT id FROM usuarios WHERE id=${id}::uuid FOR UPDATE`;
     const current = await tx.usuarios.findUnique({ where: { id } });
     if (!current) throw new HttpError(404, "Usuário não encontrado");
-    if (current.ativo === active) return { id: current.id, nome: current.nome, email: current.email, ativo: current.ativo, tipo: current.tipo };
+    if (current.tipo === "admin") throw new HttpError(403, "Não há hierarquia autorizada para alterar outra conta administrativa", "hierarquia_admin_ausente");
+    if (current.ativo === active) return { updated: { id: current.id, nome: current.nome, email: current.email, ativo: current.ativo, tipo: current.tipo, motivo_suspensao: current.motivo_suspensao }, notification: null };
     // Desativação exige ausência de obrigações; reativação exige CPF válido.
-    // A versão do token muda para invalidar sessões anteriores.
+    // A sessão é preservada para permitir o canal restrito de suporte da conta suspensa.
     if (!active) await obligations(tx, id);
     else { try { cpf(current.cpf); } catch { throw new HttpError(409, "CPF ausente ou inválido; corrija antes de reativar", "cpf_invalido_reativacao"); } }
-    const updated = await tx.usuarios.update({ where: { id }, data: { ativo: active, token_version: { increment: 1 }, atualizado_em: new Date() }, select: { id: true, nome: true, email: true, ativo: true, tipo: true } });
-    await audit(tx, req.user!.id, active ? "reativar" : "desativar", "usuario", id);
-    return updated;
+    const updated = await tx.usuarios.update({ where: { id }, data: { ativo: active, motivo_suspensao: active ? null : motivo, atualizado_em: new Date() }, select: { id: true, nome: true, email: true, ativo: true, tipo: true, motivo_suspensao: true } });
+    const notification=await tx.notificacoes.create({ data: { usuario_id: id, chave: `status-conta:${id}:${active ? "ativa" : "suspensa"}:${Date.now()}`, tipo: active ? "conta_reativada" : "bloqueio_conta", titulo: active ? "Conta reativada" : "Conta suspensa", mensagem: active ? "Sua conta foi reativada." : `Sua conta foi suspensa. Motivo: ${motivo}`, contexto: { critico: true } } });
+    await audit(tx, req.user!.id, active ? "usuario_reativado" : "usuario_suspenso", "usuario", id, { motivo });
+    return {updated,notification};
   });
-  res.json({ success: true, usuario: user });
+  if(user.notification)publishNotification(id,serializeNotification(user.notification));
+  res.json({ success: true, usuario: user.updated });
 };
 // Solicita remoção administrativa da conta com as verificações do serviço.
 export const deleteUser: RequestHandler = async (req, res) => {
   const id = uuid(req.params.id);
   if (id === req.user!.id) throw new HttpError(409, "Você não pode excluir sua própria conta");
+  const target = await prisma.usuarios.findUnique({ where: { id }, select: { tipo: true } });
+  if (!target) throw new HttpError(404, "Usuário não encontrado");
+  if (target.tipo === "admin") throw new HttpError(403, "Não há hierarquia autorizada para excluir outra conta administrativa", "hierarquia_admin_ausente");
   await removeAccount(id, false, req.user!.id);
   res.json({ success: true });
 };
@@ -131,7 +151,7 @@ export const listAdminItems: RequestHandler = async (req, res) => {
       { categorias: { nome: { contains: busca, mode: "insensitive" as const } } },
     ] } : {}),
   };
-  const [data, total] = await Promise.all([prisma.itens.findMany({ where, skip, take: limit, orderBy: { criado_em: "desc" }, select: { id: true, usuario_id: true, titulo: true, preco_por_dia: true, disponivel: true, arquivado: true, criado_em: true, categorias: { select: { nome: true, slug: true } }, usuarios: { select: { id: true, nome: true } }, fotos_item: { where: { principal: true }, take: 1, select: { url: true } } } }), prisma.itens.count({ where })]);
+  const [data, total] = await Promise.all([prisma.itens.findMany({ where, skip, take: limit, orderBy: { criado_em: "desc" }, select: { id: true, usuario_id: true, titulo: true, preco_por_dia: true, disponivel: true, arquivado: true, oculto_pelo_admin: true, motivo_ocultacao: true, criado_em: true, categorias: { select: { nome: true, slug: true } }, usuarios: { select: { id: true, nome: true } }, fotos_item: { where: { principal: true }, take: 1, select: { url: true } } } }), prisma.itens.count({ where })]);
   const rentalStates = data.length ? await prisma.alugueis.groupBy({
     by: ["item_id", "status"],
     where: { item_id: { in: data.map(row => row.id) }, status: { in: ["pendente", "aprovado", "pago", "retirado", "devolvido"] } },
@@ -152,6 +172,8 @@ export const listAdminItems: RequestHandler = async (req, res) => {
       status: row.arquivado ? "arquivado" : "ativo",
       emLocacao: ["aprovado", "pago", "retirado", "devolvido"].some(value => states.has(value)),
       solicitacaoPendente: states.has("pendente"),
+      em_locacao: ["aprovado", "pago", "retirado", "devolvido"].some(value => states.has(value)),
+      tem_solicitacao_pendente: states.has("pendente"),
     };
   }), total, page, limit));
 };

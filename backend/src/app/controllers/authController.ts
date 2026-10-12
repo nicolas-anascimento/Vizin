@@ -38,10 +38,11 @@ export const register: RequestHandler = async (req, res) => {
     data: { nome, email, cpf: documento, telefone: telefone ?? null, senha_hash: await bcrypt.hash(senha, 12) },
     select: { id: true, nome: true, email: true, cpf: true, telefone: true, tipo: true },
   });
+  await prisma.notificacoes_admin.create({ data: { tipo: "novo_usuario", categoria: "usuarios", prioridade: "normal", titulo: "Novo usuário", mensagem: "Uma nova conta foi cadastrada.", referencia_tipo: "usuario", referencia_id: user.id, chave_deduplicacao: `novo_usuario:${user.id}` } });
   res.status(201).json({ success: true, message: "Conta criada com sucesso", usuario: serializeUser(user,true) });
 };
 
-// Confere CPF e senha, recusa conta inativa e entrega JWT em cookie e no corpo da resposta.
+// Confere CPF e senha. Conta suspensa mantém acesso ao canal restrito de sessão/suporte.
 export const login: RequestHandler = async (req, res) => {
   const documento = cpf(req.body?.cpf);
   const senha = typeof req.body?.senha === "string" ? req.body.senha : null;
@@ -50,7 +51,6 @@ export const login: RequestHandler = async (req, res) => {
   if (!user || !(await bcrypt.compare(senha, user.senha_hash))) {
     throw new HttpError(401, "CPF ou senha inválidos");
   }
-  if (!user.ativo) throw new HttpError(403, "Esta conta está suspensa");
   const token = signToken({ id: user.id, email: user.email, tipo: user.tipo, tokenVersion: user.token_version });
   res.cookie("token", token, cookieOptions());
   res.json({
@@ -58,6 +58,7 @@ export const login: RequestHandler = async (req, res) => {
     tipo: user.tipo,
     token,
     usuario: serializeUser(user,true),
+    conta_suspensa: !user.ativo,
   });
 };
 
@@ -78,5 +79,6 @@ export const session: RequestHandler = async (req, res) => {
     select: { id: true, nome: true, email: true, cpf: true, telefone: true, tipo: true, foto_url: true, bio: true, verificado: true },
   });
   if (!user) throw new HttpError(404, "Usuário não encontrado");
-  res.json(serializeUser(user,true));
+  const approved = await prisma.verificacoes_identidade.count({ where: { usuario_id: user.id, status: "aprovado", revogada: false } });
+  res.json({ ...serializeUser({ ...user, verificado: approved > 0 },true), ativo: req.user.ativo });
 };

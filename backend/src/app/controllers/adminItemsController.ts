@@ -19,9 +19,14 @@ async function moderate(req: Parameters<RequestHandler>[0], archive: boolean) {
     if (await tx.alugueis.count({ where: { item_id: id, status: { in: ["aprovado", "pago", "retirado", "devolvido"] } } })) throw new HttpError(409, "O objeto possui uma locação ativa", "OBJETO_EM_LOCACAO");
     if ((archive || !available) && await tx.alugueis.count({ where: { item_id: id, status: "pendente" } })) throw new HttpError(409, "O objeto possui uma solicitação pendente", "OBJETO_COM_SOLICITACAO_PENDENTE");
     if (item.arquivado && !archive) throw new HttpError(409, "Objeto arquivado não pode ser reativado por moderação");
-    if (item.arquivado === archive && item.disponivel === available) return item;
-    const row = await tx.itens.update({ where: { id }, data: { disponivel: available, ...(archive ? { arquivado: true } : {}), atualizado_em: new Date() } });
-    await audit(tx, req.user!.id, archive ? "arquivar" : available ? "exibir" : "ocultar", "objeto", id, { motivo });
+    if (!archive && item.oculto_pelo_admin === !available) return item;
+    if (archive && item.arquivado) return item;
+    const row = await tx.itens.update({ where: { id }, data: archive
+      ? { arquivado: true, disponivel: false, motivo_ocultacao: motivo, atualizado_em: new Date() }
+      : { oculto_pelo_admin: !available, motivo_ocultacao: available ? null : motivo, atualizado_em: new Date() } });
+    const action = archive ? "anuncio_arquivado" : available ? "anuncio_reexibido" : "anuncio_ocultado";
+    await audit(tx, req.user!.id, action, "objeto", id, { motivo });
+    await tx.notificacoes.create({ data: { usuario_id: item.usuario_id, tipo: archive ? "anuncio_removido_admin" : !available ? "anuncio_ocultado_admin" : "anuncio_reexibido_admin", titulo: archive ? "Anúncio arquivado" : !available ? "Anúncio ocultado pela moderação" : "Anúncio reexibido", mensagem: motivo ? `Motivo: ${motivo}` : "A moderação atualizou a visibilidade do anúncio.", contexto: { objetoId: id } } });
     return row;
   });
 }

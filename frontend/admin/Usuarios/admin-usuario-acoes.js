@@ -1,18 +1,18 @@
 /**
  * admin-usuario-acoes.js
  * ------------------------------------------------------------------
- * Modal de "alterar status" (ativo/suspenso/banido, com motivo) e
+ * Modal de "alterar status" (ativo/inativo) e
  * modal de "excluir usuário" — usados em Admin-Usuarios,
  * Admin-Usuario-Detalhe e qualquer outra tela do admin que precise
  * dessas duas ações, pra não duplicar essa lógica em cada uma.
  *
  * Uso:
- *   abrirModalStatus(usuario, (novoStatus) => { ...recarregar tela... });
+ *   abrirModalStatus(usuario, (novoStatus, usuarioAlterado) => { ...recarregar tela... });
  *   abrirModalExcluir(usuario, () => { ...recarregar/redirecionar... });
  *
  * Depende de:
  *   - admin-api.js (alterarStatusUsuarioAdmin, excluirUsuarioAdmin)
- *   - window.mostrarToastAdmin (definido em admin-frame.js)
+ *   - window.mostrarToastAdmin (definido em admin-frame.js; se faltar, o toast é ignorado)
  * ------------------------------------------------------------------
  */
 
@@ -20,6 +20,20 @@ let _usuarioStatusAtual = null;
 let _callbackStatus = null;
 let _usuarioExcluirAtual = null;
 let _callbackExcluir = null;
+
+function toastAdmin(mensagem, tipo) {
+    if (typeof window.mostrarToastAdmin === "function") window.mostrarToastAdmin(mensagem, tipo);
+}
+
+// Regra de negócio: só dá pra desativar/excluir um usuário sem locação em
+// andamento nem solicitação pendente. Quem garante isso é o back (409); aqui é
+// só um aviso antecipado quando o detalhe do usuário já traz os sinais
+// `em_locacao` / `tem_solicitacao_pendente` (na lista eles não vêm, e o 409 cobre).
+const MSG_BLOQUEIO_USUARIO = "Este usuário tem locação em andamento ou solicitação pendente. Só é possível continuar depois que forem concluídas ou canceladas.";
+
+function usuarioTemBloqueio(usuario) {
+    return !!(usuario && (usuario.em_locacao || usuario.tem_solicitacao_pendente));
+}
 
 function labelStatusAcoes(status) {
     return { ativo: "Ativo", inativo: "Inativo" }[status] || status;
@@ -45,6 +59,10 @@ function garantirModaisUsuario() {
                     </select>
                 </div>
 
+                <div class="admin-form-campo" id="admModalStatusMotivoCampo" hidden>
+                    <label for="admModalStatusMotivo">Motivo da suspensão (o usuário vai ver este texto)</label>
+                    <textarea id="admModalStatusMotivo" maxlength="500" rows="3" style="width:100%;resize:vertical;font-family:inherit"></textarea>
+                </div>
 
                 <p class="admin-form-erro" id="admModalStatusErro"></p>
 
@@ -59,7 +77,8 @@ function garantirModaisUsuario() {
             <div class="admin-modal">
                 <h3>Excluir usuário</h3>
                 <p>Tem certeza que deseja excluir <strong id="admModalExcluirNome"></strong>?
-                   Essa ação não pode ser desfeita.</p>
+                   Essa ação não pode ser desfeita. O usuário receberá um e-mail
+                   avisando que a conta foi excluída.</p>
 
                 <p class="admin-form-erro" id="admModalExcluirErro"></p>
 
@@ -72,6 +91,7 @@ function garantirModaisUsuario() {
     `;
     document.body.appendChild(wrapper);
 
+    document.getElementById("admModalStatusSelect").addEventListener("change", atualizarBloqueioStatus);
     document.getElementById("admModalStatusCancelar").addEventListener("click", fecharModalStatus);
     document.getElementById("admModalExcluirCancelar").addEventListener("click", fecharModalExcluir);
 
@@ -87,6 +107,7 @@ function abrirModalStatus(usuario, aoConfirmar) {
     document.getElementById("admModalStatusNome").textContent = usuario.nome;
     document.getElementById("admModalStatusSelect").value = usuario.status;
     document.getElementById("admModalStatusErro").textContent = "";
+    document.getElementById("admModalStatusMotivo").value = "";
 
     document.getElementById("admModalStatusOverlay").hidden = false;
 
@@ -94,8 +115,23 @@ function abrirModalStatus(usuario, aoConfirmar) {
     // pra não empilhar um listener novo a cada vez que o modal abre.
     const btn = document.getElementById("admModalStatusConfirmar");
     const btnNovo = btn.cloneNode(true);
+    btnNovo.disabled = false; // o clone herda "disabled" de um envio anterior bem-sucedido
     btn.replaceWith(btnNovo);
     btnNovo.addEventListener("click", confirmarModalStatus);
+    atualizarBloqueioStatus();
+}
+
+// Desativar (ativo -> inativo) é bloqueado com locação em andamento/pendente;
+// reativar continua liberado.
+function atualizarBloqueioStatus() {
+    if (!_usuarioStatusAtual) return;
+    const desativando = document.getElementById("admModalStatusSelect").value === "inativo"
+        && _usuarioStatusAtual.status !== "inativo";
+    // O campo de motivo só aparece ao suspender.
+    document.getElementById("admModalStatusMotivoCampo").hidden = !desativando;
+    const bloqueado = desativando && usuarioTemBloqueio(_usuarioStatusAtual);
+    document.getElementById("admModalStatusErro").textContent = bloqueado ? MSG_BLOQUEIO_USUARIO : "";
+    document.getElementById("admModalStatusConfirmar").disabled = bloqueado;
 }
 
 function fecharModalStatus() {
@@ -106,21 +142,26 @@ function fecharModalStatus() {
 
 async function confirmarModalStatus() {
     const novoStatus = document.getElementById("admModalStatusSelect").value;
-    const motivo = "";
     const erroEl = document.getElementById("admModalStatusErro");
     erroEl.textContent = "";
 
+    const suspendendo = novoStatus === "inativo" && _usuarioStatusAtual.status !== "inativo";
+    const motivo = document.getElementById("admModalStatusMotivo").value.trim();
+    if (suspendendo && motivo.length < 5) {
+        erroEl.textContent = "Informe o motivo da suspensão (mín. 5 caracteres). O usuário verá esse texto.";
+        return;
+    }
 
     const botao = document.getElementById('admModalStatusConfirmar');
     botao.disabled = true;
     try {
-        await alterarStatusUsuarioAdmin(_usuarioStatusAtual.id, novoStatus);
+        await alterarStatusUsuarioAdmin(_usuarioStatusAtual.id, novoStatus, suspendendo ? motivo : "");
     } catch (err) {
         erroEl.textContent = err.message;
         botao.disabled = false;
         return;
     }
-    window.mostrarToastAdmin(
+    toastAdmin(
         `Status de ${_usuarioStatusAtual.nome} atualizado para "${labelStatusAcoes(novoStatus)}"`,
         "sucesso"
     );
@@ -128,7 +169,7 @@ async function confirmarModalStatus() {
     const callback = _callbackStatus;
     const usuarioAlterado = _usuarioStatusAtual;
     fecharModalStatus();
-    if (callback) callback(novoStatus, motivo, usuarioAlterado);
+    if (callback) callback(novoStatus, usuarioAlterado);
 }
 
 // ================= EXCLUIR =================
@@ -144,8 +185,14 @@ function abrirModalExcluir(usuario, aoConfirmar) {
 
     const btn = document.getElementById("admModalExcluirConfirmar");
     const btnNovo = btn.cloneNode(true);
+    btnNovo.disabled = false; // o clone herda "disabled" de uma exclusão anterior
     btn.replaceWith(btnNovo);
     btnNovo.addEventListener("click", confirmarModalExcluir);
+
+    if (usuarioTemBloqueio(usuario)) {
+        document.getElementById("admModalExcluirErro").textContent = MSG_BLOQUEIO_USUARIO;
+        btnNovo.disabled = true;
+    }
 }
 
 function fecharModalExcluir() {
@@ -163,7 +210,7 @@ async function confirmarModalExcluir() {
     botao.disabled = true;
     try { await excluirUsuarioAdmin(usuario.id); }
     catch (err) { erroEl.textContent = err.message; botao.disabled = false; return; }
-    window.mostrarToastAdmin(`${usuario.nome} foi excluído`, "sucesso");
+    toastAdmin(`${usuario.nome} foi excluído`, "sucesso");
 
     const callback = _callbackExcluir;
     fecharModalExcluir();

@@ -110,6 +110,9 @@
   font-size: 13.5px;
   color: var(--texto-suave);
   line-height: 1.5;
+  /* Comunicados do admin podem ter várias linhas (Enter no campo de mensagem). */
+  white-space: pre-line;
+  overflow-wrap: anywhere;
 }
  
 .notificacao-acoes {
@@ -241,7 +244,101 @@
   color: var(--verde);
 }
 
-.notificacao-icone.tipo-multa_contestada {
-  background: #fff1e8;
-  color: var(--laranja);
+
+/* ================= NOTIFICAÇÕES ENVIADAS PELO ADMIN ================= */
+.notificacao-icone.tipo-conta_reativada,
+.notificacao-icone.tipo-verificacao_aprovada {
+  background: var(--verde-claro);
+  color: var(--verde);
+}
+
+.notificacao-icone.tipo-verificacao_reprovada {
+  background: #fff3cd;
+  color: #8a5a00;
+}
+
+.notificacao-icone.tipo-dados_atualizados_admin {
+  background: #ede9fe;
+  color: var(--roxo);
+}
+
+.notificacao-icone.tipo-anuncio_removido_admin {
+  background: #fdeaea;
+  color: #dc2626;
+}
+
+/* Ocultação é reversível (o admin pode reativar depois); arquivamento
+   ("removido") não. Cor âmbar em vez de vermelha marca essa diferença.
+   Tipo ainda não emitido pelo back — ver mensagem sobre isso. */
+.notificacao-icone.tipo-anuncio_ocultado_admin {
+  background: #fff3cd;
+  color: #8a5a00;
+}
+
+/* Moderação de avaliação pelo admin — mesma lógica de cor do anúncio:
+   âmbar = reversível (ocultada), vermelho = permanente (removida). Vale
+   tanto pra quem escreveu a avaliação quanto pra quem foi avaliado por ela
+   ("sobre_voce"). Nenhum dos quatro tipos existe no back ainda. */
+.notificacao-icone.tipo-avaliacao_ocultada_admin,
+.notificacao-icone.tipo-avaliacao_sobre_voce_ocultada_admin {
+  background: #fff3cd;
+  color: #8a5a00;
+}
+
+.notificacao-icone.tipo-avaliacao_removida_admin,
+.notificacao-icone.tipo-avaliacao_sobre_voce_removida_admin {
+  background: #fdeaea;
+  color: #dc2626;
+}
+
+/* Comunicado em massa enviado pela Central de Notificações do admin */
+.notificacao-icone.tipo-comunicado_admin {
+  background: #ede9fe;
+  color: var(--roxo);
+}
+
+
+/* ================= "MARCAR TODAS COMO LIDAS" ================= */
+.secao-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.secao-cabecalho .secao-titulo {
+  margin: 0;
+}
+
+.notificacoes-marcar-todas {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--roxo);
+  cursor: pointer;
+}
+
+.notificacoes-marcar-todas:hover {
+  color: var(--roxo-hover);
+  text-decoration: underline;
+}
+
+.notificacoes-marcar-todas:focus-visible {
+  outline: 2px solid var(--roxo);
+  outline-offset: 2px;
+}
+
+/* Resposta do Suporte e atualização de chamado (denúncia resolvida/fechada/improcedente) */
+.notificacao-icone.tipo-ocorrencia_atualizada {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+
+/* Selo de verificação removido pelo admin (perfil já mostra o motivo no card de verificação) */
+.notificacao-icone.tipo-verificacao_revogada {
+  background: #fdeaea;
+  color: #dc2626;
 }

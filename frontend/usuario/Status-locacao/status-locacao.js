@@ -158,11 +158,14 @@ const STATUS_GERAL_CLASSE = {
 // estaComDevolucaoAtrasada em historico.js.
 function estaComDevolucaoAtrasada(s) {
     if (s.status !== "retirado" && s.status !== "aguardando_devolucao") return false;
-    const dataDevolucao = parseDataISOLocal(s.dataDevolucao);
-    if (!dataDevolucao) return false;
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    return dataDevolucao < hoje;
+    // Prazo até 23:59 do dia agendado (fuso de São Paulo): atrasada a partir das 00:00 do dia seguinte.
+    return DevolucaoVizin.estaAtrasada(s.dataDevolucao);
+}
+
+// Virou o dia (00:00 de São Paulo) com a tela aberta e a locação em andamento:
+// recarrega pra badge, prazo e comprovante de multa refletirem o atraso.
+if (solicitacao.status === "retirado" || solicitacao.status === "aguardando_devolucao") {
+    DevolucaoVizin.aoVirarODia(() => window.location.reload());
 }
 
 const atrasado = estaComDevolucaoAtrasada(solicitacao);
@@ -204,22 +207,22 @@ if (solicitacao.status === "cancelado") {
         hoje.setHours(0, 0, 0, 0);
 
         if (solicitacao.status === "pago") {
-            const dataRetirada = parseDataISOLocal(solicitacao.dataRetirada);
-            if (!dataRetirada) return;
-            const diffDias = Math.round((dataRetirada - hoje) / 86400000);
-            const dataFormatada = formatarData(solicitacao.dataRetirada);
+            // Janela da retirada: só no dia agendado, das 00:00 às 23:59 (fuso de
+            // São Paulo). A regra vive em RetiradaVizin.janela() (retirada-shared.js).
+            const { estado, dataISO, diff } = RetiradaVizin.janela(solicitacao.id, solicitacao.dataRetirada);
+            if (!dataISO) return;
+            const dataFormatada = formatarData(dataISO);
             let texto;
 
-            if (diffDias > 1) {
-                texto = `Faltam ${diffDias} dias para a retirada (${dataFormatada}). Se o prazo passar sem que ambas as partes confirmem, a locação poderá ser cancelada. Quando aplicável, o estorno seguirá as regras da locação e a confirmação do provedor.`;
-            } else if (diffDias === 1) {
-                texto = `A retirada precisa ser confirmada até amanhã (${dataFormatada}).`;
-                prazoCard.classList.add("prazo-urgente");
-            } else if (diffDias === 0) {
-                texto = "A retirada precisa ser confirmada hoje.";
+            if (estado === "futura") {
+                const quando = diff > 1 ? ` (em ${diff} dias)` : diff === 1 ? " (amanhã)" : "";
+                texto = `A retirada só abre às 00:00 de ${dataFormatada}${quando} e vai até as 23:59 desse dia. Se ninguém registrar até lá, a locação é cancelada automaticamente e o valor pago é estornado ao locatário.`;
+                prazoCard.classList.add("prazo-info");
+            } else if (estado === "aberta") {
+                texto = "A retirada precisa ser registrada hoje, até as 23:59. Depois disso a locação é cancelada automaticamente e o valor pago é estornado ao locatário.";
                 prazoCard.classList.add("prazo-urgente");
             } else {
-                texto = "O prazo da retirada já passou — atualize a página para ver se a locação foi cancelada automaticamente.";
+                texto = `O prazo da retirada terminou às 23:59 de ${dataFormatada}. A locação será cancelada automaticamente e o valor pago estornado ao locatário — atualize a página para ver o resultado.`;
                 prazoCard.classList.add("prazo-urgente");
             }
 
@@ -229,29 +232,29 @@ if (solicitacao.status === "cancelado") {
         }
 
         if (solicitacao.status === "retirado" || solicitacao.status === "aguardando_devolucao") {
-            const dataDevolucao = parseDataISOLocal(solicitacao.dataDevolucao);
-            if (!dataDevolucao) return;
-            const diffDias = Math.round((dataDevolucao - hoje) / 86400000);
-            const dataFormatada = formatarData(solicitacao.dataDevolucao);
+            const p = DevolucaoVizin.prazo(solicitacao.dataDevolucao);
+            if (!p) return;
+            const dataFormatada = formatarData(p.dataISO);
+            const aviso = "Depois disso começa a contar multa diária.";
             let texto;
 
-            if (diffDias > 1) {
-                texto = `Faltam ${diffDias} dias para o prazo da devolução (${dataFormatada}).`;
-            } else if (diffDias === 1) {
-                texto = `A devolução precisa ser confirmada até amanhã (${dataFormatada}).`;
+            if (p.estado === "futura" && p.diff > 1) {
+                texto = `Faltam ${p.diff} dias para o prazo da devolução (${dataFormatada}). A devolução deve ser confirmada até as 23:59 desse dia. ${aviso}`;
+            } else if (p.estado === "futura") {
+                texto = `A devolução precisa ser confirmada até amanhã (${dataFormatada}), às 23:59. ${aviso}`;
                 prazoCard.classList.add("prazo-urgente");
-            } else if (diffDias === 0) {
-                texto = "A devolução precisa ser confirmada hoje.";
+            } else if (p.estado === "hoje") {
+                texto = `A devolução precisa ser confirmada hoje, até as 23:59. ${aviso}`;
                 prazoCard.classList.add("prazo-urgente");
             } else {
                 // O valor da multa é calculado pelo back-end (projeção até a
                 // devolução ser confirmada) — completamos o texto quando chegar.
-                const diasAtraso = Math.abs(diffDias);
-                texto = `Devolução em atraso há ${diasAtraso} dia(s) — o prazo era ${dataFormatada}.`;
+                texto = `Devolução em atraso há ${p.diasAtraso} dia(s): o prazo terminou às 23:59 de ${dataFormatada} e a multa diária já está correndo.`;
                 if (window.SolicitacoesVizin?.obterMulta) {
                     window.SolicitacoesVizin.obterMulta(solicitacao.id).then(m => {
                         if (m && m.valorTotal > 0) {
-                            prazoTexto.textContent = `${texto} Já soma ${window.SolicitacoesVizin.formatarReal(m.valorTotal)} de multa por atraso.`;
+                            const dias = m.diasAtraso > 0 ? m.diasAtraso : p.diasAtraso;
+                            prazoTexto.textContent = `Devolução em atraso há ${dias} dia(s): o prazo terminou às 23:59 de ${dataFormatada}. Já soma ${window.SolicitacoesVizin.formatarReal(m.valorTotal)} de multa por atraso.`;
                         }
                     }).catch(() => { /* mantém o texto sem valor */ });
                 }
@@ -339,11 +342,18 @@ if (solicitacao.status === "cancelado") {
         const statusRetirada = window.RetiradaVizin ? window.RetiradaVizin.obterStatus(solicitacao.id) : null;
         const jaEnviei = !!(statusRetirada && statusRetirada[meuPapel] && statusRetirada[meuPapel].enviado);
 
+        const janelaRetirada = window.RetiradaVizin
+            ? window.RetiradaVizin.janela(solicitacao.id, solicitacao.dataRetirada)
+            : { estado: "aberta", dataISO: "" };
+        const aindaNaoAbriu = janelaRetirada.estado === "futura";
+
         ctaRetiradaTexto.textContent = jaEnviei
             ? "Você já enviou suas fotos da retirada. Assim que a outra parte enviar as dela, a locação avança automaticamente."
-            : "Registre fotos do objeto no momento da retirada para confirmar que ele foi entregue nas condições combinadas.";
+            : aindaNaoAbriu
+                ? `A retirada só pode ser registrada a partir das 00:00 de ${formatarData(janelaRetirada.dataISO)}, até as 23:59 desse dia.`
+                : "Registre fotos do objeto no momento da retirada para confirmar que ele foi entregue nas condições combinadas.";
 
-        btnIrRetirada.innerHTML = jaEnviei
+        btnIrRetirada.innerHTML = (jaEnviei || aindaNaoAbriu)
             ? `<i class="bi bi-camera"></i> Ver Retirada`
             : `<i class="bi bi-camera"></i> Iniciar Retirada`;
 

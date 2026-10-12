@@ -6,6 +6,7 @@ declare global {
         id: string;
         email: string;
         tipo: "admin" | "usuario";
+        ativo: boolean;
       };
     }
   }

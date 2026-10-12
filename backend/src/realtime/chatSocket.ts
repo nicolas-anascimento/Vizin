@@ -14,6 +14,12 @@ import {
 import type { ConversationPayload, SocketErrorPayload } from "./types.ts";
 import type { RealtimeSocket } from "./socket.ts";
 import { consumeRateLimit } from "../app/middlewares/rateLimit.ts";
+import prisma from "../app/config/database.ts";
+
+async function assertActive(userId:string):Promise<void>{
+  const user=await prisma.usuarios.findUnique({where:{id:userId},select:{ativo:true}});
+  if(!user?.ativo)throw new HttpError(403,"Sua conta está suspensa.","conta_suspensa");
+}
 
 function socketError(
   error: unknown,
@@ -31,6 +37,7 @@ function socketError(
 export function registerChatSocket(socket: RealtimeSocket): void {
   socket.on("chat:join", async (payload) => {
     try {
+      await assertActive(socket.data.userId);
       const conversation = await getChatConversation(
         payload?.conversation_id,
         socket.data.userId,
@@ -54,6 +61,7 @@ export function registerChatSocket(socket: RealtimeSocket): void {
   socket.on("message:send", async (payload) => {
     const clientMessageId = payload?.client_message_id;
     try {
+      await assertActive(socket.data.userId);
       const limit = consumeRateLimit(`chat-message:user:${socket.data.userId}`, 60_000, 30);
       if (!limit.allowed) {
         throw new HttpError(429, "Muitas mensagens; aguarde um instante", "limite_mensagens");
@@ -81,6 +89,7 @@ export function registerChatSocket(socket: RealtimeSocket): void {
 
   socket.on("message:read", async (payload) => {
     try {
+      await assertActive(socket.data.userId);
       const result = await markChatRead(
         payload?.conversation_id,
         socket.data.userId,
@@ -93,6 +102,7 @@ export function registerChatSocket(socket: RealtimeSocket): void {
 
   const typing = async (payload: ConversationPayload, active: boolean) => {
     try {
+      await assertActive(socket.data.userId);
       const id = uuid(payload?.conversation_id, "Conversa");
       const room = conversationRoom(id);
       if (!socket.rooms.has(room)) {

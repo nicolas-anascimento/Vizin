@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/assets/admin/admin-sidebar/admin-sidebar.css">
+    <link rel="stylesheet" href="/assets/admin/Usuarios/admin-shared.css">
+    <link rel="stylesheet" href="/assets/admin/Avaliacoes/avaliacoes.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <title>Avaliações — Admin Vizin</title>
+</head>
+<body class="admin-body" data-page="avaliacoes">
+
+    <div id="adminSidebarContainer"></div>
+
+    <main class="admin-main">
+
+        <div class="admin-topbar-mobile">
+            <button id="adminMenuToggle" aria-label="Abrir menu"><i class="bi bi-list"></i></button>
+        </div>
+
+        <header class="admin-page-header">
+            <h1>Gerenciamento de Avaliações</h1>
+            <p>Gerencie as avaliações e reputação da plataforma</p>
+        </header>
+
+        <!-- ================= CARDS DE ESTATÍSTICA (calculados no front) ================= -->
+        <section class="admin-stats-grid">
+            <div class="admin-stat-card">
+                <span class="admin-stat-label">Nota Média da Plataforma</span>
+                <div class="admin-stat-valor">
+                    <span id="statNotaMedia">—</span>
+                    <span id="statNotaMediaEstrelas" class="avaliacoes-stat-estrelas"></span>
+                </div>
+                <span class="admin-stat-sublabel" id="statNotaMediaBase">Baseado em 0 avaliações</span>
+            </div>
+
+            <div class="admin-stat-card">
+                <span class="admin-stat-label">Total de Avaliações</span>
+                <div class="admin-stat-valor" id="statTotal">—</div>
+                <span class="admin-stat-variacao" id="statTotalVariacao"></span>
+            </div>
+
+            <div class="admin-stat-card">
+                <span class="admin-stat-label">Distribuição de Notas</span>
+                <div class="avaliacoes-dist-linha"><span>5★</span><div class="avaliacoes-dist-barra"><div class="avaliacoes-dist-fill" id="distFill5"></div></div><span id="distQtd5">0</span></div>
+                <div class="avaliacoes-dist-linha"><span>4★</span><div class="avaliacoes-dist-barra"><div class="avaliacoes-dist-fill" id="distFill4"></div></div><span id="distQtd4">0</span></div>
+                <div class="avaliacoes-dist-linha"><span>3★</span><div class="avaliacoes-dist-barra"><div class="avaliacoes-dist-fill" id="distFill3"></div></div><span id="distQtd3">0</span></div>
+                <div class="avaliacoes-dist-linha"><span>2★</span><div class="avaliacoes-dist-barra"><div class="avaliacoes-dist-fill" id="distFill2"></div></div><span id="distQtd2">0</span></div>
+                <div class="avaliacoes-dist-linha"><span>1★</span><div class="avaliacoes-dist-barra"><div class="avaliacoes-dist-fill" id="distFill1"></div></div><span id="distQtd1">0</span></div>
+            </div>
+        </section>
+
+        <!-- ================= BUSCA + FILTRO POR NOTA ================= -->
+        <div class="admin-filtros-container">
+
+            <section class="admin-toolbar">
+                <div class="admin-search-box">
+                    <i class="bi bi-search"></i>
+                    <input type="text" id="buscaAvaliacoes" placeholder="Buscar por avaliador, avaliado ou comentário...">
+                </div>
+
+                <button class="admin-btn-filtro" id="btnFiltros" type="button">
+                    <i class="bi bi-funnel"></i> Filtros
+                </button>
+            </section>
+
+            <section class="admin-filtro-status" id="filtroStatusBar">
+                <span class="admin-filtro-status-label">Nota:</span>
+                <div class="admin-filtro-pills">
+                    <button type="button" class="admin-filtro-pill active" data-nota="todos">Todas</button>
+                    <button type="button" class="admin-filtro-pill" data-nota="5">5★</button>
+                    <button type="button" class="admin-filtro-pill" data-nota="4">4★</button>
+                    <button type="button" class="admin-filtro-pill" data-nota="3">3★</button>
+                    <button type="button" class="admin-filtro-pill" data-nota="2">2★</button>
+                    <button type="button" class="admin-filtro-pill" data-nota="1">1★</button>
+                </div>
+            </section>
+
+        </div>
+
+        <!-- ================= TABELA ================= -->
+        <section class="admin-card">
+
+            <h2>Comentários Recentes</h2>
+
+            <div class="admin-tabela-scroll">
+                <table class="admin-tabela">
+                    <thead>
+                        <tr>
+                            <th>Avaliador</th>
+                            <th>Usuário Avaliado</th>
+                            <th>Item</th>
+                            <th>Nota</th>
+                            <th>Comentário</th>
+                            <th>Data</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="corpoTabelaAvaliacoes">
+                        <!-- linhas inseridas via avaliacoes.js -->
+                    </tbody>
+                </table>
+            </div>
+
+            <p id="tabelaEstadoVazio" class="admin-tabela-vazio" hidden>Nenhuma avaliação encontrada.</p>
+
+            <div class="admin-tabela-rodape">
+                <span id="infoPaginacao"></span>
+                <div class="admin-paginacao" id="paginacao"></div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <div id="toast" class="admin-toast"></div>
+
+    <script src="/assets/usuario/Login/api.js"></script>
+    <script src="/assets/admin/Avaliacoes/admin-api.js"></script>
+    <script src="/assets/admin/Avaliacoes/admin-avaliacao-acoes.js"></script>
+    <script src="/assets/admin/admin-sidebar/admin-frame.js"></script>
+    <script src="/assets/admin/Avaliacoes/avaliacoes.js"></script>
+
+</body>
+</html>

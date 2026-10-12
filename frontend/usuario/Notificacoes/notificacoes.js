@@ -1,4 +1,4 @@
-const { obterTodas, marcarComoLida, excluir, iconePorTipo, obterDestino } = window.NotificacoesVizin;
+const { obterTodas, marcarComoLida, marcarTodasComoLidas, excluir, iconePorTipo, obterDestino } = window.NotificacoesVizin;
  
 const listaNaoLidasEl = document.getElementById("lista-nao-lidas");
 const listaLidasEl = document.getElementById("lista-lidas");
@@ -105,6 +105,14 @@ Promise.all([
 document.addEventListener("notificacoesAtualizadas", renderizar);
 document.addEventListener("solicitacoesAtualizadas", renderizar);
  
+// "Marcar todas como lidas": a seção "Não lidas" some quando não há nenhuma,
+// então o botão só aparece quando faz sentido. marcarTodasComoLidas é otimista
+// (atualiza a tela na hora e desfaz se o back recusar).
+const btnMarcarTodas = document.getElementById("btn-marcar-todas");
+if (btnMarcarTodas) {
+    btnMarcarTodas.addEventListener("click", () => marcarTodasComoLidas());
+}
+
 document.getElementById("secao-nao-lidas").addEventListener("click", tratarClique);
 document.getElementById("secao-lidas").addEventListener("click", tratarClique);
  

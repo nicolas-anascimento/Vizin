@@ -510,6 +510,19 @@
   margin: 0;
 }
 
+.confirmada-pagamento-aviso {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--verde-claro);
+  color: var(--verde);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
 @media (max-width: 480px) {
   .retirada-header-card {
     flex-direction: column;
@@ -650,3 +663,27 @@
   }
 }
 .demo-retirada-card{margin:14px 0;padding:18px;border:1px dashed #8c78b8;background:#faf8ff}.demo-retirada-card[hidden],.demo-retirada-card button[hidden]{display:none}.demo-retirada-card h2{margin:0 0 8px;font-size:1.1rem}.demo-retirada-card p{margin:8px 0}.demo-retirada-nota{font-size:.9rem;color:#5d5868}
+
+/* ---------- Janela da retirada (00:00–23:59 do dia agendado) ---------- */
+/* Antes do dia: aviso informativo (roxo), sem urgência. */
+.prazo-card.prazo-info {
+  background: var(--roxo-claro);
+  color: var(--roxo);
+  box-shadow: none;
+}
+
+/* Fora da janela: o envio de fotos fica travado (o botão "Cancelar Locação"
+   continua liberado). O back também recusa — isto é só o reflexo visual. */
+#etapa-enviar.janela-fechada .parte-dropzone {
+  border-color: var(--borda);
+  background: var(--fundo);
+  opacity: .55;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+#etapa-enviar.janela-fechada .campo-observacoes textarea {
+  background: var(--fundo);
+  opacity: .6;
+  cursor: not-allowed;
+}
