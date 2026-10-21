@@ -2,6 +2,7 @@ import { contractedPrice, isExpiredPix } from "../services/paymentRules.ts";
 import { HttpError } from "./httpError.ts";
 import { formatBr, rentalDays } from "./dates.ts";
 import { initials } from "./strings.ts";
+import { avatarUrl } from "./files.ts";
 
 type DecimalLike = { toString(): string } | number | string;
 const money = (value: DecimalLike | null | undefined): number => Number(value ?? 0);
@@ -12,8 +13,24 @@ function paymentAction(value: unknown): { tipo: "3ds"; url: string; creq?: strin
   return { tipo: "3ds", url: action.url, ...(typeof action.creq === "string" ? { creq: action.creq } : {}) };
 }
 
+// Mantém um único contrato para anúncios retornados pela moderação administrativa.
+export function serializeAdminItem(item: any, rentalStatuses: Iterable<string> = []): Record<string, unknown> {
+  const states = new Set(rentalStatuses);
+  const emLocacao = ["aprovado", "pago", "retirado", "devolvido"].some(status => states.has(status));
+  const { alugueis: _alugueis, ...data } = item;
+  return {
+    ...data,
+    preco_por_dia: money(item.preco_por_dia),
+    status: item.arquivado ? "arquivado" : "ativo",
+    emLocacao,
+    solicitacaoPendente: states.has("pendente"),
+    em_locacao: emLocacao,
+    tem_solicitacao_pendente: states.has("pendente"),
+  };
+}
+
 // Converte relações e valores do Prisma para o contrato público de objeto da API.
-export function serializeItem(item: any): Record<string, unknown> {
+export function serializeItem(item: any, includeModerationReason = false): Record<string, unknown> {
   const photos = Array.isArray(item.fotos_item)
     ? [...item.fotos_item].sort((a, b) => Number(Boolean(b.principal)) - Number(Boolean(a.principal)))
     : [];
@@ -27,6 +44,8 @@ export function serializeItem(item: any): Record<string, unknown> {
   const category = item.categorias?.nome ?? "Sem categoria";
   const image = photos[0]?.url ?? "/assets/img/sem-imagem.png";
   const location = item.localizacao_texto ?? item.enderecos?.cidade ?? "Não informado";
+  const rentalStatuses = new Set((item.alugueis ?? []).map((r: any) => r.status).filter(Boolean));
+  const emLocacao = ["aprovado", "pago", "retirado", "devolvido"].some(status => rentalStatuses.has(status));
   return {
     id: item.id,
     nome: item.titulo,
@@ -43,8 +62,11 @@ export function serializeItem(item: any): Record<string, unknown> {
     localizacao_texto: location,
     disponivel: item.disponivel ?? true,
     oculto_pelo_admin: item.oculto_pelo_admin ?? false,
-    motivo_ocultacao: item.motivo_ocultacao ?? null,
+    ...(includeModerationReason ? { motivo_ocultacao: item.motivo_ocultacao ?? null } : {}),
     arquivado: item.arquivado ?? false,
+    status: item.arquivado ? "arquivado" : "ativo",
+    em_locacao: emLocacao,
+    tem_solicitacao_pendente: rentalStatuses.has("pendente"),
     disponivel_imediato: item.disponivel ?? true,
     condicao: item.condicao,
     segurado: item.segurado ?? false,
@@ -62,7 +84,7 @@ export function serializeItem(item: any): Record<string, unknown> {
           id: owner.id,
           nome: owner.nome,
           iniciais: initials(owner.nome),
-          avatarUrl: owner.foto_url ?? null,
+          avatarUrl: avatarUrl(owner.foto_url),
           avaliacao: Number(rating.toFixed(1)),
         }
       : undefined,
@@ -151,7 +173,7 @@ export function serializeProfile(user: any, includePrivate = false): Record<stri
     nome: user.nome,
     ...(includePrivate ? { email: user.email, cpf: user.cpf, telefone: user.telefone, whatsapp: user.telefone, preferenciasNotificacao: user.preferencias, privacidade: user.privacidade } : {}),
     bio: user.bio ?? "",
-    avatarUrl: user.foto_url,
+    avatarUrl: avatarUrl(user.foto_url),
     avaliacaoMedia: Number(average.toFixed(1)),
     avaliacaoTotal: reviews.length,
     avaliacaoProprietarioMedia: Number(ownerAverage.toFixed(1)),
@@ -167,6 +189,9 @@ export function serializeProfile(user: any, includePrivate = false): Record<stri
     avaliacoes: reviews.map((review: any) => ({
       id: review.id,
       nome: review.usuarios_avaliacoes_avaliador_idTousuarios?.nome ?? "Usuário",
+      avaliadorId: review.avaliador_id,
+      nomeAvaliador: review.usuarios_avaliacoes_avaliador_idTousuarios?.nome ?? "Usuário",
+      avaliadorAvatarUrl: avatarUrl(review.usuarios_avaliacoes_avaliador_idTousuarios?.foto_url),
       data: formatBr(review.criado_em),
       nota: Number(review.nota ?? 0),
       comentario: review.comentario ?? "",
@@ -186,7 +211,8 @@ export function serializePayment(p: any): Record<string, unknown> {
 }
 // Expõe os campos de avaliação aceitos pelo contrato da API.
 export function serializeReview(r: any): Record<string, unknown> {
-  return { id: r.id, aluguel_id: r.aluguel_id, avaliador_id: r.avaliador_id, avaliado_id: r.avaliado_id, contexto: r.contexto, objetoId: r.item_id, nota: r.nota, comentario: r.comentario ?? "", criado_em: r.criado_em };
+  const evaluator = r.usuarios_avaliacoes_avaliador_idTousuarios;
+  return { id: r.id, aluguel_id: r.aluguel_id, avaliador_id: r.avaliador_id, avaliadorId: r.avaliador_id, nomeAvaliador: evaluator?.nome ?? "Usuário", avaliadorAvatarUrl: avatarUrl(evaluator?.foto_url), avaliado_id: r.avaliado_id, contexto: r.contexto, objetoId: r.item_id, nota: r.nota, comentario: r.comentario ?? "", criado_em: r.criado_em };
 }
 export interface SerializedMessage {
   id: string;
@@ -250,7 +276,8 @@ export function serializeMessage(m: SerializableMessage, userId: string): Serial
 
 // Oculta CPF, email e telefone em respostas públicas; libera esses campos no perfil próprio.
 export function serializeUser(user: any, includePrivate = false): Record<string,unknown> {
- return { id:user.id, nome:user.nome, tipo:user.tipo, avatarUrl:user.foto_url, foto_url:user.foto_url, bio:user.bio ?? "", verificado:user.verificado ?? false, ...(includePrivate ? { email:user.email, cpf:user.cpf, telefone:user.telefone, whatsapp:user.telefone } : {}) };
+ const avatar=avatarUrl(user.foto_url);
+ return { id:user.id, nome:user.nome, tipo:user.tipo, avatarUrl:avatar, foto_url:avatar, bio:user.bio ?? "", verificado:user.verificado ?? false, ...(includePrivate ? { email:user.email, cpf:user.cpf, telefone:user.telefone, whatsapp:user.telefone } : {}) };
 }
 
 // Traduz estados financeiros e entrega apenas PIX ou ação 3DS válidos ao cliente.

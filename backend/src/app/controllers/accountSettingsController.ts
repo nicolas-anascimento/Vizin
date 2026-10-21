@@ -110,7 +110,7 @@ export const deleteAvatar: RequestHandler = async (req, res) => {
   });
   await prisma.usuarios.update({
     where: { id: user.id },
-    data: { foto_url: null },
+    data: { foto_url: null, atualizado_em: new Date() },
   });
   await removeUploadByUrl(user.foto_url);
   res.json({ success: true, avatarUrl: null });

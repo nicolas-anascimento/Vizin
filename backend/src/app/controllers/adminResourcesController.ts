@@ -5,6 +5,8 @@ import { HttpError } from "../utils/httpError.ts";
 import { serializeReview } from "../utils/serializers.ts";
 import { audit, dateFilters, paged, pagination, statusFilter } from "../utils/admin.ts";
 import { businessDate, businessDayStart } from "../utils/dates.ts";
+import { userReportWhere } from "../services/reportRules.ts";
+import { avatarUrl } from "../utils/files.ts";
 
 // DTO financeiro do painel, sem dados sensíveis do meio de pagamento.
 function paymentDto(p: any) {
@@ -92,8 +94,8 @@ export const adminPaymentStats: RequestHandler = async (_req, res) => {
 export const adminReviews: RequestHandler = async (req, res) => {
   const { page, limit, skip } = pagination(req);
   const range = dateFilters(req); const where = { ...(range ? { criado_em: range } : {}) };
-  const [rows, total] = await Promise.all([prisma.avaliacoes.findMany({ where, skip, take: limit, orderBy: { criado_em: "desc" }, include: { usuarios_avaliacoes_avaliador_idTousuarios: { select: { id: true, nome: true } }, usuarios_avaliacoes_avaliado_idTousuarios: { select: { id: true, nome: true } }, item: { select: { titulo: true } }, alugueis: { select: { itens: { select: { titulo: true } } } } } }), prisma.avaliacoes.count({ where })]);
-  res.json(paged(rows.map(row => ({ ...serializeReview(row), oculta: row.oculta, avaliador: row.usuarios_avaliacoes_avaliador_idTousuarios, avaliado: row.usuarios_avaliacoes_avaliado_idTousuarios, produtoTitulo: row.item?.titulo ?? row.alugueis.itens.titulo })), total, page, limit));
+  const [rows, total] = await Promise.all([prisma.avaliacoes.findMany({ where, skip, take: limit, orderBy: { criado_em: "desc" }, include: { usuarios_avaliacoes_avaliador_idTousuarios: { select: { id: true, nome: true, foto_url: true } }, usuarios_avaliacoes_avaliado_idTousuarios: { select: { id: true, nome: true } }, item: { select: { titulo: true } }, alugueis: { select: { itens: { select: { titulo: true } } } } } }), prisma.avaliacoes.count({ where })]);
+  res.json(paged(rows.map(row => ({ ...serializeReview(row), oculta: row.oculta, avaliador: { id: row.usuarios_avaliacoes_avaliador_idTousuarios.id, nome: row.usuarios_avaliacoes_avaliador_idTousuarios.nome, avatarUrl: avatarUrl(row.usuarios_avaliacoes_avaliador_idTousuarios.foto_url) }, avaliado: row.usuarios_avaliacoes_avaliado_idTousuarios, produtoTitulo: row.item?.titulo ?? row.alugueis.itens.titulo })), total, page, limit));
 };
 // Oculta ou reexibe sem apagar o conteúdo histórico.
 export const updateReview: RequestHandler = async (req, res) => {
@@ -149,7 +151,7 @@ export function listCases(kind: "suporte" | "denuncia" | "sinistro"): RequestHan
     res.json(paged(rows, total, page, limit)); return;
   }
   if (kind === "denuncia") {
-    const where = { ...base, ...(busca ? { OR: [{ assunto: { contains: busca, mode: "insensitive" as const } }, { protocolo: { contains: busca, mode: "insensitive" as const } }] } : {}) };
+    const where = userReportWhere({ ...base, ...(busca ? { OR: [{ assunto: { contains: busca, mode: "insensitive" as const } }, { protocolo: { contains: busca, mode: "insensitive" as const } }] } : {}) });
     const [rows, total] = await Promise.all([prisma.denuncias.findMany({ where, skip, take: limit, orderBy: { criado_em: order }, select: { id: true, usuario_id: true, denunciado_id: true, objeto_id: true, aluguel_id: true, motivo: true, assunto: true, mensagem: true, status: true, protocolo: true, notas: true, criado_em: true, atualizado_em: true } }), prisma.denuncias.count({ where })]);
     res.json(paged(rows, total, page, limit)); return;
   }
@@ -221,16 +223,18 @@ export const listAdminCategories: RequestHandler = async (_req,res) => {
 export const moveCategoryItems: RequestHandler = async (req,res) => {
   const source=uuid(req.params.id),destination=uuid(req.body?.destino_id,"Categoria de destino");
   if(source===destination)throw new HttpError(422,"Origem e destino devem ser diferentes","categoria_destino_igual");
-  const moved=await prisma.$transaction(async tx=>{await tx.$queryRaw`SELECT id FROM categorias WHERE id IN (${source}::uuid,${destination}::uuid) ORDER BY id FOR UPDATE`;const count=await tx.categorias.count({where:{id:{in:[source,destination]}}});if(count!==2)throw new HttpError(404,"Categoria não encontrada");const result=await tx.itens.updateMany({where:{categoria_id:source},data:{categoria_id:destination}});await audit(tx,req.user!.id,"categoria_alterada","categoria",source,{operacao:"mover_itens",destino_id:destination,movidos:result.count});return result.count;});
+  const moved=await prisma.$transaction(async tx=>{await tx.$queryRaw`SELECT id FROM categorias WHERE id IN (${source}::uuid,${destination}::uuid) ORDER BY id FOR UPDATE`;const count=await tx.categorias.count({where:{id:{in:[source,destination]}}});if(count!==2)throw new HttpError(404,"Categoria não encontrada");const result=await tx.itens.updateMany({where:{categoria_id:source},data:{categoria_id:destination}});await audit(tx,req.user!.id,"categoria_alterada","categoria",source,{operacao:"mover_itens",destino_id:destination,movidos:result.count});return result.count;},{isolationLevel:"Serializable"});
   res.json({movidos:moved});
 };
 // Exclui categoria quando as relações no banco permitem.
 export const deleteCategory: RequestHandler = async (req, res) => {
   const id = uuid(req.params.id);
   await prisma.$transaction(async tx => {
-    if (await tx.itens.count({ where: { categoria_id: id } })) throw new HttpError(409, "Categoria em uso", "categoria_em_uso");
+    await tx.$queryRaw`SELECT id FROM categorias WHERE id=${id}::uuid FOR UPDATE`;
+    if (!await tx.categorias.findUnique({where:{id},select:{id:true}})) throw new HttpError(404,"Categoria não encontrada");
+    if (await tx.itens.count({ where: { categoria_id: id } })) throw new HttpError(409, "Não é possível excluir esta categoria porque existem objetos vinculados.", "categoria_com_itens");
     await tx.categorias.delete({ where: { id } }); await audit(tx, req.user!.id, "categoria_alterada", "categoria", id, { operacao: "remover" });
-  }); res.json({ success: true });
+  },{isolationLevel:"Serializable"}); res.json({ success: true });
 };
 // Resume divergência financeira para análise no painel.
 function reconciliationDto(c: { id: string; pagamento_id: string; chave: string; motivo: string; status: string; criado_em: Date; pagamento?: any }) {

@@ -73,7 +73,9 @@ export const createRentalRequest: RequestHandler = async (req, res) => {
       where: { id: itemId },
       include: { usuarios: { select: { ativo: true } } },
     });
-    if (!item || !item.disponivel || item.arquivado || !item.usuarios.ativo) throw new HttpError(404, "Objeto indisponível");
+    if (!item || !item.disponivel || item.arquivado || item.oculto_pelo_admin || !item.usuarios.ativo) {
+      throw new HttpError(409, "Este objeto não está disponível para aluguel.", "objeto_indisponivel");
+    }
     if (item.usuario_id === req.user!.id) throw new HttpError(409, "Você não pode alugar seu próprio objeto");
 
     const today = businessDate();

@@ -19,6 +19,7 @@ O servidor disponibiliza a API em `/api`, os assets existentes em `/assets` e p�
 
 - [Contratos, rotas, regras e integração de gateway](docs/API.md)
 - [Relatório da implementação e verificações](docs/IMPLEMENTACAO.md)
+- [Contrato de desarquivamento administrativo](ADMIN_ITEM_UNARCHIVE.md)
 
 ```bash
 npm run typecheck

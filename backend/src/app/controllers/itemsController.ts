@@ -27,6 +27,21 @@ const itemInclude = {
       avaliacoes_avaliacoes_avaliado_idTousuarios: { where: { contexto: "objeto", oculta: false }, select: { nota: true } },
     },
   },
+  alugueis: {
+    where: { status: { in: ["pendente", "aprovado", "pago", "retirado", "devolvido"] } },
+    select: { status: true },
+  },
+};
+
+// Executado antes do multer para não persistir fotos de uma edição que já é
+// proibida. O controller repete a verificação sob lock para cobrir corridas.
+export const requireMutableOwnedItem: RequestHandler = async (req, _res, next) => {
+  const item = await prisma.itens.findUnique({ where: { id: uuid(req.params.id) }, select: { usuario_id: true, arquivado: true, oculto_pelo_admin: true } });
+  if (!item) throw new HttpError(404, "Objeto não encontrado");
+  if (item.usuario_id !== req.user!.id) throw new HttpError(403, "Você não pode editar este objeto");
+  if (item.arquivado) throw new HttpError(409, "Este anúncio está arquivado e não pode ser alterado.", "objeto_arquivado");
+  if (item.oculto_pelo_admin) throw new HttpError(409, "Este anúncio foi ocultado pela administração e não pode ser alterado.", "objeto_oculto_pelo_admin");
+  next();
 };
 
 // Executado sob bloqueio do anúncio; a criação de solicitações também bloqueia essa linha.
@@ -136,7 +151,7 @@ export const listItems: RequestHandler = async (req, res) => {
   const total = await prisma.itens.count({ where });
   res.setHeader("X-Total-Count", total);
   const items = await prisma.itens.findMany({ where, include: itemInclude, orderBy: order, skip: (page - 1) * limit, take: limit });
-  res.json(items.map(serializeItem));
+  res.json(items.map(item => serializeItem(item)));
 };
 
 // Lista somente anúncios não arquivados do usuário autenticado, com total para paginação.
@@ -150,7 +165,7 @@ export const myItems: RequestHandler = async (req, res) => {
     skip,take:limit,
   }),prisma.itens.count({where})]);
   pageHeaders(res,total,page,limit);
-  res.json(items.map(serializeItem));
+  res.json(items.map(item => serializeItem(item, true)));
 };
 
 // Mostra anúncio pelo UUID; conteúdo arquivado ou de conta inativa só é visível ao dono ou admin.
@@ -159,7 +174,7 @@ export const getItem: RequestHandler = async (req, res) => {
   if (!item || ((!item.usuarios.ativo || item.arquivado || item.oculto_pelo_admin) && item.usuario_id !== req.user?.id && req.user?.tipo !== "admin")) {
     throw new HttpError(404, "Objeto não encontrado");
   }
-  res.json(serializeItem(item));
+  res.json(serializeItem(item, item.usuario_id === req.user?.id || req.user?.tipo === "admin"));
 };
 
 // Exige foto e formulário multipart, confirma categoria e endereço próprio e cria anúncio com fotos.
@@ -197,7 +212,7 @@ export const createItem: RequestHandler = async (req, res) => {
     include: itemInclude,
   });
   await prisma.notificacoes_admin.create({ data: { tipo: "novo_anuncio", categoria: "anuncios", prioridade: "normal", titulo: "Novo anúncio", mensagem: "Um novo anúncio foi publicado.", referencia_tipo: "objeto", referencia_id: item.id, chave_deduplicacao: `novo_anuncio:${item.id}` } });
-  res.status(201).json({ success: true, objeto: serializeItem(item), ...serializeItem(item) });
+  res.status(201).json({ success: true, objeto: serializeItem(item, true), ...serializeItem(item, true) });
 };
 
 // Confere propriedade e campos enviados antes de atualizar anúncio, endereço, categoria e fotos.
@@ -208,6 +223,8 @@ export const updateItem: RequestHandler = async (req, res) => {
   });
   if (!current) throw new HttpError(404, "Objeto não encontrado");
   if (current.usuario_id !== req.user!.id) throw new HttpError(403, "Você não pode editar este objeto");
+  if (current.arquivado) throw new HttpError(409, "Este anúncio está arquivado e não pode ser alterado.", "objeto_arquivado");
+  if (current.oculto_pelo_admin) throw new HttpError(409, "Este anúncio foi ocultado pela administração e não pode ser alterado.", "objeto_oculto_pelo_admin");
   const body = (req.body ?? {}) as Record<string, unknown>;
   if (body.disponivel !== undefined) boolean(body.disponivel, "Disponível");
   const price = body.preco_dia ?? body.preco_por_dia ?? body.preco;
@@ -251,9 +268,10 @@ export const updateItem: RequestHandler = async (req, res) => {
   const updated = await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM itens WHERE id=${current.id}::uuid FOR UPDATE`;
     const locked = await tx.itens.findUnique({ where: { id: current.id } });
-    if (!locked || locked.arquivado) throw new HttpError(404, "Objeto não encontrado");
+    if (!locked) throw new HttpError(404, "Objeto não encontrado");
     if (locked.usuario_id !== req.user!.id) throw new HttpError(403, "Você não pode editar este objeto");
-    if (locked.oculto_pelo_admin && (body.disponivel !== undefined || body.disponivel_imediato !== undefined) && data.disponivel) throw new HttpError(409, "O objeto está oculto pela moderação e não pode ser reativado.", "objeto_oculto_admin");
+    if (locked.arquivado) throw new HttpError(409, "Este anúncio está arquivado e não pode ser alterado.", "objeto_arquivado");
+    if (locked.oculto_pelo_admin) throw new HttpError(409, "Este anúncio foi ocultado pela administração e não pode ser alterado.", "objeto_oculto_pelo_admin");
     await assertItemMutation(tx, current.id, false,
       (body.disponivel !== undefined || body.disponivel_imediato !== undefined) && data.disponivel !== locked.disponivel);
     if (editingPhotos) {
@@ -288,7 +306,7 @@ export const updateItem: RequestHandler = async (req, res) => {
     });
   });
   await Promise.all(removed.map((photo: ItemPhoto) => removeUploadByUrl(photo.url)));
-  res.json({ success: true, objeto: serializeItem(updated), ...serializeItem(updated) });
+  res.json({ success: true, objeto: serializeItem(updated, true), ...serializeItem(updated, true) });
 };
 
 // Remove ou arquiva anúncio do proprietário, conforme seu histórico de locações.
@@ -296,13 +314,17 @@ export const deleteItem: RequestHandler = async (req, res) => {
   const item = await prisma.itens.findUnique({ where: { id: uuid(req.params.id) }, include: { fotos_item: true } });
   if (!item) throw new HttpError(404, "Objeto não encontrado");
   if (item.usuario_id !== req.user!.id) throw new HttpError(403, "Você não pode excluir este objeto");
+  if (item.arquivado) throw new HttpError(409, "Este anúncio está arquivado e não pode ser alterado.", "objeto_arquivado");
+  if (item.oculto_pelo_admin) throw new HttpError(409, "Este anúncio foi ocultado pela administração e não pode ser alterado.", "objeto_oculto_pelo_admin");
   // Se já houve aluguel, mantém o registro arquivado para preservar o histórico;
   // sem histórico, remove o anúncio e depois os arquivos de suas fotos.
   const hasHistory = await prisma.$transaction(async tx => {
     await tx.$queryRaw`SELECT id FROM itens WHERE id=${item.id}::uuid FOR UPDATE`;
     const locked = await tx.itens.findUnique({ where: { id: item.id } });
-    if (!locked || locked.arquivado) throw new HttpError(404, "Objeto não encontrado");
+    if (!locked) throw new HttpError(404, "Objeto não encontrado");
     if (locked.usuario_id !== req.user!.id) throw new HttpError(403, "Você não pode excluir este objeto");
+    if (locked.arquivado) throw new HttpError(409, "Este anúncio está arquivado e não pode ser alterado.", "objeto_arquivado");
+    if (locked.oculto_pelo_admin) throw new HttpError(409, "Este anúncio foi ocultado pela administração e não pode ser alterado.", "objeto_oculto_pelo_admin");
     await assertItemMutation(tx, item.id, true);
     const history = await tx.alugueis.findFirst({ where: { item_id: item.id } });
     if (history) {

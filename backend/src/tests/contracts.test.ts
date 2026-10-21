@@ -7,6 +7,7 @@ import { cpf, password, slug, uuid } from "../app/utils/validation.ts";
 import { authorizeTransition, normalizeRentalStatus } from "../app/services/rentalRules.ts";
 import { serializeItem, serializePayment, serializeProfile, serializePublicPayment } from "../app/utils/serializers.ts";
 import { parseDateOnly, rentalDays } from "../app/utils/dates.ts";
+import { SYSTEM_OCCURRENCE_REASONS, userReportWhere } from "../app/services/reportRules.ts";
 
 test("redirect pós autenticação usa o tipo devolvido pelo backend", async()=>{
  const source=await readFile(new URL("../../../frontend/usuario/Login/api.js",import.meta.url),"utf8");
@@ -149,4 +150,15 @@ test("DTO de objeto expõe categoria estruturada, preços e proprietário públi
  const owner=dto.proprietario as Record<string,unknown>;assert.equal(owner.id,id);assert.equal(owner.avatarUrl,null);
  for(const field of ["cpf","email","telefone","enderecos","rua"]) {assert.equal(dto[field],undefined);assert.equal(owner[field],undefined);}
  assert.deepEqual(dto.fotos,[{id,url:"/uploads/items/test.png",principal:true}]);
+});
+test("DTO público não expõe motivo de moderação e calcula flags de locação",()=>{
+ const item={id:"b1977890-226b-41cd-aa1a-938e465e49be",titulo:"Objeto",preco_por_dia:10,oculto_pelo_admin:true,motivo_ocultacao:"Motivo interno",alugueis:[{status:"pendente"},{status:"retirado"}]};
+ const publicDto=serializeItem(item),authorizedDto=serializeItem(item,true);
+ assert.equal(Object.hasOwn(publicDto,"motivo_ocultacao"),false);
+ assert.equal(authorizedDto.motivo_ocultacao,"Motivo interno");
+ assert.equal(publicDto.em_locacao,true);assert.equal(publicDto.tem_solicitacao_pendente,true);
+});
+test("definição compartilhada de denúncia exclui ocorrências sistêmicas",()=>{
+ assert.deepEqual(SYSTEM_OCCURRENCE_REASONS,["retirada_evidencia_unilateral"]);
+ assert.deepEqual(userReportWhere({denunciado_id:"id"}),{denunciado_id:"id",motivo:{notIn:["retirada_evidencia_unilateral"]}});
 });

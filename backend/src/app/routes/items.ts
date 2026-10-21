@@ -1,7 +1,7 @@
 // Expõe catálogo público e operações de anúncio; uploads passam por validação de imagem.
 import { verifyUploads } from "../middlewares/privateUpload.ts";
 import { Router } from "express";
-import { itemAvailability, createItem, deleteItem, getItem, listCategories, listItems, myItems, updateItem } from "../controllers/itemsController.ts";
+import { itemAvailability, createItem, deleteItem, getItem, listCategories, listItems, myItems, requireMutableOwnedItem, updateItem } from "../controllers/itemsController.ts";
 import { requireAuth } from "../middlewares/auth.ts";
 import { createItemUpload, updateItemUpload } from "../middlewares/upload.ts";
 import { listItemReviews } from "../controllers/reviewsController.ts";
@@ -13,7 +13,7 @@ router.get("/:id/disponibilidade", itemAvailability);
 router.get("/:id/avaliacoes", listItemReviews);
 router.get("/:id", getItem);
 router.post("/", requireAuth, createItemUpload, verifyUploads, createItem);
-router.put("/:id", requireAuth, updateItemUpload, verifyUploads, updateItem);
-router.patch("/:id", requireAuth, updateItemUpload, verifyUploads, updateItem);
+router.put("/:id", requireAuth, requireMutableOwnedItem, updateItemUpload, verifyUploads, updateItem);
+router.patch("/:id", requireAuth, requireMutableOwnedItem, updateItemUpload, verifyUploads, updateItem);
 router.delete("/:id", requireAuth, deleteItem);
 export default router;

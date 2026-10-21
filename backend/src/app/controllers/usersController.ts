@@ -11,7 +11,7 @@ const profileInclude = {
   avaliacoes_avaliacoes_avaliado_idTousuarios: {
     where: { oculta: false },
     orderBy: { criado_em: "desc" as const },
-    include: { usuarios_avaliacoes_avaliador_idTousuarios: { select: { nome: true } } },
+    include: { usuarios_avaliacoes_avaliador_idTousuarios: { select: { id: true, nome: true, foto_url: true } } },
   },
   alugueis_alugueis_locador_idTousuarios: { select: { status: true } },
   alugueis_alugueis_locatario_idTousuarios: { select: { status: true } },
@@ -67,7 +67,12 @@ export const uploadAvatar: RequestHandler = async (req, res) => {
   if (!file) throw new HttpError(422, "Envie uma imagem");
   const current = await prisma.usuarios.findUnique({ where: { id: req.user!.id }, select: { foto_url: true } });
   const avatarUrl = publicUploadUrl(file.path);
-  await prisma.usuarios.update({ where: { id: req.user!.id }, data: { foto_url: avatarUrl, atualizado_em: new Date() } });
+  try {
+    await prisma.usuarios.update({ where: { id: req.user!.id }, data: { foto_url: avatarUrl, atualizado_em: new Date() } });
+  } catch (error) {
+    await removeUploadByUrl(avatarUrl);
+    throw error;
+  }
   await removeUploadByUrl(current?.foto_url);
   res.json({ success: true, avatarUrl });
 };

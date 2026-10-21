@@ -366,6 +366,7 @@ model usuarios {
   notificacoes_admin_estado notificacoes_admin_estado[]
   notificacoes_admin_preferencias notificacoes_admin_preferencias?
   notificacoes_admin_tratadas notificacoes_admin[] @relation("admin_tratou_notificacao")
+  notificacoes_admin_recebidas notificacoes_admin[] @relation("admin_destinatario_notificacao")
   comunicados_admin_entregas comunicados_admin_entregas[]
 }
 
@@ -688,12 +689,15 @@ model notificacoes_admin {
   chave_deduplicacao String? @unique
   tratado_por_id  String?  @db.Uuid
   tratado_por     usuarios? @relation("admin_tratou_notificacao", fields: [tratado_por_id], references: [id], onDelete: SetNull)
+  destinatario_admin_id String? @db.Uuid
+  destinatario_admin usuarios? @relation("admin_destinatario_notificacao", fields: [destinatario_admin_id], references: [id], onDelete: Cascade)
   tratada_em      DateTime?
   criado_em       DateTime @default(now())
   estados         notificacoes_admin_estado[]
 
   @@index([categoria, prioridade, criado_em])
   @@index([referencia_tipo, referencia_id])
+  @@index([destinatario_admin_id, criado_em])
 }
 
 /// Leitura e dispensa individuais de um alerta compartilhado.

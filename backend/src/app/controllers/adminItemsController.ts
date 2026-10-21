@@ -3,6 +3,9 @@ import prisma from "../config/database.ts";
 import { HttpError } from "../utils/httpError.ts";
 import { boolean, text, uuid } from "../utils/validation.ts";
 import { audit } from "../utils/admin.ts";
+import { createNotification } from "../services/notificationPreferences.ts";
+import { serializeAdminItem, serializeNotification } from "../utils/serializers.ts";
+import { publishNotification } from "../../realtime/realtimeService.ts";
 
 // A moderação só altera visibilidade. Dados comerciais e fotos pertencem ao fluxo do proprietário.
 async function moderate(req: Parameters<RequestHandler>[0], archive: boolean) {
@@ -16,13 +19,13 @@ async function moderate(req: Parameters<RequestHandler>[0], archive: boolean) {
     await tx.$queryRaw`SELECT id FROM itens WHERE id=${id}::uuid FOR UPDATE`;
     const item = await tx.itens.findUnique({ where: { id } });
     if (!item) throw new HttpError(404, "Objeto não encontrado");
-    if (await tx.alugueis.count({ where: { item_id: id, status: { in: ["aprovado", "pago", "retirado", "devolvido"] } } })) throw new HttpError(409, "O objeto possui uma locação ativa", "OBJETO_EM_LOCACAO");
-    if ((archive || !available) && await tx.alugueis.count({ where: { item_id: id, status: "pendente" } })) throw new HttpError(409, "O objeto possui uma solicitação pendente", "OBJETO_COM_SOLICITACAO_PENDENTE");
+    if (archive && await tx.alugueis.count({ where: { item_id: id, status: { in: ["aprovado", "pago", "retirado", "devolvido"] } } })) throw new HttpError(409, "O objeto possui uma locação ativa", "OBJETO_EM_LOCACAO");
+    if (archive && await tx.alugueis.count({ where: { item_id: id, status: "pendente" } })) throw new HttpError(409, "O objeto possui uma solicitação pendente", "OBJETO_COM_SOLICITACAO_PENDENTE");
     if (item.arquivado && !archive) throw new HttpError(409, "Objeto arquivado não pode ser reativado por moderação");
     if (!archive && item.oculto_pelo_admin === !available) return item;
     if (archive && item.arquivado) return item;
     const row = await tx.itens.update({ where: { id }, data: archive
-      ? { arquivado: true, disponivel: false, motivo_ocultacao: motivo, atualizado_em: new Date() }
+      ? { arquivado: true, motivo_ocultacao: motivo, atualizado_em: new Date() }
       : { oculto_pelo_admin: !available, motivo_ocultacao: available ? null : motivo, atualizado_em: new Date() } });
     const action = archive ? "anuncio_arquivado" : available ? "anuncio_reexibido" : "anuncio_ocultado";
     await audit(tx, req.user!.id, action, "objeto", id, { motivo });
@@ -31,6 +34,48 @@ async function moderate(req: Parameters<RequestHandler>[0], archive: boolean) {
   });
 }
 // Atualiza os campos administrativos permitidos do objeto.
-export const updateAdminItem: RequestHandler = async (req, res) => { res.json(await moderate(req, false)); };
+export const updateAdminItem: RequestHandler = async (req, res) => { const row=await moderate(req, false);res.json({...row,status:row.arquivado?"arquivado":"ativo"}); };
 // Arquiva o anúncio por decisão administrativa conforme as restrições de locação.
-export const archiveAdminItem: RequestHandler = async (req, res) => { res.json(await moderate(req, true)); };
+export const archiveAdminItem: RequestHandler = async (req, res) => { const row=await moderate(req, true);res.json({...row,status:"arquivado"}); };
+
+// Remove somente o arquivamento, preservando a disponibilidade e qualquer ocultação administrativa.
+export const unarchiveAdminItem: RequestHandler = async (req, res) => {
+  const id = uuid(req.params.id);
+  const keys = Object.keys(req.body ?? {});
+  if (keys.some(key => key !== "motivo")) throw new HttpError(422, "Apenas motivo é aceito");
+  const motivo = text(req.body?.motivo, "Motivo", 1000);
+  const result = await prisma.$transaction(async tx => {
+    // O lock serializa administradores concorrentes: somente o primeiro altera, audita e notifica.
+    await tx.$queryRaw`SELECT id FROM itens WHERE id=${id}::uuid FOR UPDATE`;
+    const item = await tx.itens.findUnique({ where: { id } });
+    if (!item) throw new HttpError(404, "Objeto não encontrado");
+    if (!item.arquivado) throw new HttpError(409, "Este anúncio já está ativo e não precisa ser desarquivado.", "nao_arquivado");
+    const updated = await tx.itens.update({
+      where: { id },
+      data: { arquivado: false, atualizado_em: new Date() },
+      select: {
+        id: true, usuario_id: true, titulo: true, preco_por_dia: true,
+        disponivel: true, arquivado: true, oculto_pelo_admin: true,
+        motivo_ocultacao: true, criado_em: true,
+        categorias: { select: { nome: true, slug: true } },
+        usuarios: { select: { id: true, nome: true } },
+        fotos_item: { where: { principal: true }, take: 1, select: { url: true } },
+        alugueis: {
+          where: { status: { in: ["pendente", "aprovado", "pago", "retirado", "devolvido"] } },
+          select: { status: true },
+        },
+      },
+    });
+    await audit(tx, req.user!.id, "anuncio_desarquivado", "objeto", id, { motivo });
+    const notification = await createNotification(tx, {
+      usuario_id: item.usuario_id,
+      tipo: "anuncio_desarquivado_admin",
+      titulo: "Anúncio desarquivado",
+      mensagem: `Seu anúncio "${item.titulo}" foi desarquivado pela administração.`,
+      contexto: { objetoId: id },
+    });
+    return { updated, notification };
+  });
+  if (result.notification) publishNotification(result.updated.usuario_id, serializeNotification(result.notification));
+  res.json(serializeAdminItem(result.updated, result.updated.alugueis.map(row => row.status).filter((status): status is string => Boolean(status))));
+};

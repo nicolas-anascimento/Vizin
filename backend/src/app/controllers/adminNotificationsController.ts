@@ -7,13 +7,22 @@ import { businessDayStart, businessDate } from "../utils/dates.ts";
 
 export const ADMIN_NOTIFICATION_CATEGORIES = ["usuarios", "anuncios", "denuncias", "pagamentos", "avaliacoes", "verificacoes", "sistema"] as const;
 const defaults = Object.fromEntries(ADMIN_NOTIFICATION_CATEGORIES.map(category => [category, true]));
+const recipientScope = (adminId: string) => ({ OR: [{ destinatario_admin_id: null }, { destinatario_admin_id: adminId }] });
+async function expireReadNotifications(adminId: string) {
+  const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+  await prisma.notificacoes_admin_estado.updateMany({
+    where: { admin_id: adminId, lida: true, dispensada: false, lida_em: { lt: cutoff } },
+    data: { dispensada: true, dispensada_em: new Date() },
+  });
+}
 async function preferences(adminId: string) {
   const row = await prisma.notificacoes_admin_preferencias.findUnique({ where: { admin_id: adminId } });
   return { categorias: { ...defaults, ...(row?.categorias as Record<string,boolean> ?? {}) }, somente_urgentes: row?.somente_urgentes ?? false };
 }
 function visibleWhere(adminId: string, prefs: Awaited<ReturnType<typeof preferences>>) {
   const enabled = ADMIN_NOTIFICATION_CATEGORIES.filter(category => prefs.categorias[category] !== false);
-  return { estados: { none: { admin_id: adminId, dispensada: true } }, ...(prefs.somente_urgentes ? { prioridade: "alta" } : enabled.length === ADMIN_NOTIFICATION_CATEGORIES.length ? {} : { OR: [{ prioridade: "alta" }, { categoria: { in: enabled } }] }) };
+  const preferenceScope = prefs.somente_urgentes ? { prioridade: "alta" } : enabled.length === ADMIN_NOTIFICATION_CATEGORIES.length ? {} : { OR: [{ prioridade: "alta" }, { categoria: { in: enabled } }] };
+  return { AND: [recipientScope(adminId), { estados: { none: { admin_id: adminId, dispensada: true } } }, preferenceScope] };
 }
 function dto(row: any, adminId: string) {
   const state = row.estados.find((item: any) => item.admin_id === adminId);
@@ -21,6 +30,7 @@ function dto(row: any, adminId: string) {
 }
 export const listAdminNotifications: RequestHandler = async (req, res) => {
   const { limit, skip } = pagination(req, 15), adminId = req.user!.id;
+  await expireReadNotifications(adminId);
   const prefs = await preferences(adminId);
   const category = req.query.categoria === undefined ? undefined : String(req.query.categoria);
   if (category && !ADMIN_NOTIFICATION_CATEGORIES.includes(category as any)) throw new HttpError(422, "Categoria inválida");
@@ -33,7 +43,9 @@ export const listAdminNotifications: RequestHandler = async (req, res) => {
   res.json({ data: rows.map(row => dto(row, adminId)), total });
 };
 export const adminNotificationSummary: RequestHandler = async (req, res) => {
-  const adminId = req.user!.id, prefs = await preferences(adminId), base: any = visibleWhere(adminId, prefs);
+  const adminId = req.user!.id;
+  await expireReadNotifications(adminId);
+  const prefs = await preferences(adminId), base: any = visibleWhere(adminId, prefs);
   const unread = { AND: [base, { estados: { none: { admin_id: adminId, OR: [{ lida: true }, { dispensada: true }] } } }] };
   const today = businessDayStart(businessDate());
   const [notRead, urgent, todayCount, ...categories] = await Promise.all([prisma.notificacoes_admin.count({ where: unread }), prisma.notificacoes_admin.count({ where: { ...unread, prioridade: "alta" } }), prisma.notificacoes_admin.count({ where: { ...base, criado_em: { gte: today } } }), ...ADMIN_NOTIFICATION_CATEGORIES.map(categoria => prisma.notificacoes_admin.count({ where: { ...unread, categoria } }))]);
@@ -41,13 +53,13 @@ export const adminNotificationSummary: RequestHandler = async (req, res) => {
 };
 export const markAdminNotification: RequestHandler = async (req, res) => {
   const id = uuid(req.params.id), lida = boolean(req.body?.lida, "Lida");
-  if (!await prisma.notificacoes_admin.findUnique({ where: { id }, select: { id: true } })) throw new HttpError(404, "Notificação não encontrada");
+  if (!await prisma.notificacoes_admin.findFirst({ where: { id, ...recipientScope(req.user!.id) }, select: { id: true } })) throw new HttpError(404, "Notificação não encontrada");
   const state = await prisma.notificacoes_admin_estado.upsert({ where: { notificacao_id_admin_id: { notificacao_id: id, admin_id: req.user!.id } }, create: { notificacao_id: id, admin_id: req.user!.id, lida, lida_em: lida ? new Date() : null }, update: { lida, lida_em: lida ? new Date() : null } });
   res.json({ success: true, lida: state.lida });
 };
 export const dismissAdminNotification: RequestHandler = async (req, res) => {
   const id = uuid(req.params.id);
-  if (!await prisma.notificacoes_admin.findUnique({ where: { id }, select: { id: true } })) throw new HttpError(404, "Notificação não encontrada");
+  if (!await prisma.notificacoes_admin.findFirst({ where: { id, ...recipientScope(req.user!.id) }, select: { id: true } })) throw new HttpError(404, "Notificação não encontrada");
   await prisma.notificacoes_admin_estado.upsert({ where: { notificacao_id_admin_id: { notificacao_id: id, admin_id: req.user!.id } }, create: { notificacao_id: id, admin_id: req.user!.id, lida: true, dispensada: true, lida_em: new Date(), dispensada_em: new Date() }, update: { lida: true, dispensada: true, lida_em: new Date(), dispensada_em: new Date() } });
   res.json({ success: true });
 };

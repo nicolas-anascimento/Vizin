@@ -24,6 +24,7 @@ export const createReview: RequestHandler = async (req, res) => {
   const review = await prisma.$transaction(async (tx) => {
     const created = await tx.avaliacoes.create({
       data: { aluguel_id: rental.id, avaliador_id: req.user!.id, avaliado_id: target, contexto: req.user!.id === rental.locatario_id ? "objeto" : "usuario", item_id: req.user!.id === rental.locatario_id ? rental.item_id : null, nota: score, comentario: nonEmptyString(req.body?.comentario) },
+      include: { usuarios_avaliacoes_avaliador_idTousuarios: { select: { nome: true, foto_url: true } } },
     });
     await createNotification(tx, { contexto: { aluguelId: rental.id, objetoId: rental.item_id }, usuario_id: target, tipo: "avaliacao", titulo: "Nova avaliação", mensagem: `Você recebeu uma avaliação de ${score} estrela${score === 1 ? "" : "s"}.` });
     if (score <= 2) await tx.notificacoes_admin.create({ data: { tipo: "avaliacao_negativa", categoria: "avaliacoes", prioridade: "normal", titulo: "Avaliação negativa", mensagem: "Uma avaliação de baixa nota foi publicada.", referencia_tipo: "avaliacao", referencia_id: created.id, chave_deduplicacao: `avaliacao_negativa:${created.id}` } });
@@ -36,7 +37,7 @@ export const createReview: RequestHandler = async (req, res) => {
 export const listRentalReviews: RequestHandler = async (req, res) => {
  const rental = await prisma.alugueis.findUniqueOrThrow({ where: { id: uuid(req.params.id) } });
  if (![rental.locador_id, rental.locatario_id].includes(req.user!.id)) throw new HttpError(403, "Acesso negado");
- res.json((await prisma.avaliacoes.findMany({ where: { aluguel_id: rental.id, oculta: false }, orderBy: { criado_em: "asc" } })).map(serializeReview));
+ res.json((await prisma.avaliacoes.findMany({ where: { aluguel_id: rental.id, oculta: false }, orderBy: { criado_em: "asc" }, include: { usuarios_avaliacoes_avaliador_idTousuarios: { select: { nome: true, foto_url: true } } } })).map(serializeReview));
 };
 
 // Pagina avaliações recebidas por um usuário e aplica o DTO público.
@@ -45,7 +46,7 @@ export const listReceivedReviews: RequestHandler = async (req, res) => {
   if (!await prisma.usuarios.findUnique({ where: { id: userId }, select: { id: true } })) throw new HttpError(404, "Usuário não encontrado", "nao_encontrada");
   const { page, limit, skip } = pagination(req);
   const where = { avaliado_id: userId, oculta: false, usuarios_avaliacoes_avaliado_idTousuarios: { ativo: true }, contexto: req.path.endsWith("-locatario") ? "usuario" : { in: ["usuario", "objeto"] } };
-  const [rows, total] = await Promise.all([prisma.avaliacoes.findMany({ where, orderBy: { criado_em: "desc" }, skip, take: limit }), prisma.avaliacoes.count({ where })]);
+  const [rows, total] = await Promise.all([prisma.avaliacoes.findMany({ where, orderBy: { criado_em: "desc" }, skip, take: limit, include: { usuarios_avaliacoes_avaliador_idTousuarios: { select: { nome: true, foto_url: true } } } }), prisma.avaliacoes.count({ where })]);
   pageHeaders(res, total, page, limit);
   res.json(rows.map(serializeReview));
 };
@@ -53,10 +54,11 @@ export const listReceivedReviews: RequestHandler = async (req, res) => {
 // Consulta avaliações públicas de um objeto e seus autores.
 export const listItemReviews: RequestHandler = async (req, res) => {
   const itemId = uuid(req.params.id);
-  if (!await prisma.itens.findUnique({ where: { id: itemId }, select: { id: true } })) throw new HttpError(404, "Objeto não encontrado", "nao_encontrada");
+  const item=await prisma.itens.findUnique({ where: { id: itemId }, select: { id: true,usuario_id:true,arquivado:true,oculto_pelo_admin:true,usuarios:{select:{ativo:true}} } });
+  if (!item || ((!item.usuarios.ativo || item.arquivado || item.oculto_pelo_admin) && item.usuario_id!==req.user?.id && req.user?.tipo!=="admin")) throw new HttpError(404, "Objeto não encontrado", "nao_encontrada");
   const { page, limit, skip } = pagination(req);
   const where = { item_id: itemId, contexto: "objeto", oculta: false, usuarios_avaliacoes_avaliado_idTousuarios: { ativo: true } };
-  const [rows, total] = await Promise.all([prisma.avaliacoes.findMany({ where, orderBy: { criado_em: "desc" }, skip, take: limit }), prisma.avaliacoes.count({ where })]);
+  const [rows, total] = await Promise.all([prisma.avaliacoes.findMany({ where, orderBy: { criado_em: "desc" }, skip, take: limit, include: { usuarios_avaliacoes_avaliador_idTousuarios: { select: { nome: true, foto_url: true } } } }), prisma.avaliacoes.count({ where })]);
   pageHeaders(res, total, page, limit);
   res.json(rows.map(serializeReview));
 };

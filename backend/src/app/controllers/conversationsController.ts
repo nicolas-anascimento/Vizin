@@ -8,7 +8,8 @@ import { privateRoot } from "../middlewares/privateUpload.ts";
 import { pageHeaders, pagination } from "../utils/listPage.ts";
 import { chatMessageInclude, markChatRead, sendChatMessage } from "../services/chatService.ts";
 import { publishPersistedMessage, publishReadUpdate } from "../../realtime/realtimeService.ts";
-const include = { participantes: { include: { usuario: { select: { id:true,nome:true,foto_url:true,ativo:true } } } }, mensagens: { orderBy: { enviada_em: "desc" as const }, take:1, include:{anexo:true} } };
+import { avatarUrl } from "../utils/files.ts";
+const include = { objeto: { select: { id:true,titulo:true } }, participantes: { include: { usuario: { select: { id:true,nome:true,foto_url:true,ativo:true } } } }, mensagens: { orderBy: { enviada_em: "desc" as const }, take:1, include:{anexo:true} }, _count: { select: { mensagens: true } } };
 // Busca conversa e verifica participação antes de expor mensagens ou alterar seu estado.
 async function conversation(id: unknown, userId: string) {
  const c=await prisma.conversas.findFirst({where:{id:uuid(id),participantes:{some:{usuario_id:userId}}},include});
@@ -17,11 +18,10 @@ async function conversation(id: unknown, userId: string) {
 // Consulta bloqueio entre participantes antes de permitir interação.
 async function blocked(a:string,b:string) { return !!await prisma.bloqueios.findFirst({where:{OR:[{usuario_id:a,bloqueado_id:b},{usuario_id:b,bloqueado_id:a}]}}); }
 // Converte conversa e última mensagem ao formato usado no chat.
-async function dto(c: Awaited<ReturnType<typeof conversation>>, userId:string) {
+function dto(c: Awaited<ReturnType<typeof conversation>>, userId:string, unread = 0) {
  const other=c.participantes.find(p=>p.usuario_id!==userId)!.usuario;
- const item=c.objeto_id?await prisma.itens.findUnique({where:{id:c.objeto_id},select:{id:true,titulo:true}}):null;
- const unread=await prisma.mensagens.count({where:{conversa_id:c.id,destinatario_id:userId,lida:false}});
- return {id:c.id,user:{id:other.id,name:other.nome,avatar:other.foto_url,online:false},item:{name:item?.titulo??"Conversa geral",icon:"tool",produtoId:item?.id??null},unreadCount:unread,lastMessage:c.mensagens[0]?serializeMessage(c.mensagens[0],userId):null};
+ const item=c.objeto;
+ return {id:c.id,user:{id:other.id,name:other.nome,avatar:avatarUrl(other.foto_url),online:false},item:{name:item?.titulo??"Conversa geral",icon:"tool",produtoId:item?.id??null},unreadCount:unread,lastMessage:c.mensagens[0]?serializeMessage(c.mensagens[0],userId):null};
 }
 // Lista conversas visíveis ao usuário com estado de leitura.
 export const listConversations: RequestHandler = async(req,res) => {
@@ -29,8 +29,10 @@ export const listConversations: RequestHandler = async(req,res) => {
  const {page,limit,skip}=pagination(req);
  const where={participantes:{some:{usuario_id:req.user!.id,arquivada:false}},NOT:{participantes:{some:{usuario_id:{in:hidden.map(b=>b.bloqueado_id)}}}}};
  const [rows,total]=await Promise.all([prisma.conversas.findMany({where,include,orderBy:{atualizado_em:"desc"},skip,take:limit}),prisma.conversas.count({where})]);
+ const unreadRows=rows.length?await prisma.mensagens.groupBy({by:["conversa_id"],where:{conversa_id:{in:rows.map(row=>row.id)},destinatario_id:req.user!.id,lida:false},_count:true}):[];
+ const unreadByConversation=new Map(unreadRows.map(row=>[row.conversa_id,row._count]));
  pageHeaders(res,total,page,limit);
- res.json(await Promise.all(rows.map(c=>dto(c,req.user!.id))));
+ res.json(rows.map(c=>dto(c,req.user!.id,unreadByConversation.get(c.id)??0)));
 };
 // Abre ou reutiliza conversa entre usuários conforme as regras de bloqueio.
 export const createConversation: RequestHandler = async(req,res) => {
@@ -46,7 +48,7 @@ export const createConversation: RequestHandler = async(req,res) => {
  const key=[req.user!.id,otherId].sort().join(":")+":"+(itemId??"geral");
  const c=await prisma.conversas.upsert({where:{chave:key},update:{},create:{chave:key,objeto_id:itemId,participantes:{create:[{usuario_id:req.user!.id},{usuario_id:otherId}]}},include});
  await prisma.participantes_conversa.update({where:{conversa_id_usuario_id:{conversa_id:c.id,usuario_id:req.user!.id}},data:{arquivada:false}});
- res.status(201).json({...await dto(c,req.user!.id),messages:[]});
+ res.status(201).json({...dto(c,req.user!.id),messages:[]});
 };
 // Busca mensagens paginadas de conversa da qual o usuário participa.
 export const getConversationMessages: RequestHandler = async(req,res) => {
@@ -85,7 +87,7 @@ export const blockUser: RequestHandler = async(req,res)=>{
 // Remove bloqueio do usuário indicado pelo titular.
 export const unblockUser: RequestHandler = async(req,res)=>{await prisma.bloqueios.deleteMany({where:{usuario_id:req.user!.id,bloqueado_id:uuid(req.params.userId)}});res.json({success:true});};
 // Lista usuários bloqueados pelo titular.
-export const blockedUsers: RequestHandler = async(req,res)=>{res.json((await prisma.bloqueios.findMany({where:{usuario_id:req.user!.id},include:{bloqueado:{select:{id:true,nome:true,foto_url:true}}}})).map(b=>({id:b.bloqueado.id,name:b.bloqueado.nome,avatar:b.bloqueado.foto_url})));};
+export const blockedUsers: RequestHandler = async(req,res)=>{res.json((await prisma.bloqueios.findMany({where:{usuario_id:req.user!.id},include:{bloqueado:{select:{id:true,nome:true,foto_url:true}}}})).map(b=>({id:b.bloqueado.id,name:b.bloqueado.nome,avatar:avatarUrl(b.bloqueado.foto_url)})));};
 // Registra anexo privado já validado pelo middleware de upload.
 export const uploadAttachment: RequestHandler = async(req,res)=>{
  const f=req.file;if(!f) throw new HttpError(422,"Envie um arquivo");

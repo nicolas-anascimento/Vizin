@@ -3,6 +3,8 @@ import prisma from "../config/database.ts";
 import { HttpError } from "../utils/httpError.ts";
 import { audit, pagination } from "../utils/admin.ts";
 import { text, uuid } from "../utils/validation.ts";
+import { Prisma } from "../../generated/prisma/client.ts";
+import { userReportWhere } from "../services/reportRules.ts";
 
 const statuses = ["aberta", "andamento", "resolvida", "fechada", "improcedente"];
 const priorities = ["normal", "alta", "critica"];
@@ -28,7 +30,7 @@ const supportInclude = { usuario: { select: { id: true, nome: true } }, resposta
 const reportInclude = { usuario: { select: { id: true, nome: true } }, denunciado: { select: { id: true, nome: true } }, respostas: { orderBy: { criado_em: "asc" as const }, include: { admin: { select: { id: true, nome: true } } } } };
 
 export const listOccurrences: RequestHandler = async (req, res) => {
-  const { page, limit } = pagination(req);
+  const { limit, skip } = pagination(req);
   const kind = req.query.tipo === undefined ? undefined : String(req.query.tipo);
   if (kind && !["denuncia", "suporte"].includes(kind)) throw new HttpError(422, "Tipo inválido");
   const status = req.query.status === undefined ? undefined : String(req.query.status);
@@ -36,13 +38,65 @@ export const listOccurrences: RequestHandler = async (req, res) => {
   const priority = req.query.prioridade === undefined ? undefined : String(req.query.prioridade);
   if (priority && !priorities.includes(priority)) throw new HttpError(422, "Prioridade inválida");
   const search = typeof req.query.busca === "string" && req.query.busca.trim() ? text(req.query.busca, "Busca", 100) : undefined;
+  const reportedUserId = req.query.denunciado_id === undefined ? undefined : uuid(req.query.denunciado_id, "Denunciado");
   const statusValues = status ? [status, ...Object.entries({ aberto: "aberta", em_analise: "andamento", respondido: "resolvida", procedente: "resolvida" }).filter(([,v]) => v === status).map(([k]) => k)] : undefined;
-  const [supports, reports] = await Promise.all([
-    kind === "denuncia" ? [] : prisma.suportes.findMany({ where: { ...(statusValues ? { status: { in: statusValues } } : {}), ...(priority ? { prioridade: priority } : {}), ...(search ? { OR: [{ assunto: { contains: search, mode: "insensitive" } }, { mensagem: { contains: search, mode: "insensitive" } }, { protocolo: { contains: search, mode: "insensitive" } }] } : {}) }, include: supportInclude }),
-    kind === "suporte" ? [] : prisma.denuncias.findMany({ where: { ...(statusValues ? { status: { in: statusValues } } : {}), ...(priority ? { prioridade: priority } : {}), ...(search ? { OR: [{ assunto: { contains: search, mode: "insensitive" } }, { mensagem: { contains: search, mode: "insensitive" } }, { protocolo: { contains: search, mode: "insensitive" } }] } : {}) }, include: reportInclude }),
+  const supportWhere = { ...(statusValues ? { status: { in: statusValues } } : {}), ...(priority ? { prioridade: priority } : {}), ...(search ? { OR: [{ assunto: { contains: search, mode: "insensitive" as const } }, { mensagem: { contains: search, mode: "insensitive" as const } }, { protocolo: { contains: search, mode: "insensitive" as const } }] } : {}) };
+  const reportWhere = userReportWhere({ ...(reportedUserId ? { denunciado_id: reportedUserId } : {}), ...(statusValues ? { status: { in: statusValues } } : {}), ...(priority ? { prioridade: priority } : {}), ...(search ? { OR: [{ assunto: { contains: search, mode: "insensitive" as const } }, { mensagem: { contains: search, mode: "insensitive" as const } }, { protocolo: { contains: search, mode: "insensitive" as const } }] } : {}) });
+
+  // Com um tipo definido, o próprio banco aplica filtro, total e paginação.
+  // denunciado_id nunca é interpretado como nome e torna a busca exclusiva de denúncias.
+  if (kind === "suporte") {
+    if (reportedUserId) { res.json({ data: [], total: 0 }); return; }
+    const [rows, total] = await Promise.all([
+      prisma.suportes.findMany({ where: supportWhere, include: supportInclude, orderBy: [{ criado_em: "desc" }, { id: "desc" }], skip, take: limit }),
+      prisma.suportes.count({ where: supportWhere }),
+    ]);
+    res.json({ data: rows.map(supportDto), total }); return;
+  }
+  if (kind === "denuncia" || reportedUserId) {
+    const [rows, total] = await Promise.all([
+      prisma.denuncias.findMany({ where: reportWhere, include: reportInclude, orderBy: [{ criado_em: "desc" }, { id: "desc" }], skip, take: limit }),
+      prisma.denuncias.count({ where: reportWhere }),
+    ]);
+    res.json({ data: rows.map(reportDto), total }); return;
+  }
+
+  // Para a fila combinada, uma UNION pagina somente IDs no PostgreSQL; as
+  // relações são carregadas apenas para os registros da página solicitada.
+  const supportConditions = [Prisma.sql`TRUE`];
+  const reportConditions = [Prisma.sql`motivo NOT IN ('retirada_evidencia_unilateral')`];
+  if (statusValues) {
+    supportConditions.push(Prisma.sql`status IN (${Prisma.join(statusValues)})`);
+    reportConditions.push(Prisma.sql`status IN (${Prisma.join(statusValues)})`);
+  }
+  if (priority) {
+    supportConditions.push(Prisma.sql`prioridade = ${priority}`);
+    reportConditions.push(Prisma.sql`prioridade = ${priority}`);
+  }
+  if (search) {
+    const pattern = `%${search}%`;
+    supportConditions.push(Prisma.sql`(assunto ILIKE ${pattern} OR mensagem ILIKE ${pattern} OR protocolo ILIKE ${pattern})`);
+    reportConditions.push(Prisma.sql`(assunto ILIKE ${pattern} OR mensagem ILIKE ${pattern} OR protocolo ILIKE ${pattern})`);
+  }
+  const ids = await prisma.$queryRaw<{ id: string; tipo: "suporte" | "denuncia" }[]>(Prisma.sql`
+    SELECT id, tipo FROM (
+      SELECT id, 'suporte'::text AS tipo, criado_em FROM suportes WHERE ${Prisma.join(supportConditions, " AND ")}
+      UNION ALL
+      SELECT id, 'denuncia'::text AS tipo, criado_em FROM denuncias WHERE ${Prisma.join(reportConditions, " AND ")}
+    ) ocorrencias
+    ORDER BY criado_em DESC, id DESC
+    OFFSET ${skip} LIMIT ${limit}
+  `);
+  const supportIds = ids.filter(row => row.tipo === "suporte").map(row => row.id);
+  const reportIds = ids.filter(row => row.tipo === "denuncia").map(row => row.id);
+  const [supports, reports, supportTotal, reportTotal] = await Promise.all([
+    prisma.suportes.findMany({ where: { id: { in: supportIds } }, include: supportInclude }),
+    prisma.denuncias.findMany({ where: { id: { in: reportIds } }, include: reportInclude }),
+    prisma.suportes.count({ where: supportWhere }),
+    prisma.denuncias.count({ where: reportWhere }),
   ]);
-  const all = [...supports.map(supportDto), ...reports.map(reportDto)].sort((a,b) => b.criado_em.getTime() - a.criado_em.getTime());
-  res.json({ data: all.slice((page - 1) * limit, page * limit), total: all.length });
+  const byId = new Map([...supports.map(row => [row.id, supportDto(row)] as const), ...reports.map(row => [row.id, reportDto(row)] as const)]);
+  res.json({ data: ids.map(row => byId.get(row.id)).filter(Boolean), total: supportTotal + reportTotal });
 };
 
 async function findOccurrence(id: string) {

@@ -255,6 +255,82 @@ test("contrato do frontend: solicitações, bloqueios, fotos, multa e notificaç
     assert.equal((await request(`/produtos/${item.id}/avaliacoes`)).status, 200);
   });
 
+  await t.test("avatar único percorre os DTOs, é público por HTTP e troca sem cache obsoleto", async () => {
+    const upload = async () => {
+      const form = new FormData();
+      form.append("avatar", new Blob([png], { type: "image/png" }), "avatar.png");
+      return request("/usuarios/avatar", owner, "POST", form);
+    };
+    const first = await upload();
+    assert.equal(first.status, 200, JSON.stringify(first.data));
+    assert.match(first.data.avatarUrl, /^\/uploads\/avatars\/[A-Za-z0-9._-]+\.png$/);
+    const firstImage = await fetch(origin + first.data.avatarUrl);
+    assert.equal(firstImage.status, 200);
+    assert.equal(firstImage.headers.get("content-type"), "image/png");
+    assert.deepEqual(Buffer.from(await firstImage.arrayBuffer()), png);
+
+    const adminList = await request(`/admin/usuarios?busca=${encodeURIComponent(owner.email)}`, admin);
+    assert.equal(adminList.data.dados[0].avatarUrl, first.data.avatarUrl);
+    const adminDetail = await request(`/admin/usuarios/${owner.id}`, admin);
+    assert.equal(adminDetail.data.avatarUrl, first.data.avatarUrl);
+    await prisma.usuarios.update({ where: { id: owner.id }, data: { ativo: false } });
+    assert.equal((await request(`/admin/usuarios?busca=${encodeURIComponent(owner.email)}&status=inativo`, admin)).data.dados[0].avatarUrl, first.data.avatarUrl);
+    await prisma.usuarios.update({ where: { id: owner.id }, data: { ativo: true } });
+
+    const verification = await prisma.verificacoes_identidade.create({ data: { usuario_id: owner.id, documentos: {}, status: "pendente" } });
+    const verificationList = await request("/admin/verificacoes?status=pendente&limit=100", admin);
+    const listedVerification = verificationList.data.dados.find((row:any) => row.id === verification.id);
+    assert.equal(listedVerification.avatarUrl, first.data.avatarUrl);
+    assert.equal(listedVerification.usuario.avatarUrl, first.data.avatarUrl);
+    assert.equal((await request(`/admin/verificacoes/${verification.id}`, admin)).data.usuario.avatarUrl, first.data.avatarUrl);
+
+    assert.equal((await request(`/objetos/${item.id}`, null)).data.proprietario.avatarUrl, first.data.avatarUrl);
+    const reviewRental = await prisma.alugueis.create({ data: { item_id: item.id, locador_id: owner.id, locatario_id: renter.id, data_inicio: new Date("2045-01-01"), data_fim: new Date("2045-01-02"), valor_total: 35, status: "finalizado" } });
+    await prisma.avaliacoes.create({ data: { aluguel_id: reviewRental.id, avaliador_id: owner.id, avaliado_id: renter.id, contexto: "usuario", nota: 5, comentario: "Excelente" } });
+    const received = await request(`/usuarios/${renter.id}/avaliacoes-recebidas-locatario`, renter);
+    const receivedReview = received.data.find((row:any) => row.aluguel_id === reviewRental.id);
+    assert.equal(receivedReview.avaliadorId, owner.id);
+    assert.equal(receivedReview.nomeAvaliador, owner.nome);
+    assert.equal(receivedReview.avaliadorAvatarUrl, first.data.avatarUrl);
+
+    const itemReview = await prisma.avaliacoes.create({ data: { aluguel_id: reviewRental.id, avaliador_id: renter.id, avaliado_id: owner.id, contexto: "objeto", item_id: item.id, nota: 4, comentario: "Bom objeto" } });
+    const itemReviews = await request(`/objetos/${item.id}/avaliacoes`, null);
+    assert.equal(itemReviews.data.find((row:any) => row.id === itemReview.id).avaliadorAvatarUrl, null);
+
+    const conversation = await request("/conversations", renter, "POST", { userId: owner.id, produtoId: item.id });
+    assert.equal(conversation.data.user.id, owner.id);
+    assert.equal(conversation.data.user.avatar, first.data.avatarUrl);
+    assert.equal((await request("/conversations", renter)).data.find((row:any) => row.id === conversation.data.id).user.avatar, first.data.avatarUrl);
+    await request(`/users/${owner.id}/block`, renter, "POST", {});
+    assert.equal((await request("/blocked-users", renter)).data.find((row:any) => row.id === owner.id).avatar, first.data.avatarUrl);
+
+    assert.equal((await request("/login/sessao", owner)).data.avatarUrl, first.data.avatarUrl);
+    assert.equal((await request("/usuarios/me", owner)).data.avatarUrl, first.data.avatarUrl);
+    await request("/usuarios/privacidade", owner, "PUT", { perfilPublico: false });
+    assert.equal((await request(`/usuarios/${owner.id}`, null)).status, 404);
+    assert.equal((await request(`/objetos/${item.id}`, null)).data.proprietario.avatarUrl, first.data.avatarUrl);
+    assert.equal((await request(`/usuarios/${renter.id}/avaliacoes-recebidas-locatario`, renter)).data.find((row:any) => row.aluguel_id === reviewRental.id).avaliadorAvatarUrl, first.data.avatarUrl);
+    await request(`/users/${owner.id}/unblock`, renter, "POST", {});
+    assert.equal((await request("/conversations", renter)).data.find((row:any) => row.id === conversation.data.id).user.avatar, first.data.avatarUrl);
+
+    const second = await upload();
+    assert.equal(second.status, 200);
+    assert.notEqual(second.data.avatarUrl, first.data.avatarUrl);
+    assert.equal((await fetch(origin + first.data.avatarUrl)).status, 404);
+    assert.equal((await fetch(origin + second.data.avatarUrl)).status, 200);
+    assert.equal((await request("/usuarios/avatar", owner, "DELETE")).data.avatarUrl, null);
+    assert.equal((await fetch(origin + second.data.avatarUrl)).status, 404);
+    assert.equal((await request("/login/sessao", owner)).data.avatarUrl, null);
+    assert.equal((await request("/usuarios/me", owner)).data.avatarUrl, null);
+    assert.equal((await request(`/admin/usuarios/${owner.id}`, admin)).data.avatarUrl, null);
+    assert.equal((await request(`/admin/verificacoes/${verification.id}`, admin)).data.usuario.avatarUrl, null);
+    assert.equal((await request(`/objetos/${item.id}`, null)).data.proprietario.avatarUrl, null);
+    assert.equal((await request(`/usuarios/${renter.id}/avaliacoes-recebidas-locatario`, renter)).data.find((row:any) => row.aluguel_id === reviewRental.id).avaliadorAvatarUrl, null);
+    assert.equal((await request("/conversations", renter)).data.find((row:any) => row.id === conversation.data.id).user.avatar, null);
+    await request(`/users/${owner.id}/block`, renter, "POST", {});
+    assert.equal((await request("/blocked-users", renter)).data.find((row:any) => row.id === owner.id).avatar, null);
+  });
+
   await t.test("tokens demo têm resultados definidos e não alteram valores do servidor", async () => {
     for (const [tokenValue, expected] of [["tok_demo_approved", "aprovado"], ["tok_demo_refused", "recusado"], ["tok_demo_pending", "pendente"]] as const) {
       const target = await prisma.itens.create({ data: { usuario_id: owner.id, titulo: tokenValue, preco_por_dia: 10, valor_mercado: 100 } });

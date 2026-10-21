@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -16,6 +17,22 @@ export function withdrawalPhotoUrl(filePath: string): string {
 export function publicUploadUrl(filePath: string): string {
   const relative = path.relative(uploadsRoot, filePath).split(path.sep).join("/");
   return `/uploads/${relative}`;
+}
+
+// Aceita somente URLs web de avatar. Caminhos internos ou de outros tipos de
+// upload nunca são propagados pelos DTOs de usuário.
+export function avatarUrl(value: unknown): string | null {
+  if (typeof value !== "string" || !value) return null;
+  if (/^\/uploads\/avatars\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value)) {
+    return existsSync(path.join(uploadsRoot, "avatars", path.basename(value))) ? value : null;
+  }
+  if (!/^https?:\/\//i.test(value)) return null;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? value : null;
+  } catch {
+    return null;
+  }
 }
 
 // Remove arquivo antigo somente quando sua URL aponta para um upload local permitido.

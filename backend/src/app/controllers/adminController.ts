@@ -7,7 +7,10 @@ import { activeStatuses } from "../services/rentalRules.ts";
 import { asBoolean } from "../utils/strings.ts";
 import { audit, dateFilters, paged, pagination, statusFilter } from "../utils/admin.ts";
 import { publishNotification } from "../../realtime/realtimeService.ts";
-import { serializeNotification } from "../utils/serializers.ts";
+import { serializeAdminItem, serializeNotification, serializeRental } from "../utils/serializers.ts";
+import { rentalInclude } from "./rentalsController.ts";
+import { userReportWhere } from "../services/reportRules.ts";
+import { avatarUrl } from "../utils/files.ts";
 
 // Valida alterações administrativas de campos booleanos.
 function requiredBoolean(value: unknown): boolean {
@@ -56,7 +59,7 @@ export const listUsers: RequestHandler = async (req, res) => {
     ] } : {}),
   };
   const [rows, total] = await Promise.all([prisma.usuarios.findMany({ where, skip, take: limit, orderBy: { criado_em: "desc" }, select: { id: true, nome: true, email: true, tipo: true, ativo: true, verificado: true, criado_em: true, foto_url: true } }), prisma.usuarios.count({ where })]);
-  res.json({ dados: rows, total, pagina: page, paginas: Math.ceil(total / limit) });
+  res.json({ dados: rows.map(row => ({ ...row, avatarUrl: avatarUrl(row.foto_url) })), total, pagina: page, paginas: Math.ceil(total / limit) });
 };
 // Detalha a conta sem credenciais ou listas potencialmente ilimitadas.
 export const getUser: RequestHandler = async (req, res) => {
@@ -70,20 +73,21 @@ export const getUser: RequestHandler = async (req, res) => {
         itens: true,
         alugueis_alugueis_locatario_idTousuarios: true,
         alugueis_alugueis_locador_idTousuarios: true,
-        denunciado: true,
       } },
     },
   });
   if (!user) throw new HttpError(404, "Usuário não encontrado", "nao_encontrada");
-  const [approvedIdentity, latestIdentity, activeRentals, pendingRequests] = await Promise.all([
+  const [approvedIdentity, latestIdentity, activeRentals, pendingRequests, receivedReports] = await Promise.all([
     prisma.verificacoes_identidade.count({ where: { usuario_id: id, status: "aprovado", revogada: false } }),
     prisma.verificacoes_identidade.findFirst({ where: { usuario_id: id }, orderBy: { criado_em: "desc" }, select: { id: true, status: true, revogada: true } }),
     prisma.alugueis.count({ where: { OR: [{ locador_id: id }, { locatario_id: id }], status: { in: ["aprovado", "pago", "retirado", "devolvido"] } } }),
     prisma.alugueis.count({ where: { OR: [{ locador_id: id }, { locatario_id: id }], status: "pendente" } }),
+    prisma.denuncias.count({ where: userReportWhere({ denunciado_id: id }) }),
   ]);
   const { _count, ...dados } = user;
   res.json({
     ...dados,
+    avatarUrl: avatarUrl(dados.foto_url),
     verificado: approvedIdentity > 0,
     verificacao: latestIdentity,
     em_locacao: activeRentals > 0,
@@ -92,7 +96,7 @@ export const getUser: RequestHandler = async (req, res) => {
       objetos: _count.itens,
       alugueis_como_locatario: _count.alugueis_alugueis_locatario_idTousuarios,
       alugueis_como_proprietario: _count.alugueis_alugueis_locador_idTousuarios,
-      denuncias_recebidas: _count.denunciado,
+      denuncias_recebidas: receivedReports,
     },
   });
 };
@@ -143,7 +147,9 @@ export const listAdminItems: RequestHandler = async (req, res) => {
   const { page, limit, skip } = pagination(req);
   const status=statusFilter(req,["ativo","arquivado"]);
   const busca = typeof req.query.busca === "string" && req.query.busca.trim() ? text(req.query.busca, "Busca", 100) : undefined;
+  const ownerId = req.query.proprietario_id === undefined ? undefined : uuid(req.query.proprietario_id, "Proprietário");
   const where = {
+    ...(ownerId ? { usuario_id: ownerId } : {}),
     ...(status === "arquivado" ? { arquivado: true } : status === "ativo" ? { arquivado: false } : {}),
     ...(busca ? { OR: [
       { titulo: { contains: busca, mode: "insensitive" as const } },
@@ -166,19 +172,25 @@ export const listAdminItems: RequestHandler = async (req, res) => {
   }
   res.json(paged(data.map(row => {
     const states = statesByItem.get(row.id) ?? new Set<string>();
-    return {
-      ...row,
-      preco_por_dia: Number(row.preco_por_dia),
-      status: row.arquivado ? "arquivado" : "ativo",
-      emLocacao: ["aprovado", "pago", "retirado", "devolvido"].some(value => states.has(value)),
-      solicitacaoPendente: states.has("pendente"),
-      em_locacao: ["aprovado", "pago", "retirado", "devolvido"].some(value => states.has(value)),
-      tem_solicitacao_pendente: states.has("pendente"),
-    };
+    return serializeAdminItem(row, states);
   }), total, page, limit));
 };
 // Lista locações com filtros e paginação para acompanhamento.
 export const listAdminRentals: RequestHandler = async (req, res) => {
+  if (req.params.id) {
+    const userId = uuid(req.params.id, "Usuário");
+    if (!await prisma.usuarios.findUnique({ where: { id: userId }, select: { id: true } })) {
+      throw new HttpError(404, "Usuário não encontrado", "nao_encontrada");
+    }
+    const { limit, skip } = pagination(req, 25);
+    const where = { OR: [{ locador_id: userId }, { locatario_id: userId }] };
+    const [data, total] = await Promise.all([
+      prisma.alugueis.findMany({ where, skip, take: limit, orderBy: [{ criado_em: { sort: "desc", nulls: "last" } }, { id: "desc" }], include: rentalInclude }),
+      prisma.alugueis.count({ where }),
+    ]);
+    res.json({ data: data.map(serializeRental), total });
+    return;
+  }
   const { page, limit, skip } = pagination(req);
   const status=statusFilter(req,["pendente","aprovado","recusado","pago","retirado","devolvido","finalizado","cancelado"]);
   const where = { ...(status ? { status } : {}) };

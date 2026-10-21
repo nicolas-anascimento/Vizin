@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { AddressInfo } from "node:net";
 import crypto from "node:crypto";
+import { businessDate } from "../../app/utils/dates.ts";
 const database=process.env.TEST_DATABASE_URL;
 if(!database)throw new Error("TEST_DATABASE_URL é obrigatório para test:integration");
 if(!new URL(database).pathname.startsWith("/vizin_contract_test_")) throw new Error("Use banco isolado vizin_contract_test_* para testes");process.env.DATABASE_URL=database;process.env.VIZIN_NO_LISTEN="true";process.env.NODE_ENV="dev";process.env.PAYMENT_MODE="demo";process.env.JWT_KEY="vizin-test-secret-with-at-least-32-characters";
@@ -26,7 +27,7 @@ test("API → PostgreSQL/PostGIS: contratos e fluxos críticos",async t=>{
  const renter={nome:"Locatário",cpf:makeCpf(),email:`renter-${crypto.randomUUID()}@test.local`,senha:"senha12345"};
  const stranger={nome:"Terceiro",cpf:makeCpf(),email:`stranger-${crypto.randomUUID()}@test.local`,senha:"senha12345"};
  let ownerId="",renterId="",ownerCookie="",renterCookie="",strangerCookie="",adminCookie="",itemId="",rentalId="",paymentId="";
- const today=new Date().toISOString().slice(0,10);
+	 const today=businessDate().toISOString().slice(0,10);
  await t.test("cadastro CPF, duplicado e inválido",async()=>{
   let r=await api("/usuarios","POST",owner);assert.equal(r.status,201);ownerId=r.data.usuario.id;assert.equal(typeof ownerId,"string");
   assert.equal((await api("/usuarios","POST",{...owner,email:`duplicate-${crypto.randomUUID()}@test.local`})).status,409);

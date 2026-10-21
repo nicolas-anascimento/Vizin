@@ -96,7 +96,6 @@ const adminPages: Record<string, RequestHandler> = {
   "/admin/inicio": adminPage("Inicio"),
   "/admin/usuarios": adminPage("Usuarios"),
   "/admin/usuarios/detalhe": adminPage("Detalhes-do-usuario"),
-  "/admin/usuarios/editar": adminPage("Editar-usuario"),
   "/admin/objetos": adminPage("Anuncios"),
   "/admin/pagamentos": adminPage("Pagamentos"),
   "/admin/avaliacoes": adminPage("Avaliacoes"),
