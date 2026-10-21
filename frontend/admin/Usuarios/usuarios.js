@@ -91,6 +91,8 @@ function labelStatus(status) {
     return { ativo: "Ativo", inativo: "Inativo" }[status] || status;
 }
 
+const ehAdminLista = u => u.tipo === "admin";
+
 function renderizarTabela() {
     tabelaEstadoVazio.hidden = estado.usuarios.length > 0;
 
@@ -99,17 +101,20 @@ function renderizarTabela() {
     // uma lista de cards (ver usuarios.css).
     corpoTabela.innerHTML = estado.usuarios.map(u => `
         <tr data-id="${escAdmin(u.id)}">
-            <td data-label="Foto"><div class="admin-avatar" style="background:${corAvatar(u.id)}">${iniciais(u.nome)}</div></td>
+            <td data-label="Foto"><div class="admin-avatar" style="background:${corAvatar(u.id)}">${window.avatarAdminHtml ? window.avatarAdminHtml(u.avatarUrl ?? u.avatar_url, iniciais(u.nome)) : iniciais(u.nome)}</div></td>
             <td data-label="Nome" class="admin-nome">${escAdmin(u.nome)}</td>
             <td data-label="Email" class="admin-email">${escAdmin(u.email)}</td>
             <td data-label="Data Cadastro">${formatarData(u.dataCadastro)}</td>
-            <td data-label="Status"><span class="admin-badge ${u.status}">${labelStatus(u.status)}</span></td>
+            <td data-label="Status">${ehAdminLista(u)
+                ? `<span class="admin-badge admin">Administrador</span>`
+                : `<span class="admin-badge ${u.status}">${labelStatus(u.status)}</span>`}</td>
             <td data-label="Ações">
                 <div class="admin-acoes">
                     <button class="admin-acao-btn ver" title="Ver detalhes" data-acao="ver"><i class="bi bi-eye"></i></button>
 
+                    ${ehAdminLista(u) ? "" : `
                     <button class="admin-acao-btn status" title="Alterar status" data-acao="status"><i class="bi bi-shield-lock"></i></button>
-                    <button class="admin-acao-btn excluir" title="Excluir" data-acao="excluir"><i class="bi bi-trash"></i></button>
+                    <button class="admin-acao-btn excluir" title="Excluir" data-acao="excluir"><i class="bi bi-trash"></i></button>`}
                 </div>
             </td>
         </tr>
@@ -218,6 +223,9 @@ corpoTabela.addEventListener("click", (e) => {
     if (!usuario) return;
 
     const acao = btn.dataset.acao;
+
+    // Administradores só podem ser visualizados; suspender/excluir não se aplica.
+    if (ehAdminLista(usuario) && acao !== "ver") return;
 
     if (acao === "ver") {
         window.location.href = `/admin/usuarios/detalhe?id=${encodeURIComponent(usuario.id)}`;

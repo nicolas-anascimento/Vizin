@@ -140,7 +140,7 @@
     display: none;
     flex-direction: column;
     gap: 14px;
-    background: var(--admin-faixa, #F1F0F8);
+    background: #F1F0F8;
     border: 1px solid var(--admin-borda);
     border-radius: 14px;
     padding: 16px 18px;
@@ -231,7 +231,7 @@
     transition: background .15s ease;
 }
 .admin-notif:last-child{ border-bottom: none; }
-.admin-notif:hover{ background: var(--admin-faixa, #FAFAFD); }
+.admin-notif:hover{ background: #FAFAFD; }
 
 .admin-notif.nao-lida{
     background: color-mix(in srgb, var(--admin-roxo-500) 9%, var(--admin-surface));
@@ -287,6 +287,16 @@
 .admin-notif-urgente{
     color: var(--admin-vermelho-txt);
     font-weight: 700;
+}
+
+/* Selo das notificações de teste enviadas pela Central de Notificações */
+.admin-notif-teste{
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: var(--admin-ambar-bg);
+    color: var(--admin-ambar-txt);
+    font-weight: 700;
+    font-size: 11px;
 }
 
 .admin-notif-tempo{

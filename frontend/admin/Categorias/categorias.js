@@ -15,13 +15,21 @@ const grade = document.getElementById("gradeCategorias");
 // iconeCategoriaValido/corCategoriaValida/fundoClaroCategoria vêm de
 // categorias-acoes.js (carregado antes deste arquivo — ver ordem dos
 // <script> no index.html).
+function contagemItens(c) {
+    const bruto = c.total_itens ?? c.total ?? c.qtd_itens;
+    if (bruto === null || bruto === undefined || bruto === "") return null;
+    const n = Number(bruto);
+    return Number.isFinite(n) ? n : null;
+}
+
 function normalizar(c) {
     return {
         id: c.id,
         nome: c.nome || "—",
         icone: iconeCategoriaValido(c.icone),
         cor: corCategoriaValida(c.cor),
-        total: Number(c.total_itens ?? c.total ?? c.qtd_itens ?? 0) || 0
+        // null = o back não mandou a contagem (diferente de 0 itens de verdade).
+        total: contagemItens(c)
     };
 }
 
@@ -30,7 +38,7 @@ async function carregarCategorias() {
     try {
         const lista = await listarCategoriasAdmin();
         // Mais itens primeiro (mesma ordem do design)
-        estado.categorias = lista.map(normalizar).sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome, "pt-BR"));
+        estado.categorias = lista.map(normalizar).sort((a, b) => (b.total ?? 0) - (a.total ?? 0) || a.nome.localeCompare(b.nome, "pt-BR"));
     } catch (erro) {
         grade.innerHTML = `<p class="cat-estado">${escAdmin(erro.message)}</p>`;
         return;
@@ -41,10 +49,24 @@ async function carregarCategorias() {
 
 function renderizarEstatisticas() {
     const qtd = estado.categorias.length;
-    const totalItens = estado.categorias.reduce((soma, c) => soma + c.total, 0);
+    const totalItens = estado.categorias.reduce((soma, c) => soma + (c.total ?? 0), 0);
     document.getElementById("statTotalCategorias").textContent = qtd;
+
+    // Se alguma categoria veio sem contagem, o total e a média seriam falsos
+    // (mostrariam 0 como se não houvesse itens). Melhor mostrar "–" e avisar no console.
+    if (estado.categorias.some(c => c.total === null)) {
+        console.warn("[categorias] a API não devolveu total_itens para alguma categoria; total e média não foram calculados.");
+        document.getElementById("statTotalItens").textContent = "–";
+        document.getElementById("statMedia").textContent = "–";
+        return;
+    }
+
     document.getElementById("statTotalItens").textContent = totalItens.toLocaleString("pt-BR");
-    document.getElementById("statMedia").textContent = qtd ? Math.round(totalItens / qtd).toLocaleString("pt-BR") : 0;
+    // Uma casa decimal: com poucos itens a média costuma ser fracionária (4 itens / 10
+    // categorias = 0,4) e arredondar para inteiro mostrava 0.
+    document.getElementById("statMedia").textContent = qtd
+        ? (totalItens / qtd).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 1 })
+        : "0";
 }
 
 function renderizarGrade() {
@@ -65,10 +87,11 @@ function renderizarGrade() {
         return;
     }
 
-    const totalItens = estado.categorias.reduce((soma, c) => soma + c.total, 0);
+    const totalItens = estado.categorias.reduce((soma, c) => soma + (c.total ?? 0), 0);
 
     const cards = estado.categorias.map(c => {
-        const pct = totalItens ? (c.total / totalItens) * 100 : 0;
+        const semContagem = c.total === null;
+        const pct = totalItens && !semContagem ? (c.total / totalItens) * 100 : 0;
         return `
         <article class="cat-card" data-id="${escAdmin(c.id)}">
             <div class="cat-card-topo">
@@ -82,11 +105,11 @@ function renderizarGrade() {
             </div>
             <h3 class="cat-card-nome">${escAdmin(c.nome)}</h3>
             <div class="cat-card-linha">
-                <span>Itens cadastrados</span>
-                <strong style="color:${c.cor}">${c.total.toLocaleString("pt-BR")}</strong>
+                <span>Itens vinculados</span>
+                <strong style="color:${c.cor}">${semContagem ? "—" : c.total.toLocaleString("pt-BR")}</strong>
             </div>
             <div class="cat-barra"><div style="width:${pct.toFixed(1)}%; background:${c.cor}"></div></div>
-            <small class="cat-percentual">${pct.toFixed(1)}% do total</small>
+            <small class="cat-percentual">${semContagem ? "Contagem indisponível" : `${pct.toFixed(1)}% do total`}</small>
         </article>`;
     }).join("");
 

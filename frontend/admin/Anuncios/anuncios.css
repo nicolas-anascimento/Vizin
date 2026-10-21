@@ -554,3 +554,7 @@
     line-height: 1.5;
     margin: 0 0 0 40px;
 }
+
+/* Foto do avaliador no modal "Ver anúncio" */
+.admin-ver-anuncio-aval-avatar{ overflow: hidden; }
+.admin-ver-anuncio-aval-avatar img{ width: 100%; height: 100%; object-fit: cover; display: block; }

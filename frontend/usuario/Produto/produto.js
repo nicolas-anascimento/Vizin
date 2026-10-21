@@ -38,7 +38,11 @@ const produto = window.ObjetosVizin ? normalizarProduto(await window.ObjetosVizi
 // As solicitações do usuário vêm do back (cache em SolicitacoesVizin): espera a 1ª carga.
 if (window.SolicitacoesVizin) await window.SolicitacoesVizin.pronto;
 
-if (!produto) {
+// Anúncio arquivado pela administração: só o dono ainda enxerga a página.
+const arquivadoParaVisitante = !!produto && produto.status === "arquivado" &&
+    !(usuarioLogado?.id && produto.proprietario?.id && usuarioLogado.id === produto.proprietario.id);
+
+if (!produto || arquivadoParaVisitante) {
     document.querySelector(".produto-grid").innerHTML =
         `<div style="grid-column:1/-1; text-align:center; padding:60px 20px;">
             <p style="color:var(--texto-suave); margin-bottom:20px;">
@@ -264,7 +268,9 @@ async function preencherProduto(obj) {
     document.getElementById("produto-localizacao").textContent = obj.localizacao;
     document.getElementById("produto-categoria").textContent = obj.categoria;
     document.getElementById("produto-descricao").textContent = obj.descricao;
-    document.getElementById("proprietario-avatar").textContent = (obj.proprietarioNome || "?").charAt(0);
+    document.getElementById("proprietario-avatar").innerHTML = window.AvatarVizin
+        ? window.AvatarVizin.html(obj.proprietario?.avatarUrl ?? obj.proprietario?.avatar_url, obj.proprietarioNome || "?")
+        : (obj.proprietarioNome || "?").charAt(0);
     document.getElementById("proprietario-nome").textContent = obj.proprietarioNome;
 
     renderizarGaleriaProduto(imagensProduto);
@@ -474,7 +480,10 @@ async function atualizarDisponibilidade() {
         return;
     }
 
-    const indisponivel = !atual.disponivel;
+    // Moderação do admin (arquivado/oculto) bloqueia o aluguel mesmo que `disponivel`
+    // continue true — o back sinaliza isso à parte.
+    const bloqueadoPelaAdmin = atual.status === "arquivado" || !!atual.oculto_pelo_admin;
+    const indisponivel = !atual.disponivel || bloqueadoPelaAdmin;
     const emLocacao = window.ObjetosVizin.temLocacaoAtiva(atual);
 
     // Locatário com uma devolução em atraso (ou multa em atraso pendente
@@ -490,8 +499,10 @@ async function atualizarDisponibilidade() {
     let avisoIndisponivel = document.getElementById("aviso-indisponivel");
 
     if (indisponivel) {
-        btnSolicitar.textContent = emLocacao ? "Objeto Alugado" : "Objeto Indisponível";
-        const mensagem = emLocacao
+        btnSolicitar.textContent = (!bloqueadoPelaAdmin && emLocacao) ? "Objeto Alugado" : "Objeto Indisponível";
+        const mensagem = bloqueadoPelaAdmin
+            ? "Este anúncio foi ocultado ou arquivado pela administração e não pode ser alugado."
+            : emLocacao
             ? "Este objeto já está alugado no momento. Tente novamente mais tarde."
             : "Este objeto não está disponível no momento.";
 
@@ -681,7 +692,7 @@ function configurarLinksPosPagamento(s) {
 btnSolicitar.addEventListener("click", async () => {
     if (souDono) return; // proteção extra: o botão já fica oculto pro dono, isso é só reforço
     const objetoAtual = await window.ObjetosVizin.obterPorId(produto.id);
-    if (!objetoAtual || !objetoAtual.disponivel) {
+    if (!objetoAtual || !objetoAtual.disponivel || objetoAtual.oculto_pelo_admin || objetoAtual.status === "arquivado") {
         alert("Este objeto não está mais disponível.");
         atualizarDisponibilidade();
         return;
@@ -1132,9 +1143,10 @@ async function renderizarAvaliacoesProduto() {
             // fez a avaliação direto por aqui.
             const linkPerfilAvaliador = av.avaliadorId ? `/perfil?id=${encodeURIComponent(av.avaliadorId)}` : null;
 
+            const miolo = window.AvatarVizin ? window.AvatarVizin.html(window.AvatarVizin.deAvaliacao(av), nome) : inicial;
             const avatarHtml = linkPerfilAvaliador
-                ? `<a class="produto-avaliacao-avatar-link" href="${linkPerfilAvaliador}" title="Ver perfil de ${nomeSeguro}"><div class="produto-avaliacao-avatar">${inicial}</div></a>`
-                : `<div class="produto-avaliacao-avatar">${inicial}</div>`;
+                ? `<a class="produto-avaliacao-avatar-link" href="${linkPerfilAvaliador}" title="Ver perfil de ${nomeSeguro}"><div class="produto-avaliacao-avatar">${miolo}</div></a>`
+                : `<div class="produto-avaliacao-avatar">${miolo}</div>`;
 
             const nomeHtml = linkPerfilAvaliador
                 ? `<a class="produto-avaliacao-nome-link" href="${linkPerfilAvaliador}">${nomeSeguro}</a>`
@@ -1172,7 +1184,9 @@ async function renderizarAvaliacoesProduto() {
 // Delegado (a lista é recriada a cada renderizarAvaliacoesProduto, então um
 // listener por botão se perderia) — mesmo padrão de query string usado em
 // "Denunciar anúncio" acima, só que com avaliacaoId em vez de produtoId.
-listaEl.addEventListener("click", (e) => {
+// `listaEl` dentro de renderizarAvaliacoesProduto é local à função; resolva o
+// elemento novamente aqui para não interromper toda a inicialização da página.
+document.getElementById("produto-lista-avaliacoes")?.addEventListener("click", (e) => {
     const btn = e.target.closest(".link-denunciar-avaliacao");
     if (!btn) return;
     const queryDenuncia = new URLSearchParams({

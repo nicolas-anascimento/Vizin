@@ -6,8 +6,8 @@
  *   - "Ver anúncio": mostra todos os dados do anúncio (fotos, descrição,
  *     localização, proprietário, categoria, preço, disponibilidade) pro
  *     admin analisar antes de decidir alterar visibilidade ou arquivar.
- *   - "Alterar visibilidade": alterna o boolean `disponivel`; ocultar
- *     exige motivo e não altera dados comerciais do proprietário.
+ *   - "Alterar visibilidade": oculta/reexibe pela moderação (`oculto_pelo_admin`);
+ *     ocultar exige motivo e NÃO sobrescreve a preferência `disponivel` do dono.
  *   - "Arquivar anúncio": arquivamento administrativo, nunca hard-delete.
  *
  * Uso:
@@ -79,11 +79,12 @@ function garantirModaisAnuncio() {
                 <p>Anúncio: <strong id="admModalStatusAnuncioTitulo"></strong></p>
 
                 <div class="admin-form-campo">
-                    <label for="admModalStatusAnuncioSelect">Disponibilidade</label>
+                    <label for="admModalStatusAnuncioSelect">Visibilidade (moderação)</label>
                     <select id="admModalStatusAnuncioSelect">
-                        <option value="disponivel">Disponível</option>
-                        <option value="indisponivel">Indisponível</option>
+                        <option value="disponivel">Visível</option>
+                        <option value="indisponivel">Ocultar pela moderação</option>
                     </select>
+                    <small id="admModalStatusAnuncioNota" style="display:block;margin-top:6px;font-size:12.5px;color:var(--admin-texto-muted)"></small>
                 </div>
 
                 <div class="admin-form-campo">
@@ -167,7 +168,9 @@ function abrirModalVerAnuncio(anuncio) {
     document.getElementById("admModalVerAnuncioLocalizacao").textContent = anuncio.localizacao || "Não informado";
     // Mesmos nomes de campo que o back manda em /objetos (snake_case) — ver
     // objetos-shared.js e o comentário em anuncios.js:infoDisponibilidade.
-    document.getElementById("admModalVerAnuncioDisponibilidade").textContent = anuncio.oculto_pelo_admin
+    document.getElementById("admModalVerAnuncioDisponibilidade").textContent = anuncio.status === "arquivado"
+        ? "Arquivado"
+        : anuncio.oculto_pelo_admin
         ? "Oculto pela moderação"
         : anuncio.em_locacao ? "Em locação"
         : anuncio.tem_solicitacao_pendente
@@ -235,13 +238,13 @@ async function carregarAvaliacoesVerAnuncio(anuncioId) {
         .sort((a, b) => new Date(b.data) - new Date(a.data))
         .map(av => {
             const nome = av.nomeAvaliador || "Usuário";
-            const inicial = escAdminAcoes(nome.charAt(0).toUpperCase());
+            const inicial = nome.charAt(0).toUpperCase().replace(/[^\p{L}\p{N}]/gu, "?");
             const data = av.data ? new Date(av.data).toLocaleDateString("pt-BR") : "";
             const nota = Number(av.nota).toFixed(1);
             return `
                 <div class="admin-ver-anuncio-aval-item">
                     <div class="admin-ver-anuncio-aval-topo">
-                        <div class="admin-ver-anuncio-aval-avatar">${inicial}</div>
+                        <div class="admin-ver-anuncio-aval-avatar">${window.avatarAdminHtml ? window.avatarAdminHtml(av.avaliadorAvatarUrl, inicial) : inicial}</div>
                         <div class="admin-ver-anuncio-aval-info">
                             <strong>${escAdminAcoes(nome)}</strong>
                             <span class="admin-ver-anuncio-aval-data">${data}</span>
@@ -262,7 +265,13 @@ function abrirModalStatusAnuncio(anuncio, aoConfirmar) {
     _callbackStatusAnuncio = aoConfirmar;
 
     document.getElementById("admModalStatusAnuncioTitulo").textContent = anuncio.titulo;
+    // Só a ocultação administrativa conta aqui: `disponivel` é a preferência do dono e não é alterada pela moderação.
     document.getElementById("admModalStatusAnuncioSelect").value = anuncio.oculto_pelo_admin ? "indisponivel" : "disponivel";
+    const notaEl = document.getElementById("admModalStatusAnuncioNota");
+    const notas = [];
+    if (anuncio.oculto_pelo_admin && anuncio.motivo_ocultacao) notas.push(`Motivo atual da ocultação: ${anuncio.motivo_ocultacao}`);
+    if (anuncio.disponivel === false) notas.push("O proprietário pausou este anúncio; isso continua valendo mesmo se você reexibir.");
+    notaEl.textContent = notas.join(" ");
     document.getElementById("admModalStatusAnuncioMotivo").value = "";
     document.getElementById("admModalStatusAnuncioErro").textContent = "";
     atualizarObrigatoriedadeMotivoAnuncio();
@@ -271,6 +280,7 @@ function abrirModalStatusAnuncio(anuncio, aoConfirmar) {
 
     const btn = document.getElementById("admModalStatusAnuncioConfirmar");
     const btnNovo = btn.cloneNode(true);
+    btnNovo.disabled = false; // cloneNode copia o `disabled` deixado pela confirmação anterior
     btn.replaceWith(btnNovo);
     btnNovo.addEventListener("click", confirmarModalStatusAnuncio);
 }
@@ -290,6 +300,13 @@ async function confirmarModalStatusAnuncio() {
 
     if (!disponivel && !motivo) {
         erroEl.textContent = "Informe o motivo da ocultação.";
+        return;
+    }
+
+    // Reexibir só faz sentido se o anúncio está oculto pela moderação; senão não há nada a desfazer
+    // (e enviar disponivel:true poderia mexer na preferência do dono).
+    if (disponivel && !_anuncioStatusAtual.oculto_pelo_admin) {
+        erroEl.textContent = "Este anúncio não está oculto pela moderação. Escolha \"Ocultar pela moderação\" ou cancele.";
         return;
     }
 
@@ -322,6 +339,7 @@ function abrirModalExcluirAnuncio(anuncio, aoConfirmar) {
 
     const btn = document.getElementById("admModalExcluirAnuncioConfirmar");
     const btnNovo = btn.cloneNode(true);
+    btnNovo.disabled = false; // idem: não herdar o `disabled` do arquivamento anterior
     btn.replaceWith(btnNovo);
     btnNovo.addEventListener("click", confirmarModalExcluirAnuncio);
 

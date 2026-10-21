@@ -68,6 +68,55 @@
   padding: 9px 18px;
   height: auto;
 }
+
+.endereco-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.endereco-grid label {
+  display: grid;
+  gap: 5px;
+  color: var(--texto, #1a1a2e);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.endereco-grid input {
+  border: 1px solid var(--borda, #d8d8df);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.enderecos-lista p {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.enderecos-lista button {
+  border: 0;
+  background: transparent;
+  color: var(--roxo, #6D49F2);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.endereco-principal {
+  display: block;
+  margin: 12px 0;
+}
+
+.endereco-erro {
+  color: #b91c1c;
+  min-height: 1.25rem;
+}
+
+@media (max-width: 600px) {
+  .endereco-grid { grid-template-columns: 1fr; }
+}
  
 /* ================= TOGGLE (switch) ================= */
 .conta-toggle {

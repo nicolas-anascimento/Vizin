@@ -49,81 +49,98 @@
 
     garantirElementoToastAdmin();
 
-    // ================= SIDEBAR =================
-    const container = document.getElementById("adminSidebarContainer");
-    if (!container) return;
+    // ================= AVATAR (foto ou iniciais) =================
+    // Devolve o HTML interno de um avatar: <img> quando há foto válida
+    // (http/https ou caminho relativo); se a imagem falhar ao carregar,
+    // volta para as iniciais. `iniciais` deve ser texto simples.
+    function escAttr(t) {
+        return String(t).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+    function urlAvatarSegura(url) {
+        if (typeof url !== "string") return "";
+        const u = url.trim();
+        return /^(https?:\/\/|\/(?!\/))/i.test(u) ? u : "";
+    }
+    window.avatarAdminHtml = function (avatarUrl, iniciais) {
+        const ini = String(iniciais ?? "?");
+        const url = urlAvatarSegura(avatarUrl);
+        if (!url) return escAttr(ini);
+        return `<img src="${escAttr(url)}" alt="" data-ini="${escAttr(ini)}" onerror="this.replaceWith(document.createTextNode(this.dataset.ini))">`;
+    };
 
-    fetch("/partials/admin-sidebar")
-        .then(r => {
-            if (!r.ok) throw new Error(`Erro ${r.status} ao buscar a sidebar administrativa`);
-            return r.text();
-        })
-        .then(html => {
-            container.innerHTML = html;
-            marcarLinkAtivo();
-            preencherPerfilAdmin();
-            ligarLogout();
-            ligarGavetaMobile();
-            iniciarContadores();
-        })
-        .catch(err => console.error("Falha ao carregar sidebar do admin:", err));
+    function iniciaisDoNome(nome) {
+        return String(nome ?? "").split(" ").filter(Boolean).slice(0, 2)
+            .map(parte => parte[0].toUpperCase()).join("") || "?";
+    }
 
-    // ================= ITEM ATIVO =================
-    // Compara com body[data-page]. TODO: se o admin passar a ter
-    // páginas geradas dinamicamente (ex: edição de item por id),
-    // reforçar esse data-page manualmente no <body> daquela página.
-    function marcarLinkAtivo() {
-        const paginaAtual = document.body.dataset.page;
-        if (!paginaAtual) return;
+    // ================= SIDEBAR: nome, foto e item ativo =================
+    function pintarSidebar(nome, avatarUrl) {
+        const nomeEl = document.getElementById("adminSidebarNome");
+        const avatarEl = document.getElementById("adminSidebarAvatar");
+        if (nomeEl) nomeEl.textContent = nome || "Administrador";
+        if (avatarEl) avatarEl.innerHTML = window.avatarAdminHtml(avatarUrl, iniciaisDoNome(nome));
+    }
 
-        document.querySelectorAll(".admin-nav-link[data-page]").forEach(link => {
-            link.classList.toggle("active", link.dataset.page === paginaAtual);
+    function marcarItemAtivo() {
+        const pagina = document.body.dataset.page;
+        if (!pagina) return;
+        document.querySelectorAll(".admin-nav-link").forEach(link => {
+            link.classList.toggle("active", link.dataset.page === pagina);
         });
     }
 
-    // ================= PERFIL DO ADMIN LOGADO =================
-    // Usa o mesmo localStorage("usuario") que login.js salva no login.
-    // Se não houver ninguém logado (ou faltar o nome), mantém o
-    // placeholder que já vem no HTML da sidebar.
-    async function preencherPerfilAdmin() {
+    function lerUsuarioSalvo() {
+        try { return JSON.parse(localStorage.getItem("usuario") || "null"); }
+        catch { return null; }
+    }
+
+    // Mesma estratégia do frame.js do site: Bearer legado primeiro; se vier 401,
+    // tenta de novo só com o cookie de sessão.
+    async function buscarSessaoAdmin() {
         const token = localStorage.getItem("token");
-        let usuario;
         try {
             let resposta = await fetch("/api/login/sessao", {
-                credentials: "same-origin", headers: token ? { Authorization: `Bearer ${token}` } : {}
+                credentials: "same-origin",
+                headers: token ? { Authorization: `Bearer ${token}` } : {}
             });
             if (resposta.status === 401 && token) {
                 localStorage.removeItem("token");
                 resposta = await fetch("/api/login/sessao", { credentials: "same-origin" });
             }
-            if (!resposta.ok) throw new Error("Sessão indisponível");
-            usuario = await resposta.json();
-            if (usuario.tipo !== "admin") {
-                window.location.href = "/inicio";
-                return;
-            }
-            const { id, nome, email, tipo, avatarUrl, verificado } = usuario;
-            localStorage.setItem("usuario", JSON.stringify({ id, nome, email, tipo, avatarUrl, verificado }));
+            return resposta.ok ? await resposta.json() : null;
         } catch {
-            window.location.href = "/login";
+            return null;
+        }
+    }
+
+    async function carregarSidebar() {
+        const container = document.getElementById("adminSidebarContainer");
+        if (!container) return;
+
+        try {
+            const resposta = await fetch("/partials/admin-sidebar", { credentials: "same-origin" });
+            if (!resposta.ok) throw new Error(`Erro ${resposta.status} ao buscar a sidebar`);
+            container.innerHTML = await resposta.text();
+        } catch (erro) {
+            console.error("Falha ao carregar a sidebar do admin:", erro);
             return;
         }
-        if (!usuario || !usuario.nome) return;
 
-        const nomeEl = document.getElementById("adminSidebarNome");
-        const avatarEl = document.getElementById("adminSidebarAvatar");
+        marcarItemAtivo();
 
-        if (nomeEl) nomeEl.textContent = usuario.nome;
+        // Nome/foto: usa o cache local na hora e confirma com o servidor em seguida
+        // (é a sessão que traz a foto atual do admin).
+        const salvo = lerUsuarioSalvo();
+        if (salvo) pintarSidebar(salvo.nome, salvo.avatarUrl);
 
-        if (avatarEl) {
-            const iniciais = usuario.nome
-                .split(" ")
-                .filter(Boolean)
-                .slice(0, 2)
-                .map(parte => parte[0].toUpperCase())
-                .join("");
-            avatarEl.textContent = iniciais;
+        const usuario = await buscarSessaoAdmin();
+        if (usuario) {
+            pintarSidebar(usuario.nome, usuario.avatarUrl);
+            const { id, nome, email, tipo, avatarUrl, verificado } = usuario;
+            try { localStorage.setItem("usuario", JSON.stringify({ id, nome, email, tipo, avatarUrl, verificado })); } catch { /* sem cache local */ }
         }
+
+        iniciarContadores(); // os links já existem no DOM
     }
 
     // ================= LOGOUT =================
@@ -291,5 +308,10 @@
         if (fontes.notificacoes) fontes.notificacoes.nao_lidas = total;
         renderizarContadores();
     };
+
+    // ================= INÍCIO =================
+    ligarLogout();
+    ligarGavetaMobile();
+    carregarSidebar();
 
 })();

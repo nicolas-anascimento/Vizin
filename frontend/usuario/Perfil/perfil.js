@@ -168,6 +168,7 @@ usuarioLogado.avaliacoes = avaliacoesReaisLogado.lista.map(av => ({
     nome: av.nomeAvaliador || "Usuário",
     avaliadorId: av.avaliadorId || null,
     data: new Date(av.data).toLocaleDateString("pt-BR"),
+    avatarUrl: window.AvatarVizin?.deAvaliacao(av) || null,
     nota: av.nota,
     comentario: av.comentario
 }));
@@ -288,6 +289,7 @@ if (ehProprioPerfilPorId) {
             nome: av.nomeAvaliador || "Usuário",
             avaliadorId: av.avaliadorId || null,
             data: new Date(av.data).toLocaleDateString("pt-BR"),
+            avatarUrl: window.AvatarVizin?.deAvaliacao(av) || null,
             nota: av.nota,
             comentario: av.comentario
         }))
@@ -308,7 +310,9 @@ const bloqueadoPorPrivacidade = false;
 // assim que dá pra conferir exatamente o que um visitante veria.
 function objetosVisiveisParaPerfil(usuario) {
     const todos = usuario.objetosAnunciados || [];
-    return ehProprioPerfil ? todos : todos.filter(o => o.disponivel);
+    return ehProprioPerfil
+        ? todos
+        : todos.filter(o => o.disponivel && !o.oculto_pelo_admin && o.status !== "arquivado");
 }
  
 // ================= ELEMENTOS ================
@@ -401,7 +405,7 @@ function renderizarPerfil(usuario) {
     elBioView.textContent = usuario.bio;
  
     elStatAlugados.textContent = usuario.stats.alugados;
-    elStatAnunciados.textContent = usuario.stats.anunciados;
+    elStatAnunciados.textContent = contarObjetosAnunciados(usuario);
     elStatResposta.textContent = usuario.stats.taxaResposta === null ? "Ainda sem pedidos" : `${usuario.stats.taxaResposta}%`;
  
     // CTA de verificação: só faz sentido pro próprio dono da conta. O
@@ -509,9 +513,10 @@ function renderizarAvaliacoes(avaliacoesCompletas) {
         // quem fez a avaliação direto por aqui.
         const linkPerfilAvaliador = av.avaliadorId ? `/perfil?id=${encodeURIComponent(av.avaliadorId)}` : null;
  
+        const miolo = window.AvatarVizin ? window.AvatarVizin.html(av.avatarUrl, av.nome) : nomeSeguro.charAt(0).toUpperCase();
         const avatarHtml = linkPerfilAvaliador
-            ? `<a class="avaliacao-avatar-link" href="${linkPerfilAvaliador}" title="Ver perfil de ${nomeSeguro}"><div class="avaliacao-avatar">${nomeSeguro.charAt(0).toUpperCase()}</div></a>`
-            : `<div class="avaliacao-avatar">${nomeSeguro.charAt(0).toUpperCase()}</div>`;
+            ? `<a class="avaliacao-avatar-link" href="${linkPerfilAvaliador}" title="Ver perfil de ${nomeSeguro}"><div class="avaliacao-avatar">${miolo}</div></a>`
+            : `<div class="avaliacao-avatar">${miolo}</div>`;
  
         const nomeHtml = linkPerfilAvaliador
             ? `<a class="avaliacao-nome avaliacao-nome-link" href="${linkPerfilAvaliador}">${nomeSeguro}</a>`
@@ -597,6 +602,14 @@ function renderizarObjetosAnunciados(objetosCompletos) {
         // tomado com nome/comentário de avaliações).
         const tituloSeguro = escaparHTMLPerfil(obj.titulo);
         const imagem = (obj.imagens && obj.imagens[0]) || obj.imagem || "/assets/usuario/img/sem-imagem.jpg";
+        // Mesmo critério do "Meus objetos": moderação do admin tem prioridade.
+        const rotuloDisp = obj.status === "arquivado"
+            ? { texto: "Arquivado", indisponivel: true }
+            : obj.oculto_pelo_admin
+                ? { texto: "Oculto pela administração", indisponivel: true }
+                : obj.disponivel
+                    ? { texto: "Disponível", indisponivel: false }
+                    : { texto: "Indisponível", indisponivel: true };
         const precoFormatado = Number(obj.preco_dia || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
  
         const card = document.createElement("a");
@@ -608,7 +621,7 @@ function renderizarObjetosAnunciados(objetosCompletos) {
                 <p class="objeto-anunciado-titulo">${tituloSeguro}</p>
                 <div class="objeto-anunciado-rodape">
                     <span class="objeto-anunciado-preco">${precoFormatado}/dia</span>
-                    <span class="objeto-anunciado-badge ${obj.disponivel ? "" : "indisponivel"}">${obj.disponivel ? "Disponível" : "Indisponível"}</span>
+                    <span class="objeto-anunciado-badge ${rotuloDisp.indisponivel ? "indisponivel" : ""}">${rotuloDisp.texto}</span>
                 </div>
             </div>
         `;
@@ -661,6 +674,43 @@ document.addEventListener("objetosAtualizados", async () => {
     renderizarObjetosAnunciados(objetosVisiveisParaPerfil(usuarioExibido));
 });
  
+// Objetos arquivados pela administração não contam como "anunciados".
+function contarObjetosAnunciados(usuario) {
+    if (!Array.isArray(usuario.objetosAnunciados)) return usuario.stats.anunciados;
+    return usuario.objetosAnunciados.filter(o => o.status !== "arquivado").length;
+}
+
+// ================= ATUALIZAÇÃO AUTOMÁTICA DOS OBJETOS =================
+// Mudanças feitas por outra pessoa (ex: o admin ocultando/arquivando um anúncio)
+// só existem no servidor. Reconsulta a lista de tempos em tempos (aba visível) e
+// redesenha só a seção de objetos se algo mudou — sem mexer no formulário de edição.
+function assinaturaDosObjetos(lista) {
+    return JSON.stringify((lista || []).map(o => [
+        o.id, o.titulo, o.preco_dia, o.disponivel, o.status, !!o.oculto_pelo_admin, o.imagem
+    ]));
+}
+
+let assinaturaObjetosPerfil = assinaturaDosObjetos(usuarioExibido.objetosAnunciados);
+
+async function atualizarObjetosEmSegundoPlano() {
+    if (document.visibilityState !== "visible") return;
+    try {
+        const dados = await calcularEstatisticas(usuarioExibido.id, ehProprioPerfilPorId);
+        const nova = assinaturaDosObjetos(dados.objetosAnunciados);
+        if (nova === assinaturaObjetosPerfil) return;
+
+        assinaturaObjetosPerfil = nova;
+        usuarioExibido.objetosAnunciados = dados.objetosAnunciados;
+        renderizarObjetosAnunciados(objetosVisiveisParaPerfil(usuarioExibido));
+        elStatAnunciados.textContent = contarObjetosAnunciados(usuarioExibido);
+    } catch (erro) {
+        console.error("Não foi possível atualizar os objetos do perfil:", erro);
+    }
+}
+
+setInterval(atualizarObjetosEmSegundoPlano, 20000);
+document.addEventListener("visibilitychange", atualizarObjetosEmSegundoPlano);
+
 // ================= EXIBIR OU OCULTAR AÇÕES DE EDIÇÃO =================
 if (!ehProprioPerfil) {
     btnEditarPerfil.style.display = "none";
@@ -914,6 +964,7 @@ inputAvatar.addEventListener("change", async (e) => {
         formData.append("avatar", arquivo, arquivo.name);
         const data = await window.ApiVizin.post("/usuarios/avatar", formData);
         usuarioExibido.avatarUrl = data.avatarUrl;
+        window.AvatarVizin?.definirDaSessao(data.avatarUrl); // header e demais telas
         renderizarPerfil(usuarioExibido);
     } catch (err) {
         console.error(err);
@@ -931,6 +982,7 @@ if (btnRemoverFoto) {
         try {
             await window.ApiVizin.delete("/usuarios/avatar");
             usuarioExibido.avatarUrl = null;
+            window.AvatarVizin?.definirDaSessao(null);
             renderizarPerfil(usuarioExibido);
         } catch (err) {
             alert(err.message || "Não foi possível remover a foto.");

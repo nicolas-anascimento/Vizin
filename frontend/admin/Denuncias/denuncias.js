@@ -276,8 +276,10 @@ function tornarCardClicavel(elId, chaveEstado, valor) {
     card.addEventListener("click", ativar);
     card.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); ativar(); } });
 }
-// "Denúncias Abertas" filtra por status aberta; "Tickets de Suporte" filtra por tipo suporte.
+// "Denúncias Abertas" filtra por status aberta; "Casos Resolvidos" por status resolvida;
+// "Tickets de Suporte" filtra por tipo suporte.
 tornarCardClicavel("statAbertas", "status", "aberta");
+tornarCardClicavel("statResolvidas", "status", "resolvida");
 tornarCardClicavel("statTickets", "tipo", "suporte");
 
 // =====================================================

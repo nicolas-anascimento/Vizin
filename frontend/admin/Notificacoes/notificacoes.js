@@ -449,12 +449,16 @@ async function enviarTeste() {
     try {
         await enviarTesteNotificacaoAdmin({ titulo: dados.titulo, mensagem: dados.mensagem });
     } catch (err) {
+        // O botão de teste fica abaixo do texto de erro do formulário; o toast garante que o admin veja o motivo.
         mostrarErro(err.message);
+        toast(err.message, "erro");
         definirOcupado(false);
         return;
     }
     definirOcupado(false);
-    toast("Teste enviado para a sua conta. Confira o sino.", "sucesso");
+    // O teste já está na caixa de entrada; atualiza os contadores do menu sem esperar o polling de 60 s.
+    if (typeof window.atualizarBadgesAdmin === "function") window.atualizarBadgesAdmin();
+    toast("Teste enviado! Abra \"Notificações\" no menu para vê-lo. Se não aparecer, confira Configurações → Notificações.", "sucesso");
 }
 
 btnRascunho.addEventListener("click", () => salvar("rascunho"));

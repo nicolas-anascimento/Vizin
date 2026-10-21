@@ -350,3 +350,19 @@
         justify-content: flex-end;
     }
 }
+/* ===================================================
+   TEXTO NÃO PODE VAZAR (nome/e-mail longos)
+   No card mobile o <td> é flex e o texto vira um item que não encolhe
+   abaixo do próprio conteúdo; overflow-wrap:anywhere + min-width:0
+   deixam ele quebrar dentro do card. Vale também para Verificações.
+   =================================================== */
+.admin-tabela td.admin-nome,
+.admin-tabela td.admin-email{
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+}
+
+@media (max-width: 680px){
+    .admin-tabela td{ min-width: 0; max-width: 100%; }
+}

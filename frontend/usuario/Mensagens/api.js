@@ -18,8 +18,12 @@ const API = (() => {
     }
   }
 
+  // O app lê `user.avatar`; aceita também `avatarUrl`/`avatar_url` do back.
+  const comAvatar = (u) => u ? { ...u, avatar: u.avatar ?? u.avatarUrl ?? u.avatar_url ?? null } : u;
+
   return {
-    getConversations: () => all("/conversations"),
+    getConversations: async () => (await all("/conversations"))
+      .map(c => c?.user ? { ...c, user: comAvatar(c.user) } : c),
     getOrCreateConversation: ({ userId, produtoId }) => api.post("/conversations", {
       userId: String(userId), ...(produtoId ? { produtoId: String(produtoId) } : {})
     }),
@@ -51,7 +55,10 @@ const API = (() => {
     blockUser: conversationId => api.post(`/conversations/${enc(conversationId)}/block`, {}),
     reportConversation: (id, body) => api.post(`/conversations/${enc(id)}/report`, body),
     deleteConversationForMe: id => api.delete(`/conversations/${enc(id)}`),
-    getBlockedUsers: () => api.get("/blocked-users"),
+    getBlockedUsers: async () => {
+      const lista = await api.get("/blocked-users");
+      return Array.isArray(lista) ? lista.map(comAvatar) : lista;
+    },
     unblockUser: id => api.post(`/users/${enc(id)}/unblock`, {}),
     async uploadFile(file) {
       const form = new FormData();

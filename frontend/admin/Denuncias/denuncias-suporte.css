@@ -129,7 +129,7 @@
     background: var(--admin-surface);
     border: 1px solid var(--admin-borda);
     border-radius: 12px;
-    padding: 0 16px;
+    padding: 16px;
     height: 46px;
 }
 
@@ -347,6 +347,28 @@
     max-width: 620px;
     max-height: 88vh;
     overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Texto digitado por usuários (descrição, respostas, motivo) pode ter palavras
+   enormes ou links sem espaço: sem isso ele ultrapassa a largura do modal.
+   min-width:0 deixa os filhos de flex/grid encolherem abaixo do conteúdo. */
+.admin-modal-largo > *,
+.admin-modal-largo .admin-form-campo{
+    min-width: 0;
+    max-width: 100%;
+}
+
+.admin-modal-largo h3,
+.admin-modal-largo p,
+.admin-modal-largo strong{
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.admin-modal-largo textarea{
+    box-sizing: border-box;
+    max-width: 100%;
 }
 
 .admin-modal-topo-badges{
@@ -404,6 +426,9 @@
     color: var(--admin-texto) !important;
     line-height: 1.55;
     white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    max-width: 100%;
 }
 
 .admin-respostas-lista{

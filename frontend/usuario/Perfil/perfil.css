@@ -639,6 +639,17 @@
   font-size: 14px;
 }
  
+.avaliacao-avatar {
+  overflow: hidden;
+}
+
+.avaliacao-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .avaliacao-avatar-link {
   display: inline-flex;
   text-decoration: none;

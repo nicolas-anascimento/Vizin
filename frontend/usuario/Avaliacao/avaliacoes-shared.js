@@ -10,6 +10,7 @@ const AvaliacoesVizin = (() => {
             const { dados, cabecalhos } = await Api.requisitar("GET", `${caminho}?page=${page}&limit=100`, undefined, { comCabecalhos: true });
             if (!Array.isArray(dados)) throw new Error("Resposta de avaliações inválida");
             rows.push(...dados);
+            if (dados.length === 0) break; // evita laço infinito se o total do cabeçalho for maior que o devolvido
             total = Number(cabecalhos.get("X-Total-Count"));
             if (!Number.isFinite(total)) total = rows.length + (dados.length === 100 ? 1 : 0);
             page++;

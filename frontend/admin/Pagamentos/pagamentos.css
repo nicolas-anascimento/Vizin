@@ -133,7 +133,7 @@
     background: var(--admin-surface);
     border: 1px solid var(--admin-borda);
     border-radius: 12px;
-    padding: 0 16px;
+    padding: 16px;
     height: 46px;
 }
 

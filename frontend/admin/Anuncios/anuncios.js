@@ -93,6 +93,7 @@ function labelStatus(status) {
 // com o restante do sistema — corrigido para não ficar sempre caindo no
 // fallback "Disponível/Pausado" mesmo quando o item está locado ou pendente.
 function infoDisponibilidade(anuncio) {
+    if (anuncio.status === "arquivado") return { classe: "arquivado", label: "Arquivado" };
     if (anuncio.oculto_pelo_admin) return { classe: "pausado", label: "Oculto pela moderação" };
     if (anuncio.em_locacao) return { classe: "em-locacao", label: "Em locação" };
     if (anuncio.tem_solicitacao_pendente) return { classe: "solicitacao-pendente", label: "Solicitação pendente" };

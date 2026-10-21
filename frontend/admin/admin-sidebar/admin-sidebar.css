@@ -7,6 +7,11 @@
    de no topo. Em telas menores vira uma gaveta: desliza pra
    fora da tela e só aparece quando o botão de menu (topbar
    mobile) é clicado, com um overlay escurecendo o conteúdo.
+
+   Em telas BAIXAS (pouca altura), a sidebar se compacta em
+   etapas (ver "COMPACTAÇÃO POR ALTURA" no fim do arquivo) e,
+   se mesmo assim faltar espaço, só a lista de links rola —
+   perfil e botão SAIR ficam sempre visíveis.
    =================================================== */
 
 :root{
@@ -48,12 +53,14 @@ body.admin-body{
 
 /* ================= SIDEBAR (= header, na vertical) =================
    Mesmo gradiente roxo do header (só que 180deg em vez de 90deg) e a
-   mesma sombra de destaque (box-shadow). */
+   mesma sombra de destaque (box-shadow).
+   overflow:hidden -> quem rola é só o .admin-sidebar-nav (ver abaixo). */
 .admin-sidebar{
     position: fixed;
     top: 0;
     left: 0;
     height: 100vh;
+    height: 100dvh;          /* respeita a barra do navegador no mobile */
     width: var(--admin-sidebar-w);
     background: linear-gradient(180deg, rgba(56, 29, 115, 1) 0%, rgba(109, 73, 242, 1) 50%, rgba(56, 29, 115, 1) 100%);
     box-shadow: 0 0 25px #0d0d0d3a;
@@ -62,6 +69,7 @@ body.admin-body{
     flex-direction: column;
     gap: 28px;
     z-index: 200;
+    overflow: hidden;
     transition: transform .3s ease;
 }
 
@@ -95,8 +103,34 @@ body.admin-body{
     display: none;
 }
 
+/* Logo, perfil e rodapé nunca encolhem (não são espremidos). */
+.admin-sidebar .nav-logo-link,
+.admin-sidebar-perfil,
+.admin-sidebar-rodape{
+    flex: 0 0 auto;
+}
+
 /* ================= LINKS (mesma marcação/efeito do header:
-   ul > li > a, ícone + texto, pill, sublinhado laranja no hover) ===== */
+   ul > li > a, ícone + texto, pill, sublinhado laranja no hover) =====
+   O nav ocupa o espaço que sobrar e rola sozinho se não couber. */
+.admin-sidebar-nav{
+    flex: 1 1 auto;
+    min-height: 0;           /* essencial para o flex permitir encolher e rolar */
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(242, 242, 242, .3) transparent;
+}
+
+.admin-sidebar-nav::-webkit-scrollbar{
+    width: 6px;
+}
+
+.admin-sidebar-nav::-webkit-scrollbar-thumb{
+    background: rgba(242, 242, 242, .3);
+    border-radius: 6px;
+}
+
 .admin-sidebar-nav ul{
     list-style: none;
     display: flex;
@@ -170,8 +204,7 @@ body.admin-body{
 }
 
 /* ================= PERFIL DO ADMIN LOGADO =================
-   Fica colado no rodapé (empurrado pra baixo pelo margin-top:auto),
-   logo acima do hr que separa do botão SAIR. */
+   Fica colado no rodapé, logo acima do hr que separa do botão SAIR. */
 .admin-sidebar-perfil{
     margin-top: auto;
     display: flex;
@@ -383,3 +416,130 @@ body.admin-body{
     line-height: 20px;
     text-align: center;
 }
+
+/* ===================================================
+   COMPACTAÇÃO POR ALTURA
+   Três etapas, cada uma sobrescrevendo a anterior (por isso a
+   ordem importa: do menos para o mais agressivo). Se mesmo na
+   última o conteúdo não couber, o .admin-sidebar-nav rola.
+   =================================================== */
+
+/* Etapa 1 — telas baixas (notebooks comuns) */
+@media (max-height: 760px){
+    .admin-sidebar{
+        padding: 16px 14px;
+        gap: 14px;
+    }
+    .admin-sidebar .nav-logo-link{
+        padding: 2px 0;
+    }
+    .admin-sidebar .logo{
+        width: 84px;
+        height: 40.5px;
+    }
+    .admin-sidebar-nav ul{
+        gap: 2px;
+    }
+    .admin-nav-link{
+        padding: 7px 14px;
+        font-size: 14px;
+    }
+    .admin-sidebar-perfil{
+        padding: 4px 8px;
+    }
+    .admin-sidebar-avatar{
+        width: 34px;
+        height: 34px;
+    }
+    .admin-sidebar-rodape{
+        padding-top: 10px;
+    }
+    .btn-admin-logout{
+        height: 36px;
+    }
+}
+
+/* Etapa 2 — telas bem baixas (ex.: janela do navegador pequena) */
+@media (max-height: 680px){
+    .admin-sidebar{
+        padding: 10px 12px;
+        gap: 8px;
+    }
+    .admin-sidebar .logo{
+        width: 64px;
+        height: 30.9px;
+    }
+    .admin-sidebar-nav ul{
+        gap: 0;
+    }
+    .admin-nav-link{
+        padding: 5px 12px;
+        gap: 10px;
+        font-size: 13px;
+    }
+    .admin-nav-link i{
+        font-size: 15px;
+        width: 16px;
+    }
+    .admin-nav-link .admin-nav-badge{
+        min-width: 18px;
+        height: 18px;
+        line-height: 18px;
+        font-size: 10px;
+        padding: 0 5px;
+    }
+    .admin-sidebar-perfil{
+        padding: 2px 6px;
+        gap: 8px;
+    }
+    .admin-sidebar-avatar{
+        width: 30px;
+        height: 30px;
+        font-size: 11px;
+    }
+    .admin-sidebar-perfil-nome{
+        font-size: 13px;
+    }
+    .admin-sidebar-perfil-badge{
+        font-size: 9px;
+        padding: 1px 7px;
+    }
+    .admin-sidebar-perfil-info{
+        gap: 2px;
+    }
+    .admin-sidebar-rodape{
+        padding-top: 8px;
+    }
+    .btn-admin-logout{
+        height: 32px;
+        font-size: 12px;
+    }
+}
+
+/* Etapa 3 — extremo: some a logo e o selo "Administrador" */
+@media (max-height: 560px){
+    .admin-sidebar{
+        padding: 8px 10px;
+        gap: 6px;
+    }
+    .admin-sidebar .nav-logo-link{
+        display: none;
+    }
+    .admin-nav-link{
+        padding: 4px 12px;
+        font-size: 12.5px;
+    }
+    .admin-sidebar-perfil-badge{
+        display: none;
+    }
+    .admin-sidebar-avatar{
+        width: 28px;
+        height: 28px;
+    }
+    .btn-admin-logout{
+        height: 30px;
+    }
+}
+/* Foto de perfil na sidebar */
+.admin-sidebar-avatar{ overflow: hidden; }
+.admin-sidebar-avatar img{ width: 100%; height: 100%; object-fit: cover; display: block; }

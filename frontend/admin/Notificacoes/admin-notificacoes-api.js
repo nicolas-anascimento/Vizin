@@ -41,19 +41,24 @@
  *  do agendamento)
  *
  * Rotas:
- *   GET    /admin/notificacoes/destinatarios/contagem?segmento=locatarios
+ *   GET    /admin/comunicados/destinatarios/contagem?segmento=locatarios
  *            -> { quantidade }   (quantas contas o segmento alcança AGORA; o front mostra
  *               no formulário e na confirmação de "Enviar Agora")
- *   POST   /admin/notificacoes/teste
+ *   POST   /admin/comunicados/teste
  *            body: { titulo, mensagem }
- *            entrega uma notificação "comunicado_admin" SÓ para a conta de usuário do admin
- *            logado, para ele ver como fica no sino. Não cria item no histórico nem entra
- *            nas estatísticas. Sem conta de usuário vinculada -> 409 com mensagem legível.
- *   GET    /admin/notificacoes?page=1&limit=10
+ *            CONFIRMADO pelo back: cria uma notificação PRIVADA na caixa de entrada do admin
+ *            logado (GET /admin/notificacoes), com tipo "comunicado_teste", categoria "sistema",
+ *            prioridade "normal", lida false e referencia null. Entra em nao_lidas /
+ *            recebidas_hoje / por_categoria.sistema do /admin/notificacoes/resumo, mas NÃO cria
+ *            item no histórico desta Central, não entra nas estatísticas e não envia e-mail,
+ *            Socket.IO nem notificação a outros usuários. Não exige conta de usuário vinculada
+ *            (o 409 antigo deixou de existir). Obs.: /admin/notificacoes/* é a caixa de entrada
+ *            do admin; esta Central de envio usa /admin/comunicados/*.
+ *   GET    /admin/comunicados?page=1&limit=10
  *            -> { dados: [notificação...], total }        (mais recentes primeiro)
- *   GET    /admin/notificacoes/estatisticas
+ *   GET    /admin/comunicados/estatisticas
  *            -> { enviadas, agendadas, total_usuarios }
- *   POST   /admin/notificacoes
+ *   POST   /admin/comunicados
  *            body: { titulo, mensagem, destinatarios, status, agendada_para, chave_idempotencia }
  *            chave_idempotencia (string): o front gera uma por tentativa e REUSA em retry.
  *              Se o back já processou essa chave com sucesso, devolve o MESMO resultado
@@ -63,10 +68,10 @@
  *                                 status "enviando" (ou "enviada", se for instantâneo)
  *            status "agendada" -> o back guarda e dispara em agendada_para (deve estar no futuro)
  *            status "rascunho" -> só guarda
- *   PUT    /admin/notificacoes/:id
+ *   PUT    /admin/comunicados/:id
  *            mesmo body do POST; só aceita edição de rascunho e agendada
  *            (enviada -> 409). Editar uma agendada com status "rascunho" cancela o agendamento.
- *   DELETE /admin/notificacoes/:id
+ *   DELETE /admin/comunicados/:id
  *            só rascunho e agendada (enviada -> 409). Excluir agendada cancela o envio.
  *
  * Cada usuário destinatário recebe uma notificação no sino (tipo sugerido:
@@ -90,8 +95,37 @@ async function contarDestinatariosNotificacaoAdmin(segmento) {
 }
 
 // dados = { titulo, mensagem }
+// O back entrega o teste só para o admin logado: ele aparece na página "Notificações"
+// do painel dele (tipo comunicado_teste, categoria sistema), não no histórico desta Central
+// e não nas estatísticas. Atenção: a caixa de entrada respeita as preferências do admin
+// (Configurações -> Notificações): com "somente urgentes" ligado ou a categoria Sistema
+// desligada, um teste de prioridade normal não aparece na lista.
 async function enviarTesteNotificacaoAdmin(dados) {
-    return apiRequest('/admin/comunicados/teste', 'POST', dados, 'Não foi possível enviar o teste.');
+    const padrao = 'Não foi possível enviar o teste.';
+    try {
+        return await apiRequest('/admin/comunicados/teste', 'POST', dados, padrao);
+    } catch (erro) {
+        throw traduzirErroTesteNotificacaoAdmin(erro, padrao);
+    }
+}
+
+function traduzirErroTesteNotificacaoAdmin(erro, padrao) {
+    const status = erro && erro.status;
+    console.error('[notificações] falha no teste:', status, erro);
+    if (status === 404) {
+        return new Error('O servidor não tem a rota de envio de teste (404). Avise o time do back-end.');
+    }
+    if (status === 409) {
+        // Não deve mais ocorrer (o teste não depende de conta de usuário); mantém a mensagem do back por segurança.
+        return new Error(erro.message || 'Não foi possível entregar o teste na sua caixa de notificações.');
+    }
+    if (status === 401 || status === 403) {
+        return new Error('Sua sessão não tem permissão para enviar o teste. Entre de novo como administrador.');
+    }
+    if (status >= 500) {
+        return new Error(`O servidor falhou ao enviar o teste (${status}). Tente de novo em instantes.`);
+    }
+    return erro instanceof Error ? erro : new Error(padrao);
 }
 
 // dados = { titulo, mensagem, destinatarios, status, agendada_para, chave_idempotencia }

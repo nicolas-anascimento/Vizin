@@ -4,27 +4,19 @@
  * Chamadas do admin para as rotas de categorias.
  * Usa o mesmo `apiRequest` (Login/api.js) das outras telas do admin.
  *
- * ROTAS ASSUMIDAS — confirmar com o back (é o único lugar a mudar):
- *   GET    /admin/categorias                  lista TODAS, já com a contagem de itens
+ * ROTAS (contrato confirmado pelo back):
+ *   GET    /admin/categorias                  lista TODAS, já com `total_itens`
  *   POST   /admin/categorias                  cria   { nome, icone, cor }
  *   PATCH  /admin/categorias/:id               edita  { nome, icone, cor }
- *   DELETE /admin/categorias/:id               exclui (409 se ainda houver itens)
- *   POST   /admin/categorias/:id/mover-itens   move todos os itens de :id pra outra
- *                                               categoria — { destino_id } — usada só no
- *                                               fluxo de excluir categoria com itens
- *                                               (ver categorias-acoes.js). Resposta
- *                                               esperada: { movidos: <quantidade> }.
+ *   DELETE /admin/categorias/:id               exclui; 409 `categoria_com_itens` se houver
+ *                                               QUALQUER objeto vinculado (inclusive arquivado)
+ *   POST   /admin/categorias/:id/mover-itens   { destino_id } -> { movidos: <qtd> }
+ *                                               move também arquivados/ocultos (transação Serializable)
  *
- * FORMATO ESPERADO de cada categoria na listagem:
- *   { id, nome, icone, cor, total_itens }
- *   - icone: classe do Bootstrap Icons (ex.: "bi-wrench")
- *   - cor:   hex de 6 dígitos (ex.: "#6D49F2")
- *   - total_itens: nº de objetos (não arquivados) da categoria — CONFIRMAR
- *     com o back se isto inclui itens ARQUIVADOS. Se não incluir, um objeto
- *     arquivado pode ficar com uma categoria "fantasma" depois de excluída
- *     (o botão de excluir aqui só olha para total_itens = 0).
- * O back precisa persistir `icone` e `cor` (2 colunas novas na tabela
- * de categorias). Nome duplicado => 409 com codigo contendo "duplicad"/"existe".
+ * FORMATO de cada categoria: { id, nome, slug, icone, cor, total_itens }
+ *   total_itens conta TODOS os objetos da categoria: ativos, arquivados, ocultos pela
+ *   administração, pausados, em locação e com solicitação pendente.
+ * Nome duplicado => 409 (código/mensagem contendo "duplicad"/"existe"/"nome").
  *
  * IMPORTANTE — slug estável: ao RENOMEAR uma categoria (PATCH), o back não
  * pode gerar um slug novo a partir do nome novo. Objetos já cadastrados
@@ -44,13 +36,16 @@ function traduzirErroCategoriaAdmin(erro) {
         return new Error('Esta categoria não existe mais. Atualize a página e tente de novo.');
     }
     if (erro.status === 409) {
-        const codigo = String(erro.codigo || erro.message || '');
-        if (/duplicad|existe|nome/i.test(codigo)) {
+        const texto = `${erro.codigo || ''} ${erro.message || ''}`;
+        // Código definitivo do back para exclusão com objetos vinculados.
+        if (/categoria_com_itens/i.test(texto)) {
+            return new Error('Esta categoria ainda tem itens vinculados (inclusive arquivados ou ocultos). Mova os itens para outra categoria antes de excluir.');
+        }
+        if (/duplicad|existe|nome/i.test(texto)) {
             return new Error('Já existe uma categoria com esse nome.');
         }
-        return new Error('Esta categoria ainda tem itens cadastrados e não pode ser excluída.');
     }
-    return erro;
+    return erro; // demais casos: mensagem original do back
 }
 
 async function criarCategoriaAdmin({ nome, icone, cor }) {

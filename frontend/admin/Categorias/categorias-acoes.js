@@ -78,6 +78,8 @@ let _callbackCategoria = null;
 let _categoriaExcluirAtual = null;
 let _callbackExcluirCategoria = null;
 let _corSelecionada = COR_PADRAO_ADMIN;
+let _jaMoveuItens = false;   // os itens já foram movidos nesta tentativa (evita mover de novo se o DELETE falhar)
+let _totalMovido = 0;
 
 // Cria os dois modais uma única vez e anexa no <body>, caso ainda
 // não existam nessa página.
@@ -293,6 +295,8 @@ function abrirModalExcluirCategoria(categoria, categoriasAtuais, aoConfirmar) {
 
     _categoriaExcluirAtual = categoria;
     _callbackExcluirCategoria = aoConfirmar;
+    _jaMoveuItens = false;
+    _totalMovido = 0;
 
     const outrasCategoria = (categoriasAtuais || []).filter(c => String(c.id) !== String(categoria.id));
     const bloqueadaPorItens = categoria.total > 0;
@@ -310,12 +314,12 @@ function abrirModalExcluirCategoria(categoria, categoriasAtuais, aoConfirmar) {
 
     if (semDestino) {
         erroEl.textContent =
-            `Esta categoria ainda tem ${categoria.total} ${categoria.total === 1 ? "item cadastrado" : "itens cadastrados"}, ` +
+            `Esta categoria ainda tem ${categoria.total} ${categoria.total === 1 ? "item vinculado" : "itens vinculados"} (inclusive arquivados ou ocultos), ` +
             `e não existe outra categoria pra mover esses itens. Crie uma nova categoria antes de excluir esta.`;
         moverCampo.hidden = true;
     } else if (precisaMover) {
         erroEl.textContent =
-            `Esta categoria ainda tem ${categoria.total} ${categoria.total === 1 ? "item cadastrado" : "itens cadastrados"}. ` +
+            `Esta categoria ainda tem ${categoria.total} ${categoria.total === 1 ? "item vinculado" : "itens vinculados"} (inclusive arquivados ou ocultos). ` +
             `Escolha para onde mover esses itens antes de excluir.`;
         moverSelect.innerHTML = outrasCategoria
             .map(c => `<option value="${c.id}">${escCategoriaAcoes(c.nome)}</option>`)
@@ -343,8 +347,12 @@ function abrirModalExcluirCategoria(categoria, categoriasAtuais, aoConfirmar) {
 
 function fecharModalExcluirCategoria() {
     document.getElementById("admModalExcluirCategoriaOverlay").hidden = true;
+    // Fechou depois de mover os itens mas sem excluir: a lista na tela está com contagens velhas.
+    const recarregar = _jaMoveuItens ? _callbackExcluirCategoria : null;
+    _jaMoveuItens = false;
     _categoriaExcluirAtual = null;
     _callbackExcluirCategoria = null;
+    if (recarregar) recarregar();
 }
 
 async function confirmarModalExcluirCategoria(precisaMover) {
@@ -361,17 +369,27 @@ async function confirmarModalExcluirCategoria(precisaMover) {
     erroEl.textContent = "";
     botao.disabled = true;
     try {
-        if (precisaMover) await moverItensCategoriaAdmin(categoria.id, destinoId);
+        if (precisaMover && !_jaMoveuItens) {
+            const resp = await moverItensCategoriaAdmin(categoria.id, destinoId);
+            _jaMoveuItens = true;
+            _totalMovido = Number(resp?.movidos) || 0;
+        }
         await excluirCategoriaAdmin(categoria.id);
     } catch (err) {
-        erroEl.textContent = err.message;
+        erroEl.textContent = err.message + (_jaMoveuItens ? " Os itens já foram movidos; tente excluir de novo." : "");
         botao.disabled = false;
         return;
     }
 
-    toastAdminCategoria(`"${categoria.nome}" foi excluída`, "sucesso");
+    toastAdminCategoria(
+        _totalMovido > 0
+            ? `"${categoria.nome}" excluída — ${_totalMovido} ${_totalMovido === 1 ? "item movido" : "itens movidos"}`
+            : `"${categoria.nome}" foi excluída`,
+        "sucesso"
+    );
 
     const callback = _callbackExcluirCategoria;
+    _jaMoveuItens = false; // já recarrega abaixo; evita recarregar duas vezes ao fechar
     fecharModalExcluirCategoria();
     if (callback) await callback();
 }

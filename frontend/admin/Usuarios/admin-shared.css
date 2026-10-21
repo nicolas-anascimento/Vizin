@@ -47,6 +47,7 @@
 .admin-badge.ativo{ color: var(--admin-verde-txt); background: var(--admin-verde-bg); }
 .admin-badge.inativo{ color: var(--admin-vermelho-txt); background: var(--admin-vermelho-bg); }
 .admin-badge.suspenso{ color: var(--admin-ambar-txt); background: var(--admin-ambar-bg); }
+.admin-badge.admin{ color: var(--admin-roxo-500); background: #ECE8FD; }
 .admin-badge.banido{ color: var(--admin-vermelho-txt); background: var(--admin-vermelho-bg); }
 
 /* ================= BOTÕES DE AÇÃO (ícones em tabela/cards) ================= */
@@ -249,3 +250,6 @@
 }
 
 .admin-voltar:hover{ color: var(--admin-roxo-500); }
+/* Foto no avatar (lista de usuários / verificações) */
+.admin-avatar{ overflow: hidden; }
+.admin-avatar img{ width: 100%; height: 100%; object-fit: cover; display: block; }

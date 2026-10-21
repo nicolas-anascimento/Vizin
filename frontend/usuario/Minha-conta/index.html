@@ -20,6 +20,27 @@
  
         <h1 class="conta-titulo-pagina">Minha conta</h1>
         <p class="conta-subtitulo-pagina">Gerencie o acesso e a segurança da sua conta.</p>
+
+        <div class="card">
+            <h2>Endereço</h2>
+            <p class="conta-subtitulo-pagina">Usado para localizar seus anúncios. O endereço completo não é exibido publicamente.</p>
+            <div id="enderecos-lista" class="enderecos-lista" aria-live="polite">Carregando...</div>
+            <form id="endereco-form" class="endereco-form">
+                <input type="hidden" name="id">
+                <div class="endereco-grid">
+                    <label>CEP<input name="cep" maxlength="10" required></label>
+                    <label>Rua<input name="rua" maxlength="200" required></label>
+                    <label>Número<input name="numero" maxlength="10" required></label>
+                    <label>Complemento<input name="complemento" maxlength="100"></label>
+                    <label>Bairro<input name="bairro" maxlength="100" required></label>
+                    <label>Cidade<input name="cidade" maxlength="100" required></label>
+                    <label>Estado<input name="estado" maxlength="2" required></label>
+                </div>
+                <label class="endereco-principal"><input type="checkbox" name="principal"> Endereço principal</label>
+                <p id="enderecos-erro" class="endereco-erro" role="alert"></p>
+                <button type="submit" class="btn btn-primary">Salvar endereço</button>
+            </form>
+        </div>
  
         <div class="card">
             <h2>Segurança</h2>
@@ -61,5 +82,6 @@
     <script src="/assets/usuario/utils/api-client.js"></script>
     <script src="/assets/usuario/utils/conta-suspensa.js"></script>
     <script src="/assets/usuario/header/frame.js"></script>
+    <script src="/assets/usuario/Minha-conta/minha-conta.js"></script>
 </body>
 </html>

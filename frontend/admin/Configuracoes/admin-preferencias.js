@@ -39,7 +39,8 @@
         "Tudo em dia!":"All caught up!","Ver detalhes":"View details","Limpar filtros":"Clear filters",
         "Entrar novamente":"Sign in again","Precisa de atenção":"Needs attention","Sistema":"System",
         "Verificações":"Verifications","Categoria":"Category","Leitura":"Read status","Filtros":"Filters",
-        "Criar Notificação":"Create Notification","Somente urgentes":"Urgent only",
+        "Criar Notificação":"Create Notification","Teste":"Test","Remover foto":"Remove photo","Foto removida.":"Photo removed.",
+        "JPG, PNG ou WEBP. Tamanho máximo 5MB.":"JPG, PNG or WEBP. Max size 5MB.","Use uma imagem JPG, PNG ou WEBP":"Use a JPG, PNG or WEBP image","Somente urgentes":"Urgent only",
         // mensagens
         "Salvando...":"Saving...","Enviando foto...":"Uploading photo...","Foto atualizada!":"Photo updated!",
         "Use uma imagem JPG, PNG ou GIF":"Use a JPG, PNG or GIF image","A imagem deve ter no máximo 2MB":"Image must be at most 2MB",

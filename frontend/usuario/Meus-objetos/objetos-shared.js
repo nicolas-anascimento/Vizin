@@ -75,6 +75,9 @@
             categoria_id: dto.categoria?.id != null ? String(dto.categoria.id) : (dto.categoria_id != null ? String(dto.categoria_id) : null),
             preco_dia: dto.preco_dia ?? dto.preco ?? dto.preco_por_dia,
             disponivel: dto.disponivel ?? true,
+            // Mesma regra do painel admin (anuncios.js): o back pode mandar `status`
+            // ou só `arquivado`/`arquivado_em`. As telas do usuário leem `obj.status`.
+            status: dto.status || (dto.arquivado || dto.arquivado_em ? "arquivado" : "ativo"),
             proprietarioId: proprietario?.id ? String(proprietario.id) : (dto.proprietario_id ? String(dto.proprietario_id) : null),
             proprietarioNome: proprietario?.nome || dto.proprietarioNome || ""
         };
