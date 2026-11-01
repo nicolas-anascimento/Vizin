@@ -54,8 +54,7 @@ const ICONES_TIPO = {
     verificacao_cancelada: "bi-slash-circle",
     sistema_webhook_falhou: "bi-plug",
     sistema_estorno_pendente: "bi-hourglass-split",
-    sistema_erro_upload: "bi-cloud-slash",
-    comunicado_teste: "bi-send-check"
+    sistema_erro_upload: "bi-cloud-slash"
 };
 const ICONES_CATEGORIA = {
     usuarios: "bi-people", anuncios: "bi-megaphone", denuncias: "bi-shield-exclamation",
@@ -133,7 +132,6 @@ function htmlNotificacao(n, { acoes = true } = {}) {
         <div class="admin-notif-corpo">
             <div class="admin-notif-topo">
                 <span class="admin-notif-cat cat-${cat.cor}">${escNotif(cat.label)}</span>
-                ${n.tipo === "comunicado_teste" ? `<span class="admin-notif-teste">Teste</span>` : ""}
                 ${n.prioridade === "alta" ? `<span class="admin-notif-urgente"><i class="bi bi-exclamation-triangle-fill"></i> Urgente</span>` : ""}
                 <span class="admin-notif-tempo" title="${escNotif(dataCompleta(n.criadoEm))}">${escNotif(tempoRelativo(n.criadoEm))}</span>
             </div>

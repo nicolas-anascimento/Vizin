@@ -170,7 +170,6 @@
 /* ================= BOTÕES ================= */
 .admnot-botoes{
     display: flex;
-    flex-wrap: wrap;   /* em card estreito os botões quebram de linha em vez de vazar */
     gap: 12px;
 }
 
@@ -179,11 +178,8 @@
     align-items: center;
     justify-content: center;
     gap: 8px;
-    min-height: 44px;
-    padding: 8px 18px;
-    text-align: center;
-    line-height: 1.2;
-    min-width: 0;
+    height: 44px;
+    padding: 0 20px;
     border-radius: 999px;
     font-size: 13.5px;
     font-weight: 600;
@@ -194,7 +190,7 @@
 }
 
 .admnot-botoes .admnot-btn{
-    flex: 1 1 130px;   /* cresce, encolhe e, abaixo de ~130px, vai pra linha de baixo */
+    flex: 1;
 }
 
 .admnot-btn:active{ transform: scale(.98); }

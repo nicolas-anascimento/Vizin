@@ -49,11 +49,10 @@ async function listarAvaliacoesAdmin() {
             null,
             'Não foi possível carregar as avaliações.'
         );
-        const itens = Array.isArray(paginaAtual) ? paginaAtual : (paginaAtual?.data || paginaAtual?.dados);
-        if (!Array.isArray(itens)) throw new Error('Resposta de avaliações inválida.');
-        linhas = linhas.concat(itens);
+        if (!Array.isArray(paginaAtual)) throw new Error('Resposta de avaliações inválida.');
+        linhas = linhas.concat(paginaAtual);
         pagina++;
-    } while ((Array.isArray(paginaAtual) ? paginaAtual.length : (paginaAtual?.data || paginaAtual?.dados || []).length) === LIMITE);
+    } while (paginaAtual.length === LIMITE);
 
     return linhas.map(normalizarAvaliacaoAdmin);
 }

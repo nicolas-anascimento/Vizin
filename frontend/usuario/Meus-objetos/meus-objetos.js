@@ -58,9 +58,7 @@ function criarCardMeuObjeto(obj) {
     // back (ver mensagem sobre isso) — o card já sabe lidar com eles quando
     // existirem, e ignora silenciosamente quando não vierem.
     const arquivado = obj.status === "arquivado";
-    // Não depende de `disponivel`: o back pode manter disponivel:true (valor do dono)
-    // e sinalizar a moderação só por `oculto_pelo_admin`.
-    const ocultoPeloAdmin = !arquivado && !!obj.oculto_pelo_admin;
+    const ocultoPeloAdmin = !arquivado && !obj.disponivel && !!obj.oculto_pelo_admin;
     const bloqueado = emLocacao || temPendente || arquivado || ocultoPeloAdmin;
  
     const card = document.createElement("div");
@@ -128,7 +126,7 @@ function criarCardMeuObjeto(obj) {
     checkbox.className = "toggle-disponivel";
     checkbox.dataset.id = obj.id;
     checkbox.dataset.motivo = emLocacao ? "locacao" : (temPendente ? "pendente" : (arquivado ? "arquivado" : (ocultoPeloAdmin ? "admin" : "")));
-    checkbox.checked = !!obj.disponivel && !ocultoPeloAdmin && !arquivado;
+    checkbox.checked = !!obj.disponivel;
     checkbox.disabled = bloqueado;
  
     const slider = document.createElement("span");
@@ -150,7 +148,7 @@ function criarCardMeuObjeto(obj) {
     else if (ocultoPeloAdmin) textoDisp = "Ocultado pela administração";
     else textoDisp = obj.disponivel ? "Disponível" : "Pausado pelo dono";
 
-    dispLabel.className = (obj.disponivel && !arquivado && !ocultoPeloAdmin)
+    dispLabel.className = (obj.disponivel && !arquivado)
         ? "disponibilidade-label"
         : (arquivado || ocultoPeloAdmin)
             ? "disponibilidade-label admin"
@@ -221,22 +219,9 @@ function criarCardMeuObjeto(obj) {
 }
  
 let renderSeq = 0; // descarta respostas antigas quando duas renderizações concorrem
-let ultimaAssinatura = null; // resumo do que está na tela, pra o polling só redesenhar se algo mudou
-let alterandoDisponibilidade = false; // toggle em andamento: o polling não pode redesenhar por cima
 
-// Só os campos que mudam o que o card mostra (inclui os de moderação do admin).
-function assinaturaDaLista(lista) {
-    return JSON.stringify((lista || []).map(o => [
-        o.id, o.titulo, o.descricao, o.preco_dia, o.disponivel, o.status,
-        !!o.oculto_pelo_admin, o.motivo_ocultacao || "", !!o.em_locacao, !!o.tem_solicitacao_pendente,
-        o.imagem
-    ]));
-}
-
-// silencioso = chamada do polling: não mostra erro e não redesenha se nada mudou.
-async function renderizarMeusObjetos({ silencioso = false } = {}) {
+async function renderizarMeusObjetos() {
     if (!listaContainer) return;
-    if (silencioso && alterandoDisponibilidade) return;
     const meuRender = ++renderSeq;
 
     // temLocacaoAtiva / temSolicitacaoPendente dependem das solicitações do usuário (cache do back).
@@ -247,15 +232,10 @@ async function renderizarMeusObjetos({ silencioso = false } = {}) {
         lista = await carregarMeusObjetos();
     } catch (erro) {
         console.error("Não foi possível carregar seus objetos:", erro);
-        if (meuRender === renderSeq && !silencioso) mostrarToast(erro.message || "Não foi possível carregar seus objetos", "erro");
+        if (meuRender === renderSeq) mostrarToast(erro.message || "Não foi possível carregar seus objetos", "erro");
         return;
     }
     if (meuRender !== renderSeq) return; // uma renderização mais nova assumiu
-    if (silencioso && alterandoDisponibilidade) return;
-
-    const assinatura = assinaturaDaLista(lista);
-    if (silencioso && assinatura === ultimaAssinatura) return; // nada mudou
-    ultimaAssinatura = assinatura;
 
     listaContainer.innerHTML = "";
  
@@ -281,20 +261,6 @@ document.addEventListener("solicitacoesAtualizadas", renderizarMeusObjetos);
  
 // Objetos e solicitações vêm da API (não há mais localStorage nem evento "storage"):
 // as solicitações se atualizam por polling e disparam "solicitacoesAtualizadas".
-
-// Mudanças feitas por OUTRA pessoa (ex: o admin ocultando/arquivando o anúncio no
-// painel) acontecem só no servidor: nenhum evento local dispara. Por isso a lista
-// é reconsultada periodicamente (só com a aba visível) e ao voltar para a aba.
-const INTERVALO_ATUALIZACAO_MS = 15000;
-
-function atualizarEmSegundoPlano() {
-    if (document.visibilityState !== "visible") return;
-    renderizarMeusObjetos({ silencioso: true });
-}
-
-setInterval(atualizarEmSegundoPlano, INTERVALO_ATUALIZACAO_MS);
-document.addEventListener("visibilitychange", atualizarEmSegundoPlano);
-window.addEventListener("focus", atualizarEmSegundoPlano);
 
 // ================= MODAIS: HELPERS DE ABRIR/FECHAR (Esc + foco preso) =================
 // Compartilhado pelos três modais desta página. Sem isso, quem navega por
@@ -443,9 +409,8 @@ function abrirModalVisualizar(obj) {
     document.getElementById("modal-visualizar-preco").textContent = `${formatarPreco(obj.preco_dia)}/dia`;
  
     const statusEl = document.getElementById("modal-visualizar-status");
-    const indisponivelNoModal = !obj.disponivel || !!obj.oculto_pelo_admin || obj.status === "arquivado";
-    statusEl.textContent = indisponivelNoModal ? "Indisponível" : "Disponível";
-    statusEl.classList.toggle("indisponivel", indisponivelNoModal);
+    statusEl.textContent = obj.disponivel ? "Disponível" : "Indisponível";
+    statusEl.classList.toggle("indisponivel", !obj.disponivel);
  
     // obj.localizacao inserido via append() (texto puro), não innerHTML
     // com template string — evita o mesmo tipo de brecha corrigida no card.
@@ -523,7 +488,7 @@ async function abrirModalAvaliacoes(obj) {
                 item.className = "avaliacao-modal-item";
                 item.innerHTML = `
                     <div class="avaliacao-modal-topo">
-                        <div class="avaliacao-modal-avatar">${window.AvatarVizin ? window.AvatarVizin.html(window.AvatarVizin.deAvaliacao(av), nome) : escaparHTMLMeusObjetos(inicial)}</div>
+                        <div class="avaliacao-modal-avatar">${escaparHTMLMeusObjetos(inicial)}</div>
                         <div class="avaliacao-modal-info">
                             <strong>${escaparHTMLMeusObjetos(nome)}</strong>
                             <span class="avaliacao-modal-data">${new Date(av.data).toLocaleDateString("pt-BR")}</span>
@@ -588,7 +553,7 @@ function abrirModalExcluir(obj) {
         mostrarToast(mensagemBloqueio("arquivado", "excluir"), "erro");
         return;
     }
-    if (obj.oculto_pelo_admin) {
+    if (!obj.disponivel && obj.oculto_pelo_admin) {
         mostrarToast(mensagemBloqueio("admin", "excluir"), "erro");
         return;
     }
@@ -694,7 +659,6 @@ listaContainer.addEventListener("change", async (e) => {
     const id = toggle.dataset.id;
     const novoValor = toggle.checked;
     toggle.disabled = true;
-    alterandoDisponibilidade = true;
  
     try {
         // PATCH /objetos/:id { disponivel } — pausa/reativa o anúncio (o back muda
@@ -711,7 +675,6 @@ listaContainer.addEventListener("change", async (e) => {
             "erro"
         );
     } finally {
-        alterandoDisponibilidade = false;
         renderizarMeusObjetos();
     }
 });

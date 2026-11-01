@@ -4,8 +4,7 @@
  * ATENÇÃO — SUPOSIÇÕES A CONFIRMAR COM O BACK (mesmo aviso já usado no
  * admin-api.js de Avaliações: não existe ainda uma rota geral pra isso):
  *
- *   GET /admin/ocorrencias?page=&limit=&busca=&tipo=&status=&prioridade=&denunciado_id=
- *     (denunciado_id = UUID do denunciado; filtro e paginação no PostgreSQL — confirmado pelo back)
+ *   GET /admin/ocorrencias?page=&limit=&busca=&tipo=&status=&prioridade=
  *     -> { data: [...], total }   (mesmo formato de /admin/objetos e /admin/pagamentos)
  *     cada item:
  *       {
@@ -45,13 +44,12 @@
  * ------------------------------------------------------------------
  */
 
-async function listarOcorrenciasAdmin({ busca = '', tipo = 'todos', status = 'todos', prioridade = 'todos', denunciadoId = '', pagina = 1, porPagina = 10 } = {}) {
+async function listarOcorrenciasAdmin({ busca = '', tipo = 'todos', status = 'todos', prioridade = 'todos', pagina = 1, porPagina = 10 } = {}) {
     const params = new URLSearchParams({ page: String(pagina), limit: String(porPagina) });
     if (busca) params.set('busca', busca);
     if (tipo !== 'todos') params.set('tipo', tipo);
     if (status !== 'todos') params.set('status', status);
     if (prioridade !== 'todos') params.set('prioridade', prioridade);
-    if (denunciadoId) params.set('denunciado_id', String(denunciadoId));
     return apiRequest(`/admin/ocorrencias?${params}`, 'GET', null, 'Não foi possível carregar as ocorrências.');
 }
 

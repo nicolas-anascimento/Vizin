@@ -198,7 +198,7 @@ function celulaUsuarioPagamento(usuario) {
 
     const nome = escAdmin(usuario.nome || "—");
     const nomeHtml = usuario.id
-        ? `<a href="/admin/usuarios/detalhe?id=${encodeURIComponent(usuario.id)}" class="admin-usuario-link">${nome}</a>`
+        ? `<a href="/admin/usuarios.html?id=${encodeURIComponent(usuario.id)}" class="admin-usuario-link">${nome}</a>`
         : nome;
 
     return usuario.email
