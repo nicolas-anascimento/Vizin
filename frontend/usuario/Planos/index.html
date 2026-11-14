@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/assets/usuario/Produto/fluxo-aluguel.css">
+    <link rel="stylesheet" href="/assets/usuario/Planos/planos.css?v=1">
+    <link rel="stylesheet" href="/assets/usuario/header/header.css">
+    <link rel="stylesheet" href="/assets/usuario/footer/footer.css">
+    <link rel="stylesheet" href="/assets/usuario/Notificacoes/notificacoes-shared.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <title>Planos de anúncios</title>
+</head>
+<body>
+
+    <div id="header"></div>
+
+    <div class="page-container planos-container">
+
+        <a href="/meus-objetos" class="back-link"><i class="bi bi-arrow-left"></i> Voltar aos meus objetos</a>
+
+        <h1 class="planos-titulo">Escolha seu plano</h1>
+        <p class="planos-sub">Alugar não tem taxa. Os planos definem quantos anúncios você pode publicar.</p>
+
+        <!-- Situação atual -->
+        <section class="planos-atual" id="planos-atual" hidden aria-live="polite">
+            <div class="planos-atual-topo">
+                <div>
+                    <span class="planos-atual-rotulo">Seu plano agora</span>
+                    <strong id="atual-nome"></strong>
+                </div>
+                <span class="planos-atual-validade" id="atual-validade"></span>
+            </div>
+            <div class="planos-barra"><div id="atual-barra"></div></div>
+            <p class="planos-atual-uso"><span id="atual-uso"></span></p>
+            <p class="planos-aviso" id="atual-aviso" hidden>
+                <i class="bi bi-megaphone-fill"></i> Você atingiu o limite de anúncios. Escolha um plano com mais publicações.
+            </p>
+        </section>
+
+        <p class="planos-erro" id="planos-erro" role="alert" hidden></p>
+        <p class="planos-carregando" id="planos-carregando">Carregando planos...</p>
+
+        <div class="planos-grade" id="planos-grade"></div>
+
+        <ul class="planos-regras">
+            <li><i class="bi bi-qr-code"></i> Pagamento por período, via PIX. Não há renovação automática.</li>
+            <li><i class="bi bi-arrow-down-circle"></i> Ao fim do período você volta ao plano gratuito. Seus anúncios já publicados continuam no ar.</li>
+            <li><i class="bi bi-people"></i> O aluguel dos objetos é combinado e pago direto entre as pessoas, fora do O Vizinho.</li>
+        </ul>
+
+        <p class="planos-ajuda">Ficou com dúvida? <a href="/suporte">Fale com o suporte</a>.</p>
+
+    </div>
+
+    <div id="footer"></div>
+    <div id="toast" class="toast">Copiado ✔</div>
+
+    <script src="/assets/usuario/utils/formatacao.js"></script>
+    <script src="/assets/usuario/header/frame.js"></script>
+    <script src="/assets/usuario/utils/config.js"></script>
+    <script src="/assets/usuario/utils/api-client.js"></script>
+    <script src="/assets/usuario/utils/conta-suspensa.js"></script>
+    <script src="/assets/usuario/Notificacoes/notificacoes-shared.js"></script>
+    <script src="/assets/usuario/utils/assinaturas-api.js?v=1"></script>
+    <script src="/assets/usuario/Planos/planos.js?v=1"></script>
+</body>
+</html>

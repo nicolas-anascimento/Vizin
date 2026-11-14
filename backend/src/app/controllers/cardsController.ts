@@ -3,10 +3,10 @@ import type { RequestHandler } from "express";
 import prisma from "../config/database.ts";
 import { MercadoPagoGateway, type SafeCard } from "../services/mercadoPagoGateway.ts";
 import { claimGatewayOperation, operationFingerprint, waitFor } from "../services/gatewayOperations.ts";
-import { rejectCardSecrets } from "../services/paymentRules.ts";
 import { simulated } from "../services/paymentGateway.ts";
-import { text } from "../utils/validation.ts";
 import { HttpError } from "../utils/httpError.ts";
+import { validatedPart } from "../middlewares/validate.ts";
+import { cardIdParamsSchema, cardTokenSchema } from "../schemas/cards.schema.ts";
 import { FINANCIAL_BATCH_SIZE, nextRetry } from "../services/retryQueue.ts";
 
 // Exibe apenas metadados não sensíveis do cartão salvo.
@@ -63,9 +63,7 @@ export const listCards:RequestHandler=async(req,res)=>{res.json((await prisma.ca
 
 // Recebe token do provedor, verifica titularidade e cadastra cartão para cobranças futuras.
 export const addCard:RequestHandler=async(req,res)=>{
- rejectCardSecrets(req.body);
- if(Object.keys(req.body ?? {}).some(key=>key!=="token_cartao"))throw new HttpError(422,"Envie somente token_cartao","dados_invalidos");
- const token=text(req.body?.token_cartao,"Token do cartão",1000),demo=simulated(),gateway=demo?"demo":"mercado_pago";
+ const token=validatedPart(req,"body",cardTokenSchema).token_cartao,demo=simulated(),gateway=demo?"demo":"mercado_pago";
  if(!demo && token.startsWith("tok_demo_"))throw new HttpError(422,"Token de demonstração não é aceito no gateway real","token_demo_invalido");
  const customer=demo?`demo-${req.user!.id}`:await ownedCustomer(req.user!.id);
  if(demo) {const card=await persistCard(req.user!.id,customer,gateway,{id:`demo-${crypto.randomUUID()}`,bandeira:"Demo",payment_method_id:"demo",ultimos_digitos:"0000",validade:"12/99"});res.status(201).json(cardDto(card));return;}
@@ -101,7 +99,7 @@ export const addCard:RequestHandler=async(req,res)=>{
 
 // Define o cartão padrão somente entre os cartões do usuário.
 export const defaultCard:RequestHandler=async(req,res)=>{
- const id=text(req.params.id,"Cartão",200);
+ const id=validatedPart(req,"params",cardIdParamsSchema).id;
  const card=await prisma.$transaction(async tx=>{
   await tx.$queryRaw`SELECT id FROM usuarios WHERE id=${req.user!.id}::uuid FOR UPDATE`;
   const current=await tx.cartoes.findFirst({where:{id,usuario_id:req.user!.id}});
@@ -142,7 +140,7 @@ async function removeLocalCard(userId:string,id:string):Promise<void> {
 
 // Solicita exclusão do cartão no provedor e conclui o estado local.
 export const deleteCard:RequestHandler=async(req,res)=>{
- const id=text(req.params.id,"Cartão",200);
+ const id=validatedPart(req,"params",cardIdParamsSchema).id;
  const card=await prisma.cartoes.findFirst({where:{id,usuario_id:req.user!.id}});
  if(!card)throw new HttpError(404,"Cartão não encontrado.","nao_encontrada");
  if(await cardInUse(id))throw new HttpError(409,"O cartão está vinculado a uma locação em andamento.","cartao_em_uso");

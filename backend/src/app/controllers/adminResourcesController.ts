@@ -4,90 +4,116 @@ import { text, uuid, slug } from "../utils/validation.ts";
 import { HttpError } from "../utils/httpError.ts";
 import { serializeReview } from "../utils/serializers.ts";
 import { audit, dateFilters, paged, pagination, statusFilter } from "../utils/admin.ts";
-import { businessDate, businessDayStart } from "../utils/dates.ts";
 import { userReportWhere } from "../services/reportRules.ts";
 import { avatarUrl } from "../utils/files.ts";
 
 // DTO financeiro do painel, sem dados sensíveis do meio de pagamento.
 function paymentDto(p: any) {
   return {
-    id: p.id, aluguel_id: p.aluguel_id, valor: Number(p.valor), metodo: p.metodo,
-    status: p.status, pago_em: p.pago_em, referencia: p.referencia, tipo: p.tipo,
-    gateway: p.gateway, criado_em: p.criado_em,
-    ...(p.alugueis ? {
-      usuario: p.alugueis.usuarios_alugueis_locatario_idTousuarios,
-      produto: p.alugueis.itens,
-    } : {}),
+    id: p.id, assinatura_id: p.assinatura_id, valor_centavos: p.valor_centavos,
+    valor: p.valor_centavos / 100, metodo: p.metodo, status: p.status,
+    pago_em: p.confirmado_em, referencia: p.referencia_pagamento,
+    tipo: "assinatura", gateway: p.provedor, criado_em: p.criado_em,
+    usuario: p.usuario, plano: p.plano, assinatura: p.assinatura,
+    assinatura_status: p.assinatura?.status ?? null,
+    periodo_inicio: p.status === "pago" ? p.assinatura?.inicio ?? null : null,
+    periodo_fim: p.status === "pago" ? p.assinatura?.fim ?? null : null,
+    cartao: null, motivo_falha: null,
   };
 }
 const paymentSelect = {
-  id: true, aluguel_id: true, valor: true, metodo: true, status: true,
-  pago_em: true, referencia: true, tipo: true, gateway: true, criado_em: true,
-  alugueis: { select: {
-    usuarios_alugueis_locatario_idTousuarios: { select: { id: true, nome: true } },
-    itens: { select: { id: true, titulo: true } },
-  } },
+  id: true, assinatura_id: true, valor_centavos: true, metodo: true, status: true,
+  confirmado_em: true, referencia_pagamento: true, provedor: true, criado_em: true,
+  usuario: { select: { id: true, nome: true, email: true } },
+  plano: { select: { codigo: true, nome: true } },
+  assinatura: { select: { status: true, inicio: true, fim: true, cancelar_ao_final: true, renovacao_habilitada: true } },
 } as const;
 // Filtra e pagina cobranças para acompanhamento administrativo.
 export const adminPayments: RequestHandler = async (req, res) => {
   const { page, limit, skip } = pagination(req);
-  const status=statusFilter(req,["pendente","pago","falhou","cancelado","estornado","cancelamento_pendente","estorno_pendente","conciliacao","expirado"]);
+  if (req.query.tipo !== undefined && req.query.tipo !== "assinatura") throw new HttpError(422, "Tipo de pagamento inválido", "tipo_invalido");
+  const status=statusFilter(req,["pendente","pago","falhou","cancelado","estornado"]);
+  const plano = req.query.plano === undefined ? undefined : text(req.query.plano, "Plano", 30);
+  const assinaturaStatus = req.query.assinatura_status === undefined ? undefined : text(req.query.assinatura_status, "Status da assinatura", 30);
+  const usuario = req.query.usuario === undefined ? undefined : text(req.query.usuario, "Usuário", 100);
+  if (assinaturaStatus && !["pendente","ativa","expirada","falha","cancelada"].includes(assinaturaStatus)) throw new HttpError(422,"Status da assinatura inválido","status_invalido");
+  const parseDay = (value: unknown, end: boolean) => {
+    if (value === undefined) return undefined;
+    if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new HttpError(422,"Período inválido","periodo_invalido");
+    const date = new Date(`${value}T00:00:00.000Z`);
+    if (Number.isNaN(date.getTime()) || date.toISOString().slice(0,10) !== value) throw new HttpError(422,"Período inválido","periodo_invalido");
+    if (end) date.setUTCDate(date.getUTCDate()+1);
+    return date;
+  };
+  const start = parseDay(req.query.periodo_inicio,false), end = parseDay(req.query.periodo_fim,true);
+  if (start && end && start >= end) throw new HttpError(422,"Período inválido","periodo_invalido");
   const busca = typeof req.query.busca === "string" && req.query.busca.trim() ? text(req.query.busca, "Busca", 100) : undefined;
   const buscaUuid = busca && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(busca) ? busca : undefined;
   const where = {
     ...(status ? { status } : {}),
+    ...(plano ? { plano: { codigo: plano } } : {}),
+    ...(assinaturaStatus ? { assinatura: { status: assinaturaStatus } } : {}),
+    ...(usuario ? { usuario: { OR: [{ nome: { contains: usuario, mode: "insensitive" as const } }, { email: { contains: usuario, mode: "insensitive" as const } }] } } : {}),
+    ...(start || end ? { criado_em: { ...(start ? { gte: start } : {}), ...(end ? { lt: end } : {}) } } : {}),
     ...(busca ? { OR: [
       ...(buscaUuid ? [{ id: buscaUuid }] : []),
-      { referencia: { contains: busca, mode: "insensitive" as const } },
+      { referencia_pagamento: { contains: busca, mode: "insensitive" as const } },
       { metodo: { contains: busca, mode: "insensitive" as const } },
-      { alugueis: { usuarios_alugueis_locatario_idTousuarios: { nome: { contains: busca, mode: "insensitive" as const } } } },
-      { alugueis: { itens: { titulo: { contains: busca, mode: "insensitive" as const } } } },
+      { usuario: { nome: { contains: busca, mode: "insensitive" as const } } },
+      { plano: { nome: { contains: busca, mode: "insensitive" as const } } },
     ] } : {}),
   };
-  const [rows, total] = await Promise.all([prisma.pagamentos.findMany({ where, skip, take: limit, orderBy: { criado_em: "desc" }, select: paymentSelect }), prisma.pagamentos.count({ where })]);
+  const [rows, total] = await Promise.all([prisma.pagamentos_assinatura.findMany({ where, skip, take: limit, orderBy: { criado_em: "desc" }, select: paymentSelect }), prisma.pagamentos_assinatura.count({ where })]);
   res.json(paged(rows.map(paymentDto), total, page, limit));
 };
 // Detalha uma cobrança para análise administrativa.
 export const adminPayment: RequestHandler = async (req, res) => {
-  const payment = await prisma.pagamentos.findUnique({ where: { id: uuid(req.params.id) }, select: paymentSelect });
+  const payment = await prisma.pagamentos_assinatura.findUnique({ where: { id: uuid(req.params.id) }, select: paymentSelect });
   if (!payment) throw new HttpError(404, "Pagamento não encontrado", "nao_encontrada");
   res.json(paymentDto(payment));
 };
 // Agrega exatamente os indicadores exibidos pela tela financeira administrativa.
 export const adminPaymentStats: RequestHandler = async (_req, res) => {
-  const today = businessDate();
-  const currentMonth = businessDayStart(new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1)));
-  const nextMonth = businessDayStart(new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 1)));
-  const previousMonth = businessDayStart(new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 1, 1)));
+  const today = new Date();
+  const currentMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+  const nextMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 1));
+  const previousMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 1, 1));
   const monthRanges = Array.from({ length: 6 }, (_, index) => {
     const offset = index - 5;
     const labelDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + offset, 1));
     return {
       mes: `${labelDate.getUTCFullYear()}-${String(labelDate.getUTCMonth() + 1).padStart(2, "0")}`,
-      start: businessDayStart(labelDate),
-      end: businessDayStart(new Date(Date.UTC(labelDate.getUTCFullYear(), labelDate.getUTCMonth() + 1, 1))),
+      start: labelDate,
+      end: new Date(Date.UTC(labelDate.getUTCFullYear(), labelDate.getUTCMonth() + 1, 1)),
     };
   });
-  const [total, pending, failed, current, previous, methods, ...months] = await Promise.all([
-    prisma.pagamentos.aggregate({ where: { status: "pago" }, _sum: { valor: true } }),
-    prisma.pagamentos.count({ where: { status: "pendente" } }),
-    prisma.pagamentos.count({ where: { status: "falhou" } }),
-    prisma.pagamentos.aggregate({ where: { status: "pago", pago_em: { gte: currentMonth, lt: nextMonth } }, _sum: { valor: true } }),
-    prisma.pagamentos.aggregate({ where: { status: "pago", pago_em: { gte: previousMonth, lt: currentMonth } }, _sum: { valor: true } }),
-    prisma.pagamentos.groupBy({ by: ["metodo"], where: { status: "pago" }, _sum: { valor: true } }),
-    ...monthRanges.map(range => prisma.pagamentos.aggregate({ where: { status: "pago", pago_em: { gte: range.start, lt: range.end } }, _sum: { valor: true } })),
+  const [total, pending, failed, current, previous, methods, active, cancelled, expired, ...months] = await Promise.all([
+    prisma.pagamentos_assinatura.aggregate({ where: { status: "pago" }, _sum: { valor_centavos: true } }),
+    prisma.pagamentos_assinatura.count({ where: { status: "pendente" } }),
+    prisma.pagamentos_assinatura.count({ where: { status: "falhou" } }),
+    prisma.pagamentos_assinatura.aggregate({ where: { status: "pago", confirmado_em: { gte: currentMonth, lt: nextMonth } }, _sum: { valor_centavos: true } }),
+    prisma.pagamentos_assinatura.aggregate({ where: { status: "pago", confirmado_em: { gte: previousMonth, lt: currentMonth } }, _sum: { valor_centavos: true } }),
+    prisma.pagamentos_assinatura.groupBy({ by: ["metodo"], where: { status: "pago" }, _sum: { valor_centavos: true } }),
+    prisma.assinaturas.count({ where: { status: "ativa", inicio: { lte: today }, fim: { gt: today }, planos: { codigo: { in: ["intermediario", "avancado"] } } } }),
+    prisma.assinaturas.count({ where: { planos: { codigo: { in: ["intermediario", "avancado"] } }, OR: [{ status: "cancelada" }, { status: "ativa", cancelar_ao_final: true }] } }),
+    prisma.assinaturas.count({ where: { status: "expirada", planos: { codigo: { in: ["intermediario", "avancado"] } } } }),
+    ...monthRanges.map(range => prisma.pagamentos_assinatura.aggregate({ where: { status: "pago", confirmado_em: { gte: range.start, lt: range.end } }, _sum: { valor_centavos: true } })),
   ]);
-  const currentValue = Number(current._sum.valor ?? 0);
-  const previousValue = Number(previous._sum.valor ?? 0);
+  const currentValue = Number(current._sum.valor_centavos ?? 0) / 100;
+  const previousValue = Number(previous._sum.valor_centavos ?? 0) / 100;
   res.json({
-    receita_total: Number(total._sum.valor ?? 0),
+    receita_total: Number(total._sum.valor_centavos ?? 0) / 100,
+    receita_bruta_total: Number(total._sum.valor_centavos ?? 0) / 100,
+    receita_liquida_total: null,
+    receita_liquida_indisponivel: "Taxas líquidas do provedor não são persistidas no contrato atual.",
     receita_variacao_percentual: previousValue > 0 ? ((currentValue - previousValue) / previousValue) * 100 : null,
     pagamentos_pendentes: pending,
     transacoes_falhadas: failed,
-    receita_mensal: monthRanges.map((range, index) => ({ mes: range.mes, valor: Number(months[index]!._sum.valor ?? 0) })),
-    metodos: methods.filter(row => row.metodo).map(row => ({ metodo: row.metodo, total: Number(row._sum.valor ?? 0) })),
-    timezone: "America/Sao_Paulo",
-    receita_base: "pago_em",
+    assinaturas_ativas: active, assinaturas_canceladas: cancelled, assinaturas_expiradas: expired,
+    receita_mensal: monthRanges.map((range, index) => ({ mes: range.mes, valor: Number(months[index]!._sum.valor_centavos ?? 0) / 100 })),
+    metodos: methods.filter(row => row.metodo).map(row => ({ metodo: row.metodo, total: Number(row._sum.valor_centavos ?? 0) / 100 })),
+    timezone: "UTC",
+    receita_base: "pagamentos_assinatura.confirmado_em",
   });
 };
 // Lista avaliações para moderação.
@@ -239,7 +265,7 @@ export const deleteCategory: RequestHandler = async (req, res) => {
 // Resume divergência financeira para análise no painel.
 function reconciliationDto(c: { id: string; pagamento_id: string; chave: string; motivo: string; status: string; criado_em: Date; pagamento?: any }) {
   const row=c as typeof c & {ignorada_em?:Date|null;motivo_ignorar?:string|null;admin_responsavel_id?:string|null};
-  return { id: c.id, pagamento_id: c.pagamento_id, evento: c.chave, motivo: c.motivo, status: c.status, criado_em: c.criado_em, conciliacao_criada_em:c.criado_em, ignorada_em:row.ignorada_em??null, motivo_ignorar:row.motivo_ignorar??null,admin_responsavel:row.admin_responsavel_id??null, ...(c.pagamento ? { tipo:c.pagamento.tipo,gateway:c.pagamento.gateway,referencia_externa:c.pagamento.referencia,valor:Number(c.pagamento.valor),moeda:"BRL",pagamento: paymentDto(c.pagamento) } : {}) };
+  return { id: c.id, pagamento_id: c.pagamento_id, evento: c.chave, motivo: c.motivo, status: c.status, criado_em: c.criado_em, conciliacao_criada_em:c.criado_em, ignorada_em:row.ignorada_em??null, motivo_ignorar:row.motivo_ignorar??null,admin_responsavel:row.admin_responsavel_id??null, ...(c.pagamento ? { tipo:c.pagamento.tipo,gateway:c.pagamento.gateway,referencia_externa:c.pagamento.referencia,valor:Number(c.pagamento.valor),moeda:"BRL",pagamento: { id:c.pagamento.id,aluguel_id:c.pagamento.aluguel_id,valor:Number(c.pagamento.valor),metodo:c.pagamento.metodo,status:c.pagamento.status,pago_em:c.pagamento.pago_em,referencia:c.pagamento.referencia,tipo:c.pagamento.tipo,gateway:c.pagamento.gateway,criado_em:c.pagamento.criado_em } } : {}) };
 }
 // Lista conciliações abertas ou resolvidas com filtros.
 export const adminReconciliations: RequestHandler = async (req, res) => {

@@ -39,3 +39,36 @@
     /* No card mobile a data fica à direita, alinhada com os outros valores */
     .verif-enviado{ text-align: right; }
 }
+/* ================= TEXTO NÃO PODE VAZAR DO CARD =================
+   Em tabela, a célula cresce com o conteúdo (e-mail longo); em card mobile
+   (flex), o valor tem min-width:auto e empurra o card pra fora. */
+.admin-tabela td.admin-nome,
+.admin-tabela td.admin-email{
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+}
+
+/* Desktop: e-mail quebra em vez de alargar a tabela */
+.admin-tabela td.admin-email{
+    max-width: 260px;
+}
+.admin-tabela td.admin-nome{
+    max-width: 220px;
+}
+
+@media (max-width: 680px){
+    .admin-tabela td{
+        min-width: 0;
+        max-width: 100%;
+    }
+    .admin-tabela td.admin-nome,
+    .admin-tabela td.admin-email{
+        max-width: 100%;
+        text-align: right;
+        flex: 1 1 0;
+    }
+    .verif-tag-suspensa{
+        white-space: nowrap;
+    }
+}

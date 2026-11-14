@@ -83,13 +83,17 @@ test("lote respeita preferências separadas de cada destinatário", async () => 
   assert.deepEqual(created.map((entry) => entry.usuario_id), [userB]);
 });
 
-test("pagamento, multa, retirada, devolução, suporte e segurança são obrigatórios", async () => {
+test("assinatura, cota, retirada, devolução, suporte e segurança são obrigatórios", async () => {
   const disabled = Object.fromEntries([
     "solicitacao_recebida", "solicitacao_respondida", "lembretes_aluguel",
     "avaliacao_recebida", "mensagens", "novidades",
   ].map((key) => [key, false]));
   const { db, created } = database({ [userA]: disabled });
-  const mandatory = ["pagamento", "multa_paga", "retirada", "retirada_atrasada", "devolucao", "suporte", "bloqueio_conta"];
+  const mandatory = [
+    "assinatura_ativada", "assinatura_renovacao_cancelada", "assinatura_renovada",
+    "assinatura_expirada", "assinatura_pagamento_recusado", "limite_publicacoes_atingido",
+    "retirada", "retirada_atrasada", "devolucao", "suporte", "bloqueio_conta",
+  ];
   for (const tipo of mandatory) {
     assert.equal(notificationPreferenceForType(tipo), null);
     await createNotification(db, { usuario_id: userA, tipo, titulo: tipo });

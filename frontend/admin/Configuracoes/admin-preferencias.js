@@ -9,7 +9,7 @@
     const K = { tema: "temaAdmin", idioma: "idiomaAdmin" };
     const EN = {
         // sidebar
-        "Início":"Home","Histórico de ações":"Action history","Usuários":"Users","Anúncios / Itens":"Listings / Items","Pagamentos":"Payments","Avaliações":"Reviews",
+        "Início":"Home","Histórico de ações":"Action history","Usuários":"Users","Anúncios / Itens":"Listings / Items","Pagamentos":"Payments","Planos / Pagamentos":"Plans / Payments","Avaliações":"Reviews",
         "Denúncias / Suporte":"Reports / Support","Categorias":"Categories","Notificações":"Notifications",
         "Administrador":"Administrator","Carregando...":"Loading...","SAIR":"LOG OUT","Abrir menu":"Open menu",
         // página
@@ -23,14 +23,14 @@
         "Confirme sua nova senha":"Confirm your new password","Autenticação em Duas Etapas":"Two-Factor Authentication",
         "2FA via SMS":"2FA via SMS","Receba códigos de verificação por SMS":"Receive verification codes by SMS",
         "Políticas da Plataforma":"Platform Policies","Termos de Uso":"Terms of Use","Política de Privacidade":"Privacy Policy",
-        "Taxas da Plataforma (%)":"Platform Fees (%)","Salvar Políticas":"Save Policies",
+        "Salvar Políticas":"Save Policies",
         "Formatação: use ## no início da linha para títulos de seção, - para itens de lista e uma linha em branco para separar parágrafos.":"Formatting: start a line with ## for section titles, - for list items, and leave a blank line between paragraphs.",
         "Última publicação:":"Last published:","Ver Termos de Uso":"View Terms of Use","Ver Política de Privacidade":"View Privacy Policy",
         "Digite os termos de uso da plataforma...":"Enter the platform terms of use...",
-        "Digite a política de privacidade...":"Enter the privacy policy...","Ex: 10":"E.g.: 10",
+        "Digite a política de privacidade...":"Enter the privacy policy...",
         "Preferências do Sistema":"System Preferences","Novos usuários cadastrados":"New registered users",
         "Novos anúncios publicados":"New listings published","Denúncias recebidas":"Reports received",
-        "Pagamentos processados":"Payments processed","Avaliações negativas":"Negative reviews","Aparência":"Appearance",
+        "Pagamentos processados":"Plan payments processed","Plano de anúncios":"Listing plan","Plano gratuito":"Free plan","Avaliações negativas":"Negative reviews","Aparência":"Appearance",
         "Tema":"Theme","Automático":"Automatic","Claro":"Light","Escuro":"Dark","Idioma":"Language",
         "Restaurar Padrão":"Restore Defaults","Salvar Preferências":"Save Preferences",
         // notificações recebidas / início / histórico
@@ -39,7 +39,8 @@
         "Tudo em dia!":"All caught up!","Ver detalhes":"View details","Limpar filtros":"Clear filters",
         "Entrar novamente":"Sign in again","Precisa de atenção":"Needs attention","Sistema":"System",
         "Verificações":"Verifications","Categoria":"Category","Leitura":"Read status","Filtros":"Filters",
-        "Criar Notificação":"Create Notification","Somente urgentes":"Urgent only",
+        "Criar Notificação":"Create Notification","Teste":"Test","Remover foto":"Remove photo","Foto removida.":"Photo removed.",
+        "JPG, PNG ou WEBP. Tamanho máximo 5MB.":"JPG, PNG or WEBP. Max size 5MB.","Use uma imagem JPG, PNG ou WEBP":"Use a JPG, PNG or WEBP image","Somente urgentes":"Urgent only",
         // mensagens
         "Salvando...":"Saving...","Enviando foto...":"Uploading photo...","Foto atualizada!":"Photo updated!",
         "Use uma imagem JPG, PNG ou GIF":"Use a JPG, PNG or GIF image","A imagem deve ter no máximo 2MB":"Image must be at most 2MB",
@@ -50,7 +51,7 @@
         "A senha deve conter ao menos uma letra":"Password must contain at least one letter",
         "A senha deve conter ao menos um número":"Password must contain at least one number",
         "As senhas não coincidem":"Passwords do not match","Senha alterada com sucesso!":"Password changed successfully!",
-        "2FA ativado.":"2FA enabled.","2FA desativado.":"2FA disabled.","A taxa deve estar entre 0 e 100":"The fee must be between 0 and 100","Políticas salvas com sucesso!":"Policies saved successfully!",
+        "2FA ativado.":"2FA enabled.","2FA desativado.":"2FA disabled.","Políticas salvas com sucesso!":"Policies saved successfully!",
         "Padrão restaurado. Clique em Salvar Preferências para confirmar.":"Defaults restored. Click Save Preferences to confirm.",
         "Preferências salvas com sucesso!":"Preferences saved successfully!"
     };

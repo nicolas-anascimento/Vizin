@@ -6,8 +6,12 @@ import { slug, uuid, boolean, text } from "../utils/validation.ts";
 import { HttpError } from "../utils/httpError.ts";
 import { publicUploadUrl, removeUploadByUrl } from "../utils/files.ts";
 import { serializeItem } from "../utils/serializers.ts";
-import { asBoolean, asPositiveNumber, nonEmptyString } from "../utils/strings.ts";
+import { asPositiveNumber, nonEmptyString } from "../utils/strings.ts";
 import { pageHeaders, pagination } from "../utils/listPage.ts";
+import crypto from "node:crypto";
+import { publicationContext } from "../services/subscriptionService.ts";
+import { validatedPart } from "../middlewares/validate.ts";
+import { itemDataSchema, listItemsQuerySchema } from "../schemas/objects.schema.ts";
 
 
 type ItemPhoto = { item_id: string; id: string; url: string; principal: boolean | null };
@@ -84,53 +88,33 @@ async function categoryId(name: string): Promise<string> {
 
 // Aceita nomes atuais e legados dos campos e valida preço, textos e opções do anúncio.
 function itemData(body: Record<string, unknown>) {
-  const titulo = nonEmptyString(body.titulo ?? body.nome);
-  const descricao = nonEmptyString(body.descricao);
-  const categoria = nonEmptyString(body.categoria_id ?? body.categoria);
-  const preco = asPositiveNumber(body.preco_dia ?? body.preco_por_dia ?? body.preco);
-  const localizacao = nonEmptyString(body.localizacao ?? body.localizacao_texto);
-  const valorMercado = asPositiveNumber(body.valor_mercado) ?? (preco ? preco * 30 : null);
-  if (!titulo || !descricao || !categoria || !preco || !localizacao || !valorMercado) {
-    throw new HttpError(422, "Título, descrição, categoria, preço e localização são obrigatórios");
-  }
-  text(titulo, "Título", 150); text(descricao, "Descrição", 10000); text(localizacao, "Localização", 200); text(categoria, "Categoria", 80);
-  if (titulo.length > 150 || descricao.length > 10000 || localizacao.length > 200 || preco > 1000000 || valorMercado > 10000000) throw new HttpError(422, "Campos excedem os limites");
-  for (const field of ["disponivel", "disponivel_imediato", "segurado"]) if (body[field] !== undefined && body[field] !== null) boolean(body[field], field);
-  return {
-    titulo,
-    descricao,
-    categoria,
-    preco,
-    localizacao,
-    valorMercado,
-    disponivel: asBoolean(body.disponivel_imediato ?? body.disponivel, true),
-    condicao: nonEmptyString(body.condicao),
-    segurado: asBoolean(body.segurado, false),
-  };
+  const parsed = itemDataSchema.safeParse(body);
+  if (!parsed.success) throw new HttpError(422, "Título, descrição, categoria, preço e localização são obrigatórios");
+  return parsed.data;
 }
 
 // Monta filtros públicos, inclusive busca geográfica no PostGIS, e pagina os objetos visíveis.
 export const listItems: RequestHandler = async (req, res) => {
-  const busca = nonEmptyString(req.query.busca ?? req.query.texto ?? req.query.q);
-  const local = nonEmptyString(req.query.local ?? req.query.localizacao);
-  const categoria = nonEmptyString(req.query.categoria);
-  const ownerId = req.query.proprietarioId ?? req.query.proprietario_id;
+  const query = validatedPart(req, "query", listItemsQuerySchema);
+  const busca = nonEmptyString(query.busca ?? query.texto ?? query.q);
+  const local = nonEmptyString(query.local ?? query.localizacao);
+  const categoria = nonEmptyString(query.categoria);
+  const ownerId = query.proprietarioId ?? query.proprietario_id;
   const where: any = { arquivado: false, oculto_pelo_admin: false, usuarios: { ativo: true } };
   if (ownerId) where.usuario_id = uuid(ownerId);
-  if (req.query.disponivel !== undefined) where.disponivel = boolean(req.query.disponivel, "Disponível");
+  if (query.disponivel !== undefined) where.disponivel = query.disponivel;
   else if (!ownerId || ownerId !== req.user?.id) where.disponivel = true;
-  const min = req.query.precoMin ?? req.query.preco_min;
-  const max = req.query.precoMax ?? req.query.preco_max;
+  const min = query.precoMin ?? query.preco_min;
+  const max = query.precoMax ?? query.preco_max;
   if (min !== undefined || max !== undefined) {
-    if ((min !== undefined && (!Number.isFinite(Number(min)) || Number(min) < 0)) || (max !== undefined && (!Number.isFinite(Number(max)) || Number(max) < 0))) throw new HttpError(422, "Preço inválido");
-    where.preco_por_dia = { ...(min !== undefined ? { gte: Number(min) } : {}), ...(max !== undefined ? { lte: Number(max) } : {}) };
+    where.preco_por_dia = { ...(min !== undefined ? { gte: min } : {}), ...(max !== undefined ? { lte: max } : {}) };
   }
   // A busca geográfica usa endereços dentro do raio calculado em metros pelo PostGIS.
-  const latitude = req.query.latitude;
-  const longitude = req.query.longitude;
+  const latitude = query.latitude;
+  const longitude = query.longitude;
   if (latitude !== undefined || longitude !== undefined) {
-    const lat = Number(latitude), lon = Number(longitude), radius = Number(req.query.raio ?? 10);
-    if (latitude === undefined || longitude === undefined || !Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat)>90 || Math.abs(lon)>180 || !Number.isFinite(radius) || radius <= 0 || radius > 500) throw new HttpError(422, "Coordenadas/raio inválidos");
+    const lat = latitude!, lon = longitude!, radius = query.raio ?? 10;
+    if (latitude === undefined || longitude === undefined) throw new HttpError(422, "Coordenadas/raio inválidos");
     const addresses = await prisma.$queryRaw<{ id: string }[]>`SELECT id FROM enderecos WHERE ST_DWithin(localizacao, ST_SetSRID(ST_MakePoint(${lon},${lat}),4326)::geography, ${radius * 1000})`;
     where.endereco_id = { in: addresses.map(a => a.id) };
   }
@@ -144,10 +128,9 @@ export const listItems: RequestHandler = async (req, res) => {
   if (local) filters.push({ localizacao_texto: { contains: local, mode: "insensitive" } });
   if (categoria) filters.push(/^[0-9a-f-]{36}$/i.test(categoria) ? { categoria_id: categoria } : { categorias: { slug: slug(categoria) } });
   if (filters.length) where.AND = filters;
-  const page = Math.max(1, Number(req.query.page ?? req.query.pagina ?? 1) || 1);
-  const limit = Math.min(100, Math.max(1, Number(req.query.limit ?? req.query.limite ?? 30) || 30));
-  if (!Number.isInteger(page) || !Number.isInteger(limit)) throw new HttpError(422, "Paginação inválida");
-  const order: any = req.query.ordenacao === "preco_asc" ? { preco_por_dia: "asc" } : req.query.ordenacao === "preco_desc" ? { preco_por_dia: "desc" } : { criado_em: "desc" };
+  const page = query.page ?? query.pagina ?? 1;
+  const limit = Math.min(100, query.limit ?? query.limite ?? 30);
+  const order: any = query.ordenacao === "preco_asc" ? { preco_por_dia: "asc" } : query.ordenacao === "preco_desc" ? { preco_por_dia: "desc" } : { criado_em: "desc" };
   const total = await prisma.itens.count({ where });
   res.setHeader("X-Total-Count", total);
   const items = await prisma.itens.findMany({ where, include: itemInclude, orderBy: order, skip: (page - 1) * limit, take: limit });
@@ -188,31 +171,61 @@ export const createItem: RequestHandler = async (req, res) => {
   const addressId = req.body?.endereco_id ?? req.body?.enderecoId;
   const address = addressId ? await prisma.enderecos.findFirst({ where: { id: uuid(addressId), usuario_id: req.user!.id } }) : await prisma.enderecos.findFirst({ where: { usuario_id: req.user!.id, principal: true } });
   if (addressId && !address) throw new HttpError(422, "Endereço inválido");
-  // Cria anúncio e fotos na mesma escrita; o preço diário armazenado será usado nas solicitações.
-  const item = await prisma.itens.create({
-    data: {
-      usuario_id: req.user!.id,
-      categoria_id: categoria,
-      endereco_id: address?.id ?? null,
-      titulo: data.titulo,
-      descricao: data.descricao,
-      preco_por_dia: data.preco,
-      valor_mercado: data.valorMercado,
-      localizacao_texto: data.localizacao,
-      disponivel: data.disponivel,
-      condicao: data.condicao,
-      segurado: data.segurado,
-      fotos_item: {
-        create: files.map((file, index) => ({
-          url: publicUploadUrl(file.path),
-          principal: index === photoIndex(req.body?.foto_principal_index, files.length),
-        })),
+  const suppliedKey = req.get("Idempotency-Key")?.trim() || nonEmptyString(req.body?.chave_idempotencia);
+  if (suppliedKey && (suppliedKey.length > 120 || !/^[A-Za-z0-9._:-]+$/.test(suppliedKey))) throw new HttpError(422, "Chave de idempotência inválida");
+  const publicationKey = suppliedKey ?? crypto.randomUUID();
+  const publicationFingerprint = crypto.createHash("sha256").update(JSON.stringify({
+    titulo: data.titulo, descricao: data.descricao, categoria, endereco_id: address?.id ?? null,
+    preco: data.preco, valor_mercado: data.valorMercado, localizacao: data.localizacao,
+    disponivel: data.disponivel, condicao: data.condicao, segurado: data.segurado,
+    fotos: files.length, principal: photoIndex(req.body?.foto_principal_index, files.length),
+  })).digest("hex");
+  // O lock do usuário serializa consumo de cota. Anúncio, fotos e evento de
+  // publicação são persistidos na mesma transação: nunca existe consumo sem anúncio.
+  let result;
+  try {
+    result = await prisma.$transaction(async tx => {
+    await tx.$queryRaw`SELECT id FROM usuarios WHERE id=${req.user!.id}::uuid FOR UPDATE`;
+    if (suppliedKey) {
+      const previous = await tx.publicacoes_anuncio.findUnique({ where: { usuario_id_chave_idempotencia: { usuario_id: req.user!.id, chave_idempotencia: publicationKey } }, select: { objeto_id: true, fingerprint: true } });
+      if (previous) {
+        if (previous.fingerprint !== publicationFingerprint) throw new HttpError(409, "Idempotency-Key reutilizada com publicação diferente", "idempotencia_conflitante");
+        return { item: await tx.itens.findUniqueOrThrow({ where: { id: previous.objeto_id }, include: itemInclude }), created: false };
+      }
+    }
+    const context = await publicationContext(req.user!.id, new Date(), tx);
+    if (context.utilizadas >= context.plano.limite_publicacoes) throw new HttpError(409, "Você atingiu o limite de publicações do seu plano.", "limite_anuncios_atingido");
+    const item = await tx.itens.create({
+      data: {
+        usuario_id: req.user!.id,
+        categoria_id: categoria,
+        endereco_id: address?.id ?? null,
+        titulo: data.titulo,
+        descricao: data.descricao,
+        preco_por_dia: data.preco,
+        valor_mercado: data.valorMercado,
+        localizacao_texto: data.localizacao,
+        disponivel: data.disponivel,
+        condicao: data.condicao,
+        segurado: data.segurado,
+        fotos_item: { create: files.map((file, index) => ({ url: publicUploadUrl(file.path), principal: index === photoIndex(req.body?.foto_principal_index, files.length) })) },
       },
-    },
-    include: itemInclude,
-  });
-  await prisma.notificacoes_admin.create({ data: { tipo: "novo_anuncio", categoria: "anuncios", prioridade: "normal", titulo: "Novo anúncio", mensagem: "Um novo anúncio foi publicado.", referencia_tipo: "objeto", referencia_id: item.id, chave_deduplicacao: `novo_anuncio:${item.id}` } });
-  res.status(201).json({ success: true, objeto: serializeItem(item, true), ...serializeItem(item, true) });
+      include: itemInclude,
+    });
+    await tx.publicacoes_anuncio.create({ data: { usuario_id: req.user!.id, objeto_id: item.id, assinatura_id: context.assinatura?.id ?? null, plano_codigo: context.plano.codigo, periodo_inicio: context.periodo.inicio, periodo_fim: context.periodo.fim, chave_idempotencia: publicationKey, fingerprint: publicationFingerprint } });
+    await tx.notificacoes_admin.create({ data: { tipo: "novo_anuncio", categoria: "anuncios", prioridade: "normal", titulo: "Novo anúncio", mensagem: "Um novo anúncio foi publicado.", referencia_tipo: "objeto", referencia_id: item.id, chave_deduplicacao: `novo_anuncio:${item.id}` } });
+    if (context.utilizadas + 1 === context.plano.limite_publicacoes) await tx.notificacoes.createMany({ skipDuplicates: true, data: [{ usuario_id: req.user!.id, chave: `limite_publicacoes_atingido:${context.periodo.inicio.toISOString()}:${context.plano.codigo}`, tipo: "limite_publicacoes_atingido", titulo: "Limite de publicações atingido", mensagem: "Você utilizou todas as publicações disponíveis neste período.", contexto: { periodo_inicio: context.periodo.inicio, periodo_fim: context.periodo.fim } }] });
+    return { item, created: true };
+    }, { isolationLevel: "ReadCommitted" });
+  } catch (error) {
+    // O middleware de upload executa antes do consumo atômico. Em conflito de
+    // cota ou retry idempotente, não deixe arquivos órfãos no disco.
+    await Promise.all(files.map(file => removeUploadByUrl(publicUploadUrl(file.path))));
+    throw error;
+  }
+  if (!result.created) await Promise.all(files.map(file => removeUploadByUrl(publicUploadUrl(file.path))));
+  const serialized = serializeItem(result.item, true);
+  res.status(result.created ? 201 : 200).json({ success: true, idempotente: !result.created, objeto: serialized, ...serialized });
 };
 
 // Confere propriedade e campos enviados antes de atualizar anúncio, endereço, categoria e fotos.
@@ -327,12 +340,13 @@ export const deleteItem: RequestHandler = async (req, res) => {
     if (locked.oculto_pelo_admin) throw new HttpError(409, "Este anúncio foi ocultado pela administração e não pode ser alterado.", "objeto_oculto_pelo_admin");
     await assertItemMutation(tx, item.id, true);
     const history = await tx.alugueis.findFirst({ where: { item_id: item.id } });
-    if (history) {
+    const publication = await tx.publicacoes_anuncio.findFirst({ where: { objeto_id: item.id }, select: { id: true } });
+    if (history || publication) {
       await tx.itens.update({ where: { id: item.id }, data: { arquivado: true, disponivel: false, atualizado_em: new Date() } });
     } else {
       await tx.itens.delete({ where: { id: item.id } });
     }
-    return Boolean(history);
+    return Boolean(history || publication);
   });
   if (!hasHistory) await Promise.all(item.fotos_item.map((photo: ItemPhoto) => removeUploadByUrl(photo.url)));
   res.json({ success: true, arquivado: Boolean(hasHistory) });

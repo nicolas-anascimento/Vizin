@@ -1,0 +1,45 @@
+.planos-container{ max-width: 1000px; }
+.planos-titulo{ font-size: 32px; font-weight: 800; color: var(--texto); margin-bottom: 6px; }
+.planos-sub{ font-size: 16px; color: var(--texto-suave); margin-bottom: 26px; max-width: 60ch; }
+
+/* ---------- situação atual ---------- */
+.planos-atual{ background: #fff; border: 1.5px solid var(--borda); border-radius: 22px; padding: 22px 24px; margin-bottom: 28px; box-shadow: 0 2px 10px rgba(20,20,43,.06); }
+.planos-atual[hidden]{ display: none; }
+.planos-atual-topo{ display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.planos-atual-rotulo{ display: block; font-size: 13px; color: var(--texto-suave); }
+.planos-atual-topo strong{ font-size: 22px; color: var(--texto); }
+.planos-atual-validade{ font-size: 13.5px; color: var(--texto-suave); }
+.planos-barra{ height: 10px; border-radius: 999px; background: var(--borda); overflow: hidden; }
+.planos-barra div{ height: 100%; width: 0; border-radius: 999px; background: var(--roxo); transition: width .4s ease; }
+.planos-barra div.cheio{ background: #dc2626; }
+.planos-atual-uso{ margin-top: 10px; font-size: 14px; color: var(--texto-suave); }
+.planos-atual-uso b{ color: var(--texto); }
+.planos-aviso{ display: flex; gap: 10px; align-items: center; margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: #fdeaea; color: #b91c1c; font-size: 14px; font-weight: 600; }
+.planos-aviso[hidden]{ display: none; }
+
+/* ---------- cards dos planos ---------- */
+.planos-grade{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; align-items: stretch; }
+.plano-card{ position: relative; display: flex; flex-direction: column; background: #fff; border: 2px solid var(--borda); border-radius: 26px; padding: 28px 26px; transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
+.plano-card:hover{ transform: translateY(-4px); box-shadow: 0 12px 30px rgba(56,29,115,.14); }
+.plano-card.atual{ border-color: var(--roxo); background: linear-gradient(180deg, #faf8ff, #fff); }
+.plano-selo{ position: absolute; top: -13px; left: 24px; background: var(--roxo); color: #fff; font-size: 12.5px; font-weight: 700; padding: 5px 14px; border-radius: 999px; }
+.plano-card h2{ font-size: 22px; font-weight: 800; margin: 0 0 4px; }
+.plano-preco{ font-size: 38px; font-weight: 800; color: var(--texto); letter-spacing: -.02em; margin: 10px 0 2px; }
+.plano-preco small{ font-size: 14px; font-weight: 400; color: var(--texto-suave); letter-spacing: 0; }
+.plano-anuncios{ font-weight: 700; color: var(--roxo); margin-bottom: 18px; }
+.plano-card ul{ list-style: none; margin: 0 0 24px; padding: 0; flex: 1; }
+.plano-card li{ display: flex; gap: 10px; padding: 6px 0; font-size: 14.5px; color: var(--texto-suave); }
+.plano-card li i{ color: var(--laranja); margin-top: 2px; }
+.plano-card .btn{ width: 100%; }
+.plano-nota-btn{ text-align: center; font-size: 13px; color: var(--texto-fraco); }
+
+.planos-regras{ list-style: none; margin: 30px 0 8px; padding: 18px 20px; background: #fff; border-radius: 18px; display: grid; gap: 10px; }
+.planos-regras li{ display: flex; gap: 12px; font-size: 14px; color: var(--texto-suave); }
+.planos-regras i{ color: var(--roxo); font-size: 17px; }
+.planos-ajuda{ text-align: center; font-size: 14px; color: var(--texto-suave); margin-top: 14px; }
+.planos-ajuda a{ color: var(--roxo); font-weight: 700; }
+.planos-carregando, .planos-erro{ text-align: center; padding: 30px 10px; color: var(--texto-suave); }
+.planos-erro{ color: #b91c1c; }
+.planos-erro[hidden], .planos-carregando[hidden]{ display: none; }
+
+@media (max-width: 860px){ .planos-grade{ grid-template-columns: 1fr; } .planos-titulo{ font-size: 26px; } }

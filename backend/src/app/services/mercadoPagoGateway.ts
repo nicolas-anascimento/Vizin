@@ -70,7 +70,7 @@ export class MercadoPagoGateway implements PaymentGateway {
    const payer=card && user.customer_id ? {type:"customer",id:user.customer_id} : {email:user.email,first_name:user.nome,identification:{type:"CPF",number:user.cpf}};
    const result=this.result(await this.http("POST","/v1/payments",{
     transaction_amount:data.valor,description:`Vizin: ${data.tipo ?? "aluguel"}`,payment_method_id:card?data.payment_method_id:"pix",payer,
-    external_reference:data.id,metadata:{pagamento_id:data.id,aluguel_id:data.aluguelId,usuario_id:user.id,tipo:data.tipo ?? "aluguel"},
+    external_reference:data.id,metadata:{pagamento_id:data.id,...(data.tipo==="assinatura"?{pagamento_assinatura_id:data.id,assinatura_id:data.assinaturaId,plano_codigo:data.plano_codigo}:{aluguel_id:data.aluguelId}),usuario_id:user.id,tipo:data.tipo ?? "aluguel"},
     ...(card?{token:data.tokenCartao,installments:1,three_d_secure_mode:"optional"}: {date_of_expiration:data.expira_em}),
     ...(process.env.MP_NOTIFICATION_URL ? {notification_url:process.env.MP_NOTIFICATION_URL}:{}),
    },key,data.device_id));
@@ -136,7 +136,10 @@ export function verifyMercadoPagoSignature(dataId:unknown,signature:unknown,requ
  let resourceId:string;try{resourceId=providerId(dataId);}catch{throw new HttpError(401,"Identificador de webhook inválido");}
  const timestamp=Number(ts);
  const now=Math.floor(Date.now()/1000),tolerance=300;
- if(!Number.isSafeInteger(timestamp) || Math.abs(now-timestamp)>tolerance)throw new HttpError(401,"Assinatura expirada");
+ // A documentação atual envia `ts` em milissegundos, mas integrações antigas
+ // podem usar segundos. O valor original continua no manifest assinado.
+ const timestampSeconds=timestamp >= 1_000_000_000_000 ? Math.floor(timestamp/1000) : timestamp;
+ if(!Number.isSafeInteger(timestamp) || Math.abs(now-timestampSeconds)>tolerance)throw new HttpError(401,"Assinatura expirada");
  const manifest=`id:${resourceId.toLowerCase()};request-id:${requestId};ts:${ts};`;
  const expected=crypto.createHmac("sha256",secret).update(manifest).digest();
  if(!crypto.timingSafeEqual(expected,Buffer.from(hash,"hex")))throw new HttpError(401,"Assinatura inválida");

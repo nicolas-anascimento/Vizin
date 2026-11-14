@@ -342,3 +342,27 @@
   background: #fdeaea;
   color: #dc2626;
 }
+
+/* Anúncio desarquivado pelo admin (a disponibilidade anterior é mantida) */
+.notificacao-icone.tipo-anuncio_desarquivado_admin {
+  background: var(--verde-claro);
+  color: var(--verde);
+}
+
+/* ================= PLANOS DE ANÚNCIOS ================= */
+.notificacao-icone.tipo-assinatura_confirmada {
+  background: var(--verde-claro);
+  color: var(--verde);
+}
+
+.notificacao-icone.tipo-assinatura_renovacao_cancelada,
+.notificacao-icone.tipo-assinatura_encerrada,
+.notificacao-icone.tipo-limite_anuncios_atingido {
+  background: #fff3cd;
+  color: #8a5a00;
+}
+
+.notificacao-icone.tipo-pagamento_assinatura_falhou {
+  background: #fdeaea;
+  color: #dc2626;
+}

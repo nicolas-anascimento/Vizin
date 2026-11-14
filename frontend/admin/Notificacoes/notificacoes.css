@@ -170,6 +170,7 @@
 /* ================= BOTÕES ================= */
 .admnot-botoes{
     display: flex;
+    flex-wrap: wrap;   /* em card estreito os botões quebram de linha em vez de vazar */
     gap: 12px;
 }
 
@@ -178,8 +179,11 @@
     align-items: center;
     justify-content: center;
     gap: 8px;
-    height: 44px;
-    padding: 0 20px;
+    min-height: 44px;
+    padding: 8px 18px;
+    text-align: center;
+    line-height: 1.2;
+    min-width: 0;
     border-radius: 999px;
     font-size: 13.5px;
     font-weight: 600;
@@ -190,7 +194,7 @@
 }
 
 .admnot-botoes .admnot-btn{
-    flex: 1;
+    flex: 1 1 130px;   /* cresce, encolhe e, abaixo de ~130px, vai pra linha de baixo */
 }
 
 .admnot-btn:active{ transform: scale(.98); }
@@ -276,7 +280,7 @@
 
 /* ================= DICAS DE ENVIO ================= */
 .admnot-dicas{
-    background: linear-gradient(135deg, var(--admin-roxo-700), var(--admin-roxo-500));
+    background: linear-gradient(120deg, #381D73, #6D49F2 45%, #F27C38 130%);
     color: #F2F2F2;
     border-radius: 20px;
     padding: 24px;
@@ -426,8 +430,24 @@
         padding: 18px;
     }
 
+    /* Rascunho e Agendar lado a lado; Enviar Agora em largura total */
     .admnot-botoes{
-        flex-direction: column;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+
+    .admnot-botoes .admnot-btn{
+        min-height: 38px;
+        padding: 6px 12px;
+        font-size: 12.5px;
+        gap: 6px;
+    }
+
+    .admnot-botoes .admnot-btn-enviar{
+        grid-column: 1 / -1;
+        order: -1;          /* botão principal no topo; remova esta linha para ficar embaixo */
+        min-height: 42px;
     }
 
     .admnot-item{

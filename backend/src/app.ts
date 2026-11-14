@@ -10,9 +10,11 @@ import { requireAuth, optionalAuth } from "./app/middlewares/auth.ts";
 import { errorHandler, notFound } from "./app/middlewares/errorHandler.ts";
 import { maintainRentals } from "./app/services/rentalMaintenance.ts";
 import { processAdminCampaigns } from "./app/services/adminCampaigns.ts";
-import { processEmailOutbox } from "./app/services/emailOutbox.ts";
+import { startEmailOutboxWorker, wakeEmailOutbox } from "./app/services/emailOutbox.ts";
+import mailer from "./app/config/mailer.ts";
 import { processAdminOperationalAlerts } from "./app/services/adminOperationalMaintenance.ts";
-import { paymentWebhook } from "./app/controllers/paymentsController.ts";
+import { pruneUnattachedChatUploads } from "./app/services/chatAttachmentMaintenance.ts";
+import { subscriptionWebhook } from "./app/controllers/subscriptionsController.ts";
 import api from "./app/routes/api.ts";
 import web from "./app/routes/web.ts";
 import { uploadsRoot, privateWithdrawalRoot } from "./app/utils/files.ts";
@@ -79,7 +81,12 @@ app.use((req, res, next) => {
 app.post(
   "/api/pagamentos/webhook",
   express.raw({ type: "application/json", limit: "1mb" }),
-  paymentWebhook,
+  (_req,res)=>res.status(410).json({success:false,codigo:"webhook_legado_descontinuado",message:"Webhook de pagamentos de aluguel descontinuado."}),
+);
+app.post(
+  "/api/assinaturas/webhook",
+  express.raw({ type: "application/json", limit: "1mb" }),
+  subscriptionWebhook,
 );
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
@@ -155,21 +162,24 @@ export const server = http.createServer(app);
 export const io = createRealtimeServer(server);
 const shouldListen = process.env.VIZIN_NO_LISTEN !== "true";
 if (shouldListen) {
-  server.listen(env.PORT, () =>
-    console.log(`Vizin disponível em ${env.APP_URL}`),
-  );
+  server.listen(env.PORT, () => {
+    console.log(`Vizin disponível em ${env.APP_URL}`);
+    stopEmailWorker = startEmailOutboxWorker();
+  });
 }
+let stopEmailWorker: (() => void) | null = null;
 
 // O intervalo de um minuto evita sobrepor duas execuções de manutenção no mesmo processo.
 let maintenanceRunning = false;
 const maintenance = shouldListen
   ? setInterval(() => {
+      wakeEmailOutbox(); // Fallback independente das demais tarefas de manutenção.
       if (maintenanceRunning) return;
       maintenanceRunning = true;
       void maintainRentals(true)
         .then(() => processAdminCampaigns())
         .then(() => processAdminOperationalAlerts())
-        .then(() => processEmailOutbox())
+        .then(() => pruneUnattachedChatUploads())
         .catch((error) =>
           console.error("Falha na manutenção de aluguéis", error),
         )
@@ -183,9 +193,11 @@ maintenance?.unref();
 // Interrompe o job e fecha a conexão do Prisma após o servidor parar de aceitar requisições.
 async function shutdown(signal: string): Promise<void> {
   if (maintenance) clearInterval(maintenance);
+  stopEmailWorker?.();
   console.log(`Encerrando por ${signal}...`);
   // O Socket.IO também fecha o servidor HTTP ao qual está anexado.
   io.close(async () => {
+    mailer?.close();
     await prisma.$disconnect();
     process.exit(0);
   });

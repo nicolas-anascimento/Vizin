@@ -40,6 +40,8 @@ function normalizar(v) {
         usuarioId: v.usuario_id ?? u.id ?? v.id,
         nome: v.nome ?? u.nome ?? "",
         email: v.email ?? u.email ?? "",
+        // sem isto a foto do usuário se perdia aqui e a lista só mostrava as iniciais
+        avatarUrl: v.avatarUrl ?? v.avatar_url ?? u.avatarUrl ?? u.avatar_url ?? null,
         status: v.status,
         enviadoEm: v.criado_em,
         revogada: !!v.revogada,
@@ -57,7 +59,9 @@ async function carregar() {
             busca: estado.busca, status: estado.status, pagina: estado.pagina, porPagina: POR_PAGINA
         });
         estado.total = Number(resposta.total) || 0;
-        estado.itens = (resposta.dados || []).map(normalizar);
+        // Aceita { dados } | { data } | array puro (as outras rotas admin usam `data`).
+        const lista = Array.isArray(resposta) ? resposta : (resposta.dados ?? resposta.data ?? []);
+        estado.itens = lista.map(normalizar);
     } catch (err) {
         corpoTabela.innerHTML = `<tr><td colspan="6" class="admin-tabela-vazio">${escAdmin(err.message)}</td></tr>`;
         infoPaginacao.textContent = "";
@@ -117,7 +121,7 @@ function renderizarTabela() {
         const atrasada = v.status === "pendente" && tempo.horas > PRAZO_HORAS;
         return `
         <tr data-id="${escAdmin(v.id)}">
-            <td data-label="Foto"><div class="admin-avatar" style="background:${corAvatar(v.usuarioId)}">${escAdmin(iniciais(v.nome))}</div></td>
+            <td data-label="Foto"><div class="admin-avatar" style="background:${corAvatar(v.usuarioId)}">${window.avatarAdminHtml ? window.avatarAdminHtml(v.avatarUrl ?? v.avatar_url, iniciais(v.nome)) : escAdmin(iniciais(v.nome))}</div></td>
             <td data-label="Nome" class="admin-nome">${escAdmin(v.nome)}${v.usuarioAtiva ? "" : ' <span class="verif-tag-suspensa" title="Conta suspensa">Suspensa</span>'}</td>
             <td data-label="Email" class="admin-email">${escAdmin(v.email)}</td>
             <td data-label="Enviado em"><span class="verif-enviado">${formatarDataHora(v.enviadoEm)}${tempo.texto ? `<small class="${atrasada ? "atrasada" : ""}">${tempo.texto}${atrasada ? " · passou de 48 h" : ""}</small>` : ""}</span></td>

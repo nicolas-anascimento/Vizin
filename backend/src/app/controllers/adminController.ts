@@ -11,6 +11,7 @@ import { serializeAdminItem, serializeNotification, serializeRental } from "../u
 import { rentalInclude } from "./rentalsController.ts";
 import { userReportWhere } from "../services/reportRules.ts";
 import { avatarUrl } from "../utils/files.ts";
+import { expireSubscriptions, publicationContext, subscriptionDto } from "../services/subscriptionService.ts";
 
 // Valida alterações administrativas de campos booleanos.
 function requiredBoolean(value: unknown): boolean {
@@ -21,36 +22,36 @@ function requiredBoolean(value: unknown): boolean {
 export const metrics: RequestHandler = async (req, res) => {
   const range = dateFilters(req);
   // Executa agregações independentes em paralelo. O período usa a coluna
-  // apropriada de cada métrica e a resposta informa o fuso America/Sao_Paulo.
-  const [usuarios, usuariosAtivos, objetos, objetosVisiveis, alugueis, contratados, pagamentos, verificacoes, suporte, denuncias, multas, estornosPendentes, estornosConcluidos, cancelamentosPendentes, cancelamentosConcluidos, taxaContratada, taxaRecebida] = await Promise.all([
+  // apropriada de cada métrica. Receita inclui exclusivamente planos confirmados.
+  const [usuarios, usuariosAtivos, objetos, objetosVisiveis, alugueis, contratados, pagamentos, assinaturasAtivas, verificacoes, suporte, denuncias] = await Promise.all([
     prisma.usuarios.count({ where: { ...(range ? { criado_em: range } : {}) } }),
     prisma.usuarios.count({ where: { ativo: true, ...(range ? { criado_em: range } : {}) } }),
     prisma.itens.count({ where: { ...(range ? { criado_em: range } : {}) } }),
     prisma.itens.count({ where: { arquivado: false, ...(range ? { criado_em: range } : {}) } }),
     prisma.alugueis.count({ where: { ...(range ? { criado_em: range } : {}) } }),
     prisma.eventos_aluguel.count({where:{status:"aprovado",...(range?{criado_em:range}:{})}}),
-    prisma.pagamentos.aggregate({ where: { tipo: "aluguel", status: "pago", ...(range ? { pago_em: range } : {}) }, _count: true, _sum: { valor: true } }),
+    prisma.pagamentos_assinatura.aggregate({ where: { status: "pago", ...(range ? { confirmado_em: range } : {}) }, _count: true, _sum: { valor_centavos: true } }),
+    prisma.assinaturas.count({ where: { status: "ativa", inicio: { lte: new Date() }, fim: { gt: new Date() }, planos: { codigo: { in: ["intermediario", "avancado"] } } } }),
     prisma.verificacoes_identidade.count({ where: { ...(range ? { criado_em: range } : {}) } }),
     prisma.suportes.count({ where: { ...(range ? { criado_em: range } : {}) } }),
     prisma.denuncias.count({ where: { ...(range ? { criado_em: range } : {}) } }),
-    prisma.pagamentos.aggregate({ where: { tipo: "multa", status: "pago", ...(range ? { pago_em: range } : {}) }, _count: true, _sum: { valor: true } }),
-    prisma.pagamentos.aggregate({ where: { status: "estorno_pendente", ...(range ? { status_em: range } : {}) }, _count: true, _sum: { valor: true } }),
-    prisma.pagamentos.aggregate({ where: { status: "estornado", ...(range ? { status_em: range } : {}) }, _count: true, _sum: { valor: true } }),
-    prisma.pagamentos.aggregate({ where: { status: "cancelamento_pendente", ...(range ? { status_em: range } : {}) }, _count: true, _sum: { valor: true } }),
-    prisma.pagamentos.aggregate({ where: { status: "cancelado", ...(range ? { status_em: range } : {}) }, _count: true, _sum: { valor: true } }),
-    prisma.alugueis.aggregate({ where: { eventos: { some: { status: "aprovado", ...(range ? { criado_em: range } : {}) } } }, _sum: { taxa_plataforma: true } }),
-    prisma.alugueis.aggregate({ where: { pagamentos: { some: { tipo: "aluguel", status: "pago", ...(range ? { pago_em: range } : {}) } } }, _sum: { taxa_plataforma: true } }),
   ]);
-  const finance = (a: typeof pagamentos) => ({ quantidade: a._count, valor: Number(a._sum.valor ?? 0) });
-  res.json({ periodo: { dataInicio: req.query.dataInicio ?? null, dataFim: req.query.dataFim ?? null, timezone: "America/Sao_Paulo", base: "criado_em para cadastros; eventos_aluguel.criado_em para contratos; pago_em para pagos; status_em para cancelamentos e estornos" }, usuarios: { total: usuarios, ativos: usuariosAtivos }, objetos: { total: objetos, naoArquivados: objetosVisiveis }, alugueis: { total: alugueis, contratados }, pagamentos: { aluguel: finance(pagamentos), aprovados: finance(pagamentos), multas: finance(multas), estornosPendentes:finance(estornosPendentes),estornosConcluidos:finance(estornosConcluidos),cancelamentosPendentes:finance(cancelamentosPendentes),cancelamentosConcluidos:finance(cancelamentosConcluidos),taxaPlataformaContratada:Number(taxaContratada._sum.taxa_plataforma??0),taxaPlataformaRecebida:Number(taxaRecebida._sum.taxa_plataforma??0) }, verificacoes: { total: verificacoes }, suporte: { total: suporte }, denuncias: { total: denuncias } });
+  const plans = { quantidade: pagamentos._count, valor: Number(pagamentos._sum.valor_centavos ?? 0) / 100 };
+  res.json({ periodo: { dataInicio: req.query.dataInicio ?? null, dataFim: req.query.dataFim ?? null, timezone: "UTC", base: "criado_em para cadastros; confirmado_em para receita de planos" }, usuarios: { total: usuarios, ativos: usuariosAtivos }, objetos: { total: objetos, naoArquivados: objetosVisiveis }, alugueis: { total: alugueis, contratados }, pagamentos: { planos: plans, aprovados: plans, assinaturasAtivas }, verificacoes: { total: verificacoes }, suporte: { total: suporte }, denuncias: { total: denuncias } });
 };
 // Filtra e pagina usuários para o painel, sem expor o hash de senha.
 export const listUsers: RequestHandler = async (req, res) => {
+  await expireSubscriptions();
   const { page, limit, skip } = pagination(req, 25);
   const status = statusFilter(req, ["ativo", "inativo"]);
+  const plano = req.query.plano;
+  if (plano !== undefined && !["gratuito", "assinantes"].includes(String(plano))) throw new HttpError(422, "Filtro de plano inválido", "plano_invalido");
+  const now = new Date();
+  const paid = { some: { status: "ativa", inicio: { lte: now }, fim: { gt: now }, planos: { codigo: { in: ["intermediario", "avancado"] } } } };
   const busca = typeof req.query.busca === "string" && req.query.busca.trim() ? text(req.query.busca, "Busca", 100) : undefined;
   const buscaCpf = busca?.replace(/\D/g, "");
   const where = {
+    ...(plano ? { assinaturas: plano === "assinantes" ? paid : { none: paid.some } } : {}),
     ...(status ? { ativo: status === "ativo" } : {}),
     ...(busca ? { OR: [
       { nome: { contains: busca, mode: "insensitive" as const } },
@@ -59,7 +60,17 @@ export const listUsers: RequestHandler = async (req, res) => {
     ] } : {}),
   };
   const [rows, total] = await Promise.all([prisma.usuarios.findMany({ where, skip, take: limit, orderBy: { criado_em: "desc" }, select: { id: true, nome: true, email: true, tipo: true, ativo: true, verificado: true, criado_em: true, foto_url: true } }), prisma.usuarios.count({ where })]);
-  res.json({ dados: rows.map(row => ({ ...row, avatarUrl: avatarUrl(row.foto_url) })), total, pagina: page, paginas: Math.ceil(total / limit) });
+  const dados = await Promise.all(rows.map(async row => {
+    const context = await publicationContext(row.id, now);
+    return { ...row, avatarUrl: avatarUrl(row.foto_url), plano: { codigo: context.plano.codigo, nome: context.plano.nome }, anuncios_usados: context.utilizadas };
+  }));
+  res.json({ dados, total, pagina: page, paginas: Math.ceil(total / limit) });
+};
+export const getAdminUserSubscription: RequestHandler = async (req, res) => {
+  const id = uuid(req.params.id);
+  if (!await prisma.usuarios.findUnique({ where: { id }, select: { id: true } })) throw new HttpError(404, "Usuário não encontrado", "nao_encontrada");
+  await expireSubscriptions();
+  res.json(subscriptionDto(await publicationContext(id)));
 };
 // Detalha a conta sem credenciais ou listas potencialmente ilimitadas.
 export const getUser: RequestHandler = async (req, res) => {
@@ -77,16 +88,19 @@ export const getUser: RequestHandler = async (req, res) => {
     },
   });
   if (!user) throw new HttpError(404, "Usuário não encontrado", "nao_encontrada");
-  const [approvedIdentity, latestIdentity, activeRentals, pendingRequests, receivedReports] = await Promise.all([
+  const [approvedIdentity, latestIdentity, activeRentals, pendingRequests, receivedReports, publication] = await Promise.all([
     prisma.verificacoes_identidade.count({ where: { usuario_id: id, status: "aprovado", revogada: false } }),
     prisma.verificacoes_identidade.findFirst({ where: { usuario_id: id }, orderBy: { criado_em: "desc" }, select: { id: true, status: true, revogada: true } }),
     prisma.alugueis.count({ where: { OR: [{ locador_id: id }, { locatario_id: id }], status: { in: ["aprovado", "pago", "retirado", "devolvido"] } } }),
     prisma.alugueis.count({ where: { OR: [{ locador_id: id }, { locatario_id: id }], status: "pendente" } }),
     prisma.denuncias.count({ where: userReportWhere({ denunciado_id: id }) }),
+    publicationContext(id),
   ]);
   const { _count, ...dados } = user;
   res.json({
     ...dados,
+    plano: { codigo: publication.plano.codigo, nome: publication.plano.nome },
+    anuncios_usados: publication.utilizadas,
     avatarUrl: avatarUrl(dados.foto_url),
     verificado: approvedIdentity > 0,
     verificacao: latestIdentity,
@@ -104,7 +118,7 @@ export const getUser: RequestHandler = async (req, res) => {
 async function obligations(tx: any, id: string) {
   const [rentals, finance] = await Promise.all([
     tx.alugueis.count({ where: { OR: [{ locador_id: id }, { locatario_id: id }], status: { in: activeStatuses } } }),
-    tx.pagamentos.count({ where: { alugueis: { OR: [{ locador_id: id }, { locatario_id: id }] }, status: { in: ["pendente", "conciliacao", "estorno_pendente", "cancelamento_pendente"] } } }),
+    tx.assinaturas.count({ where: { usuario_id: id, status: { in: ["pendente", "ativa"] }, planos: { codigo: { in: ["intermediario", "avancado"] } } } }),
   ]);
   if (rentals || finance) throw new HttpError(409, "Usuário possui obrigações ativas", "usuario_com_obrigacoes_ativas");
 }

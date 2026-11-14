@@ -1,6 +1,6 @@
 import { HttpError } from "../app/utils/httpError.ts";
 import { serializeMessage } from "../app/utils/serializers.ts";
-import { uuid } from "../app/utils/validation.ts";
+import { z } from "zod";
 import {
   getChatConversation,
   markChatRead,
@@ -15,6 +15,14 @@ import type { ConversationPayload, SocketErrorPayload } from "./types.ts";
 import type { RealtimeSocket } from "./socket.ts";
 import { consumeRateLimit } from "../app/middlewares/rateLimit.ts";
 import prisma from "../app/config/database.ts";
+import { conversationEventSchema, sendMessageEventSchema } from "../app/schemas/conversations.schema.ts";
+import { idSchema } from "../app/schemas/common.ts";
+
+function eventData<S extends z.ZodType>(schema: S, input: unknown): z.output<S> {
+  const parsed = schema.safeParse(input);
+  if (!parsed.success) throw new HttpError(422, "Dados do evento inválidos");
+  return parsed.data;
+}
 
 async function assertActive(userId:string):Promise<void>{
   const user=await prisma.usuarios.findUnique({where:{id:userId},select:{ativo:true}});
@@ -38,8 +46,9 @@ export function registerChatSocket(socket: RealtimeSocket): void {
   socket.on("chat:join", async (payload) => {
     try {
       await assertActive(socket.data.userId);
+      const data = eventData(conversationEventSchema, payload);
       const conversation = await getChatConversation(
-        payload?.conversation_id,
+        data.conversation_id,
         socket.data.userId,
         true,
       );
@@ -51,7 +60,7 @@ export function registerChatSocket(socket: RealtimeSocket): void {
 
   socket.on("chat:leave", (payload) => {
     try {
-      const id = uuid(payload?.conversation_id, "Conversa");
+      const id = eventData(conversationEventSchema, payload).conversation_id;
       void socket.leave(conversationRoom(id));
     } catch (error) {
       socket.emit("socket:error", socketError(error, "chat:leave"));
@@ -59,24 +68,25 @@ export function registerChatSocket(socket: RealtimeSocket): void {
   });
 
   socket.on("message:send", async (payload) => {
-    const clientMessageId = payload?.client_message_id;
+    const parsedClientMessageId = idSchema.safeParse(payload?.client_message_id);
+    const clientMessageId = parsedClientMessageId.success ? parsedClientMessageId.data : undefined;
     try {
       await assertActive(socket.data.userId);
       const limit = consumeRateLimit(`chat-message:user:${socket.data.userId}`, 60_000, 30);
       if (!limit.allowed) {
         throw new HttpError(429, "Muitas mensagens; aguarde um instante", "limite_mensagens");
       }
-      uuid(clientMessageId, "Mensagem do cliente");
+      const data = eventData(sendMessageEventSchema, payload);
       const result = await sendChatMessage({
-        conversationId: payload?.conversation_id,
+        conversationId: data.conversation_id,
         senderId: socket.data.userId,
-        content: payload?.content,
-        attachmentId: payload?.attachment_id,
-        clientMessageId,
+        content: data.content,
+        attachmentId: data.attachment_id,
+        clientMessageId: data.client_message_id,
       });
       publishPersistedMessage(result);
       socket.emit("message:ack", {
-        client_message_id: clientMessageId,
+        client_message_id: data.client_message_id,
         message: serializeMessage(result.message, socket.data.userId),
       });
     } catch (error) {
@@ -90,8 +100,9 @@ export function registerChatSocket(socket: RealtimeSocket): void {
   socket.on("message:read", async (payload) => {
     try {
       await assertActive(socket.data.userId);
+      const data = eventData(conversationEventSchema, payload);
       const result = await markChatRead(
-        payload?.conversation_id,
+        data.conversation_id,
         socket.data.userId,
       );
       publishReadUpdate(result);
@@ -103,7 +114,7 @@ export function registerChatSocket(socket: RealtimeSocket): void {
   const typing = async (payload: ConversationPayload, active: boolean) => {
     try {
       await assertActive(socket.data.userId);
-      const id = uuid(payload?.conversation_id, "Conversa");
+      const id = eventData(conversationEventSchema, payload).conversation_id;
       const room = conversationRoom(id);
       if (!socket.rooms.has(room)) {
         throw new HttpError(403, "Entre na conversa antes de digitar");

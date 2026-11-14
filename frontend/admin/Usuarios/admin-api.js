@@ -1,7 +1,10 @@
-async function listarUsuariosAdmin({ busca = '', status = 'todos', pagina = 1, porPagina = 25 } = {}) {
+// plano: 'todos' | 'gratuito' | 'assinantes' (planos pagos). Cada item devolvido traz
+//   plano: { id, nome, preco_mensal, limite_anuncios } e anuncios_usados (mesma contagem do limite no back).
+async function listarUsuariosAdmin({ busca = '', status = 'todos', plano = 'todos', pagina = 1, porPagina = 25 } = {}) {
     const params = new URLSearchParams({ page: String(pagina), limit: String(porPagina) });
     if (busca) params.set('busca', busca);
     if (status !== 'todos') params.set('status', status);
+    if (plano !== 'todos') params.set('plano', plano);
     return apiRequest(`/admin/usuarios?${params}`, 'GET', null, 'Não foi possível carregar usuários.');
 }
 async function buscarUsuarioAdminPorId(id) {

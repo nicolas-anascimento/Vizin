@@ -1,5 +1,5 @@
 import { audit } from "../utils/admin.ts";
-import { paymentDeadline, rentalPrice } from "../services/paymentRules.ts";
+import { rentalPrice } from "../services/paymentRules.ts";
 import { authorizeTransition, normalizeRentalStatus } from "../services/rentalRules.ts";
 import { maintainRentals } from "../services/rentalMaintenance.ts";
 import { uuid } from "../utils/validation.ts";
@@ -8,11 +8,11 @@ import prisma from "../config/database.ts";
 import { HttpError } from "../utils/httpError.ts";
 import { businessDate, parseDateOnly, rentalDays } from "../utils/dates.ts";
 import { serializeRental } from "../utils/serializers.ts";
-import { nonEmptyString } from "../utils/strings.ts";
 import { pageHeaders, pagination } from "../utils/listPage.ts";
 import { assertRentalUnblocked, currentRentalBlock } from "../services/rentalBlocking.ts";
-import { requestFinancial } from "./paymentsController.ts";
 import { createNotification, createNotifications } from "../services/notificationPreferences.ts";
+import { validatedPart } from "../middlewares/validate.ts";
+import { createRentalSchema, rentalListQuerySchema, rentalStatusSchema } from "../schemas/rentals.schema.ts";
 
 // Reúne as relações necessárias para montar o DTO da solicitação, incluindo objeto, participantes, pagamentos e multa.
 export const rentalInclude = {
@@ -37,6 +37,7 @@ export const rentalInclude = {
   usuarios_alugueis_locatario_idTousuarios: { select: { id: true, nome: true, email: true, foto_url: true } },
   pagamentos: { select: { tipo: true, status: true } },
   multa: true,
+  devolucoes: { select: { criado_em: true } },
 };
 
 function isParty(rental: { locador_id: string; locatario_id: string }, user: Request["user"]): boolean {
@@ -49,10 +50,10 @@ function isParty(rental: { locador_id: string; locatario_id: string }, user: Req
  * do valor cadastrado no objeto; o cliente não define o total contratado.
  */
 export const createRentalRequest: RequestHandler = async (req, res) => {
-  const itemId = nonEmptyString(req.body?.produto_id ?? req.body?.objeto_id ?? req.body?.item_id ?? req.body?.produtoId);
-  const start = parseDateOnly(req.body?.data_retirada ?? req.body?.dataRetirada ?? req.body?.data_inicio ?? req.body?.retirada, "Data de retirada");
-  const end = parseDateOnly(req.body?.data_devolucao ?? req.body?.dataDevolucao ?? req.body?.data_fim ?? req.body?.devolucao, "Data de devolução");
-  if (!itemId || !start || !end) throw new HttpError(422, "Objeto e período são obrigatórios");
+  const input = validatedPart(req, "body", createRentalSchema);
+  const itemId = (input.produto_id ?? input.objeto_id ?? input.item_id ?? input.produtoId)!;
+  const start = parseDateOnly(input.data_retirada ?? input.dataRetirada ?? input.data_inicio ?? input.retirada, "Data de retirada");
+  const end = parseDateOnly(input.data_devolucao ?? input.dataDevolucao ?? input.data_fim ?? input.devolucao, "Data de devolução");
   const days = rentalDays(start, end);
   if (days > 365) throw new HttpError(422, "Período máximo de 365 dias");
   if (days < 1) throw new HttpError(422, "A devolução deve ser posterior à retirada");
@@ -107,10 +108,10 @@ export const createRentalRequest: RequestHandler = async (req, res) => {
         data_fim: end,
         valor_total: price.subtotal,
         preco_dia_contratado: item.preco_por_dia,
-        taxa_plataforma: price.taxa_servico,
+        taxa_plataforma: 0,
         ganho_locador: price.subtotal,
         status: "pendente",
-        expira_em: new Date(Math.min(Date.now() + 48 * 3600000, paymentDeadline({data_inicio:start}).getTime())),
+        expira_em: new Date(Date.now() + 48 * 3600000),
         eventos: { create: { usuario_id: req.user!.id, status: "pendente" } },
       },
       include: rentalInclude,
@@ -141,11 +142,12 @@ export const getRentalStatus: RequestHandler = async (req, res) => {
 // Aplica filtros de papel apenas sobre registros do usuário autenticado e devolve a lista paginada.
 export const listMyRentals: RequestHandler = async (req, res) => {
   await maintainRentals();
-  if ((req.query.proprietarioId && req.query.proprietarioId !== req.user!.id) || (req.query.solicitanteId && req.query.solicitanteId !== req.user!.id)) throw new HttpError(403, "Acesso negado");
-  const role = req.query.papel;
+  const query = validatedPart(req, "query", rentalListQuerySchema);
+  if ((query.proprietarioId && query.proprietarioId !== req.user!.id) || (query.solicitanteId && query.solicitanteId !== req.user!.id)) throw new HttpError(403, "Acesso negado");
+  const role = query.papel;
   if (role !== undefined && role !== "locatario" && role !== "proprietario") throw new HttpError(422, "Papel inválido", "papel_invalido");
-  if ((role === "locatario" && (req.query.proprietarioId || req.query.tipo === "recebidas")) || (role === "proprietario" && req.query.solicitanteId)) throw new HttpError(422, "Filtros de papel incompatíveis", "papel_invalido");
-  const where = role === "proprietario" || req.query.tipo === "recebidas" || req.query.proprietarioId ? { locador_id: req.user!.id } : role === "locatario" || req.query.solicitanteId ? { locatario_id: req.user!.id } : { OR: [{ locador_id: req.user!.id }, { locatario_id: req.user!.id }] };
+  if ((role === "locatario" && (query.proprietarioId || query.tipo === "recebidas")) || (role === "proprietario" && query.solicitanteId)) throw new HttpError(422, "Filtros de papel incompatíveis", "papel_invalido");
+  const where = role === "proprietario" || query.tipo === "recebidas" || query.proprietarioId ? { locador_id: req.user!.id } : role === "locatario" || query.solicitanteId ? { locatario_id: req.user!.id } : { OR: [{ locador_id: req.user!.id }, { locatario_id: req.user!.id }] };
   const {page,limit,skip}=pagination(req);
   const [rentals,total] = await Promise.all([prisma.alugueis.findMany({
     where,
@@ -164,7 +166,7 @@ export const listMyRentals: RequestHandler = async (req, res) => {
  */
 export const updateRentalStatus: RequestHandler = async (req, res) => {
   await maintainRentals();
-  const input = nonEmptyString(req.body?.status)?.toLowerCase();
+  const input = validatedPart(req, "body", rentalStatusSchema).status.toLowerCase();
   const status = input ? normalizeRentalStatus(input) : null;
   const allowed = ["aprovado", "recusado", "cancelado", "devolvido", "finalizado", "aguardando_devolucao"];
   if (!status || !allowed.includes(status)) throw new HttpError(422, "Status inválido");
@@ -190,7 +192,7 @@ export const updateRentalStatus: RequestHandler = async (req, res) => {
     }
     const changed = await tx.alugueis.updateMany({
       where: { id: rental.id, status: rental.status },
-      data: { status, atualizado_em: new Date(), ...(status === "aprovado" ? { pagamento_ate: paymentDeadline(rental) } : {}), ...(status === "cancelado" ? { cancelado_por: req.baseUrl.startsWith("/api/admin") ? "admin" : req.user!.id } : {}) },
+      data: { status, atualizado_em: new Date(), ...(status === "aprovado" ? { pagamento_ate: null } : {}), ...(status === "cancelado" ? { cancelado_por: req.baseUrl.startsWith("/api/admin") ? "admin" : req.user!.id } : {}) },
     });
     if (changed.count === 0) throw new HttpError(409, "O aluguel foi alterado por outra operação");
     // Ao aprovar uma reserva, recusa pedidos pendentes conflitantes e avisa seus locatários.
@@ -201,13 +203,6 @@ export const updateRentalStatus: RequestHandler = async (req, res) => {
         await tx.eventos_aluguel.createMany({ data: pending.map(row => ({ aluguel_id: row.id, status: "recusado", motivo: "Conflito com solicitação aprovada" })) });
         await createNotifications(tx, pending.map(row => ({ usuario_id: row.locatario_id, tipo: "aluguel_rejeitado", titulo: "Solicitação não aprovada", mensagem: "O objeto foi reservado para o mesmo período.", contexto: { solicitacao_id: row.id, aluguelId: row.id } })));
       }
-    }
-    // Pagamentos reais devem ser resolvidos no provedor antes de concluir o cancelamento local.
-    if (status === "cancelado") {
-      if(await tx.pagamentos.count({where:{aluguel_id:rental.id,status:{in:["cancelamento_pendente","estorno_pendente"]}}})) throw new HttpError(409,"Operação financeira pendente");
-      if(await tx.pagamentos.count({where:{aluguel_id:rental.id,gateway:{not:"demo"},status:{in:["pago","pendente"]}}})) throw new HttpError(409,"Cancele ou estorne no provedor antes de cancelar aluguel");
-      await tx.pagamentos.updateMany({ where: { aluguel_id: rental.id, gateway:"demo",status: "pago" }, data: { status: "estornado" } });
-      await tx.pagamentos.updateMany({ where: { aluguel_id: rental.id, gateway:"demo",status: "pendente" }, data: { status: "cancelado" } });
     }
     await tx.eventos_aluguel.create({ data: { aluguel_id: rental.id, usuario_id: req.user!.id, status } });
     if (req.baseUrl.startsWith("/api/admin")) await audit(tx, req.user!.id, "alterar_status", "aluguel", rental.id, { status });
@@ -232,8 +227,7 @@ export const getMyRentalBlock: RequestHandler = async (req, res) => {
 
 /*
  * Cancela pedido do locatário ou proprietário conforme o estado atual.
- * Se houver cobrança, solicita antes o cancelamento ou estorno financeiro; uma resposta
- * 202 indica que essa operação ainda precisa ser confirmada pelo provedor.
+ * O cancelamento é exclusivamente operacional; cobranças legadas permanecem históricas.
  */
 export const cancelRentalRequest: RequestHandler = async (req, res) => {
   const id = uuid(req.params.id);
@@ -243,12 +237,7 @@ export const cancelRentalRequest: RequestHandler = async (req, res) => {
   if (rental.status === "cancelado") { res.json({ success: true, status: "cancelado", solicitacao_id: id }); return; }
   if (!["pendente", "aprovado", "pago"].includes(rental.status ?? "")) throw new HttpError(409, "Cancelamento não permitido neste estado", "cancelamento_indisponivel");
   await prisma.alugueis.updateMany({ where: { id, status: rental.status }, data: { cancelado_por: req.user!.id } });
-  const financial = await prisma.pagamentos.findFirst({ where: { aluguel_id: id, tipo: "aluguel", status: { in: ["pago", "pendente", "estorno_pendente", "cancelamento_pendente"] } }, orderBy: { criado_em: "desc" } });
-  if (financial) {
-    const payment = await requestFinancial(financial.id, financial.status === "pago" || financial.status === "estorno_pendente" ? "refund" : "cancel");
-    if (payment.status === "estorno_pendente" || payment.status === "cancelamento_pendente") { res.status(202).json({ success: true, status: "operacao_financeira_pendente", solicitacao_id: id }); return; }
-  }
-  // Só marca o aluguel como cancelado e registra evento e avisos após resolver o pagamento.
+  // Marca o aluguel como cancelado e registra evento e avisos sem operação financeira.
   // O bloqueio e a releitura evitam duplicar o evento em cancelamentos concorrentes.
   const result = await prisma.$transaction(async tx => {
     await tx.$queryRaw`SELECT id FROM alugueis WHERE id=${id}::uuid FOR UPDATE`;

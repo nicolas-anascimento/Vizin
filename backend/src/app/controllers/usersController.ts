@@ -1,10 +1,11 @@
-import { text } from "../utils/validation.ts";
 import { uuid } from "../utils/validation.ts";
 import type { RequestHandler } from "express";
 import prisma from "../config/database.ts";
 import { HttpError } from "../utils/httpError.ts";
 import { publicUploadUrl, removeUploadByUrl } from "../utils/files.ts";
 import { serializeProfile } from "../utils/serializers.ts";
+import { validatedPart } from "../middlewares/validate.ts";
+import { profilePatchSchema } from "../schemas/users.schema.ts";
 
 // Relações usadas para avaliações, histórico e contadores exibidos no perfil.
 const profileInclude = {
@@ -43,12 +44,11 @@ export const publicProfile: RequestHandler = async (req, res) => {
 
 // Valida apenas os campos enviados e atualiza o perfil do usuário autenticado.
 export const updateProfile: RequestHandler = async (req, res) => {
-  const body = req.body ?? {};
-  const nome = body.nome !== undefined ? text(body.nome,"Nome",100) : undefined;
-  const bio = body.bio === "" ? "" : body.bio !== undefined ? text(body.bio,"Bio",1000) : undefined;
+  const body = validatedPart(req, "body", profilePatchSchema);
+  const nome = body.nome;
+  const bio = body.bio;
   const phone = body.telefone ?? body.whatsapp;
-  const telefone = phone === "" ? "" : phone !== undefined ? text(phone,"Telefone",20) : undefined;
-  if (telefone && !/^[+()\d\s-]{8,20}$/.test(telefone)) throw new HttpError(422,"Telefone inválido");
+  const telefone = phone;
   if (nome) {
     const approved = await prisma.verificacoes_identidade.count({ where: { usuario_id: req.user!.id, status: "aprovado", revogada: false } });
     if (approved) throw new HttpError(409, "O nome não pode ser alterado enquanto a identidade estiver verificada.", "nome_bloqueado_verificacao");

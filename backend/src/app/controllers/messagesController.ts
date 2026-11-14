@@ -1,16 +1,15 @@
 import { serializeMessage } from "../utils/serializers.ts";
-import { text } from "../utils/validation.ts";
 import type { RequestHandler } from "express";
 import prisma from "../config/database.ts";
 import { HttpError } from "../utils/httpError.ts";
-import { nonEmptyString } from "../utils/strings.ts";
 import { pageHeaders, pagination } from "../utils/listPage.ts";
 import { createNotification } from "../services/notificationPreferences.ts";
+import { validatedPart } from "../middlewares/validate.ts";
+import { messagesQuerySchema, sendMessageSchema } from "../schemas/messages.schema.ts";
 
 // Lista mensagens do usuário respeitando o relacionamento entre remetente e destinatário.
 export const listMessages: RequestHandler = async (req, res) => {
-  const rentalId = nonEmptyString(req.query.aluguel_id);
-  if (!rentalId) throw new HttpError(422, "aluguel_id é obrigatório");
+  const rentalId = validatedPart(req, "query", messagesQuerySchema).aluguel_id;
   const rental = await prisma.alugueis.findUnique({ where: { id: rentalId } });
   if (!rental) throw new HttpError(404, "Aluguel não encontrado");
   if (![rental.locador_id, rental.locatario_id].includes(req.user!.id)) throw new HttpError(403, "Acesso negado");
@@ -25,11 +24,7 @@ export const listMessages: RequestHandler = async (req, res) => {
 
 // Valida destinatário e corpo e registra nova mensagem.
 export const sendMessage: RequestHandler = async (req, res) => {
-  const rentalId = nonEmptyString(req.body?.aluguel_id);
-  const content = nonEmptyString(req.body?.conteudo);
-  if (!rentalId || !content) throw new HttpError(422, "Aluguel e mensagem são obrigatórios");
-  text(content, "Mensagem", 3000);
-  if (content.length > 3000) throw new HttpError(422, "A mensagem é muito longa");
+  const { aluguel_id: rentalId, conteudo: content } = validatedPart(req, "body", sendMessageSchema);
   const rental = await prisma.alugueis.findUnique({ where: { id: rentalId } });
   if (!rental) throw new HttpError(404, "Aluguel não encontrado");
   if (![rental.locador_id, rental.locatario_id].includes(req.user!.id)) throw new HttpError(403, "Acesso negado");

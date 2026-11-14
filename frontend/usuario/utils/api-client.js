@@ -24,10 +24,12 @@
         nao_aprovada: "A solicitação ainda não está aprovada.", objeto_indisponivel: "O objeto não está mais disponível.",
         prazo_expirado: "O prazo desta operação expirou.", idempotencia_conflitante: "A tentativa diverge da operação já registrada.",
         conciliacao_pendente: "A operação está em conciliação.", operacao_pendente: "A operação anterior ainda está pendente.",
-        pix_incompleto: "Os dados do PIX ainda estão sendo recuperados.", multa_contestada: "A multa está em contestação.",
-        multa_desabilitada: "A cobrança da multa está indisponível.", pagamento_em_andamento: "Já existe um pagamento em andamento.",
+        pix_incompleto: "Os dados do PIX ainda estão sendo recuperados.",
+        pagamento_em_andamento: "Já existe um pagamento em andamento.",
         cartao_em_uso: "Este cartão está vinculado a uma operação em andamento.", decisao_concorrente: "Outra decisão foi registrada ao mesmo tempo.",
-        usuario_com_multa_pendente: "Quite ou conteste a multa pendente antes de continuar.",
+        limite_anuncios_atingido: "Você atingiu o limite de anúncios do seu plano neste mês. Contrate um plano com mais publicações.",
+        plano_nao_encontrado: "Este plano não existe ou não está disponível.",
+        plano_ja_ativo: "Você já possui este plano ativo.",
         usuario_com_devolucao_pendente: "Conclua a devolução pendente antes de continuar.",
         admin_required: "Esta ação exige uma conta administradora.",
         conta_suspensa: "Sua conta está suspensa. Fale com o Suporte para pedir a reativação."
@@ -92,7 +94,8 @@
 
         if (!resposta.ok) {
             throw new ApiError(
-                dados?.mensagem || dados?.message || mensagensPorCodigo[dados?.codigo] || "Não foi possível concluir a operação. Tente novamente em instantes.",
+                dados?.mensagem || dados?.message || mensagensPorCodigo[dados?.codigo] ||
+                (resposta.status === 413 ? "O arquivo é grande demais para ser enviado." : "Não foi possível concluir a operação. Tente novamente em instantes."),
                 resposta.status,
                 dados?.codigo
             );

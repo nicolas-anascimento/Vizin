@@ -7,6 +7,7 @@ const CORES_AVATAR = ["#6D49F2", "#F27C38", "#3B82C4", "#1F9D66", "#B4770A", "#C
 let estado = {
     busca: "",
     status: "todos",
+    plano: "todos",
     pagina: 1,
     usuarios: [],
     total: 0
@@ -21,6 +22,12 @@ if (_statusUrlUsuarios === "ativo" || _statusUrlUsuarios === "inativo") {
     estado.status = _statusUrlUsuarios;
 }
 
+// Também aceita ?plano=gratuito|assinantes (ex.: link vindo de outra tela).
+const _planoUrlUsuarios = new URLSearchParams(window.location.search).get("plano");
+if (_planoUrlUsuarios === "gratuito" || _planoUrlUsuarios === "assinantes") {
+    estado.plano = _planoUrlUsuarios;
+}
+
 const corpoTabela = document.getElementById("corpoTabelaUsuarios");
 const infoPaginacao = document.getElementById("infoPaginacao");
 const paginacaoEl = document.getElementById("paginacao");
@@ -31,13 +38,14 @@ const inputBusca = document.getElementById("buscaUsuarios");
 // CARREGAR DADOS
 // =====================================================
 async function carregarUsuarios() {
-    corpoTabela.innerHTML = `<tr><td colspan="6" class="admin-tabela-vazio">Carregando...</td></tr>`;
+    corpoTabela.innerHTML = `<tr><td colspan="7" class="admin-tabela-vazio">Carregando...</td></tr>`;
     tabelaEstadoVazio.hidden = true;
 
     try {
         const resposta = await listarUsuariosAdmin({
             busca: estado.busca,
             status: estado.status,
+            plano: estado.plano,
             pagina: estado.pagina,
             porPagina: POR_PAGINA
         });
@@ -45,7 +53,7 @@ async function carregarUsuarios() {
         estado.usuarios = (resposta.dados || [])
             .map(u => ({ ...u, status: u.ativo ? 'ativo' : 'inativo', dataCadastro: u.criado_em }));
     } catch (err) {
-        corpoTabela.innerHTML = `<tr><td colspan="6" class="admin-tabela-vazio">${escAdmin(err.message)}</td></tr>`;
+        corpoTabela.innerHTML = `<tr><td colspan="7" class="admin-tabela-vazio">${escAdmin(err.message)}</td></tr>`;
         infoPaginacao.textContent = '';
         paginacaoEl.innerHTML = '';
         return;
@@ -91,6 +99,25 @@ function labelStatus(status) {
     return { ativo: "Ativo", inativo: "Inativo" }[status] || status;
 }
 
+const ehAdminLista = u => u.tipo === "admin";
+
+// Plano do usuário (vem na listagem: plano {nome, preco_mensal, limite_anuncios} + anuncios_usados).
+// Administradores não anunciam, então não têm plano.
+function celulaPlano(u) {
+    if (ehAdminLista(u)) return "—";
+    if (!u.plano) return "—";
+    const pago = u.plano.codigo ? u.plano.codigo !== "gratuito" : Number(u.plano.preco_mensal) > 0;
+    const usados = Number(u.anuncios_usados) || 0;
+    // A listagem só traz { codigo, nome } + anuncios_usados (preço e limite ficam em /admin/usuarios/:id/assinatura).
+    const limite = Number(u.plano.limite_publicacoes ?? u.plano.limite_anuncios);
+    const temLimite = Number.isFinite(limite) && limite > 0;
+    const cheio = temLimite && usados >= limite;
+    return `<div class="admin-plano-cel">
+        <span class="admin-badge ${pago ? "plano-pago" : "plano-gratuito"}">${escAdmin(u.plano.nome || (pago ? "Pago" : "Gratuito"))}</span>
+        <span class="admin-plano-uso ${cheio ? "cheio" : ""}">${temLimite ? `${usados}/${limite}` : usados} anúncio${usados === 1 && !temLimite ? "" : "s"} usado${usados === 1 && !temLimite ? "" : "s"}${cheio ? " · limite" : ""}</span>
+    </div>`;
+}
+
 function renderizarTabela() {
     tabelaEstadoVazio.hidden = estado.usuarios.length > 0;
 
@@ -99,17 +126,21 @@ function renderizarTabela() {
     // uma lista de cards (ver usuarios.css).
     corpoTabela.innerHTML = estado.usuarios.map(u => `
         <tr data-id="${escAdmin(u.id)}">
-            <td data-label="Foto"><div class="admin-avatar" style="background:${corAvatar(u.id)}">${iniciais(u.nome)}</div></td>
+            <td data-label="Foto"><div class="admin-avatar" style="background:${corAvatar(u.id)}">${window.avatarAdminHtml ? window.avatarAdminHtml(u.avatarUrl ?? u.avatar_url, iniciais(u.nome)) : iniciais(u.nome)}</div></td>
             <td data-label="Nome" class="admin-nome">${escAdmin(u.nome)}</td>
             <td data-label="Email" class="admin-email">${escAdmin(u.email)}</td>
+            <td data-label="Plano">${celulaPlano(u)}</td>
             <td data-label="Data Cadastro">${formatarData(u.dataCadastro)}</td>
-            <td data-label="Status"><span class="admin-badge ${u.status}">${labelStatus(u.status)}</span></td>
+            <td data-label="Status">${ehAdminLista(u)
+                ? `<span class="admin-badge admin">Administrador</span>`
+                : `<span class="admin-badge ${u.status}">${labelStatus(u.status)}</span>`}</td>
             <td data-label="Ações">
                 <div class="admin-acoes">
                     <button class="admin-acao-btn ver" title="Ver detalhes" data-acao="ver"><i class="bi bi-eye"></i></button>
 
+                    ${ehAdminLista(u) ? "" : `
                     <button class="admin-acao-btn status" title="Alterar status" data-acao="status"><i class="bi bi-shield-lock"></i></button>
-                    <button class="admin-acao-btn excluir" title="Excluir" data-acao="excluir"><i class="bi bi-trash"></i></button>
+                    <button class="admin-acao-btn excluir" title="Excluir" data-acao="excluir"><i class="bi bi-trash"></i></button>`}
                 </div>
             </td>
         </tr>
@@ -153,7 +184,8 @@ inputBusca.addEventListener("input", () => {
 // =====================================================
 const btnFiltros = document.getElementById("btnFiltros");
 const filtroStatusBar = document.getElementById("filtroStatusBar");
-const pillsFiltro = document.querySelectorAll(".admin-filtro-pill");
+const pillsFiltro = document.querySelectorAll(".admin-filtro-pill[data-status]");
+const pillsPlano = document.querySelectorAll(".admin-filtro-pill[data-plano]");
 
 btnFiltros.addEventListener("click", () => {
     filtroStatusBar.classList.toggle("aberta");
@@ -170,7 +202,8 @@ document.addEventListener("click", (e) => {
 // botão "Filtros" antes da 1ª renderização — sem isso o filtro aplicaria
 // certo mas a UI mostraria "todos" selecionado.
 pillsFiltro.forEach(p => p.classList.toggle("active", p.dataset.status === estado.status));
-btnFiltros.classList.toggle("active", estado.status !== "todos");
+pillsPlano.forEach(p => p.classList.toggle("active", p.dataset.plano === estado.plano));
+btnFiltros.classList.toggle("active", estado.status !== "todos" || estado.plano !== "todos");
 
 pillsFiltro.forEach(pill => {
     pill.addEventListener("click", () => {
@@ -179,9 +212,23 @@ pillsFiltro.forEach(pill => {
 
         estado.status = pill.dataset.status;
         estado.pagina = 1;
-        btnFiltros.classList.toggle("active", estado.status !== "todos");
+        btnFiltros.classList.toggle("active", estado.status !== "todos" || estado.plano !== "todos");
 
         // Fecha o painel depois de escolher o status.
+        filtroStatusBar.classList.remove("aberta");
+
+        carregarUsuarios();
+    });
+});
+
+pillsPlano.forEach(pill => {
+    pill.addEventListener("click", () => {
+        pillsPlano.forEach(p => p.classList.remove("active"));
+        pill.classList.add("active");
+
+        estado.plano = pill.dataset.plano;
+        estado.pagina = 1;
+        btnFiltros.classList.toggle("active", estado.status !== "todos" || estado.plano !== "todos");
         filtroStatusBar.classList.remove("aberta");
 
         carregarUsuarios();
@@ -218,6 +265,9 @@ corpoTabela.addEventListener("click", (e) => {
     if (!usuario) return;
 
     const acao = btn.dataset.acao;
+
+    // Administradores só podem ser visualizados; suspender/excluir não se aplica.
+    if (ehAdminLista(usuario) && acao !== "ver") return;
 
     if (acao === "ver") {
         window.location.href = `/admin/usuarios/detalhe?id=${encodeURIComponent(usuario.id)}`;

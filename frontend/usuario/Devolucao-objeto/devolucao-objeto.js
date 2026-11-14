@@ -102,9 +102,8 @@ document.getElementById("devolucao-subtitulo").textContent =
 // das 00:00 do dia seguinte começa a contar multa diária. O cálculo do "hoje"
 // (fuso de São Paulo) fica em DevolucaoVizin.prazo(); o VALOR da multa é sempre
 // do back-end.
-const formatarReal = window.SolicitacoesVizin.formatarReal;
 
-const AVISO_MULTA_DIARIA = "Depois disso começa a contar multa diária.";
+const AVISO_ATRASO = "Depois desse prazo a devolução fica registrada como em atraso.";
 
 function renderizarPrazo() {
     const prazoCard = document.getElementById("prazo-card");
@@ -120,61 +119,28 @@ function renderizarPrazo() {
 
     let texto;
     if (p.estado === "futura" && p.diff > 1) {
-        texto = `Faltam ${p.diff} dias para o prazo da devolução (${dataFormatada}). A devolução deve ser confirmada até as 23:59 desse dia. ${AVISO_MULTA_DIARIA}`;
+        texto = `Faltam ${p.diff} dias para o prazo da devolução (${dataFormatada}). A devolução deve ser confirmada até as 23:59 desse dia. ${AVISO_ATRASO}`;
     } else if (p.estado === "futura") {
-        texto = `A devolução precisa ser confirmada até amanhã (${dataFormatada}), às 23:59. ${AVISO_MULTA_DIARIA}`;
+        texto = `A devolução precisa ser confirmada até amanhã (${dataFormatada}), às 23:59. ${AVISO_ATRASO}`;
         prazoCard.classList.add("prazo-urgente");
     } else if (p.estado === "hoje") {
-        texto = `A devolução precisa ser confirmada hoje, até as 23:59. ${AVISO_MULTA_DIARIA}`;
+        texto = `A devolução precisa ser confirmada hoje, até as 23:59. ${AVISO_ATRASO}`;
         prazoCard.classList.add("prazo-urgente");
     } else {
-        texto = `Devolução em atraso há ${p.diasAtraso} dia(s): o prazo terminou às 23:59 de ${dataFormatada} e a multa diária já está correndo. Enquanto o objeto não for devolvido, ${meuPapel === "locatario" ? "sua conta fica impedida de solicitar novos aluguéis ou aprovar locações" : "a conta de quem alugou fica restrita"}.`;
+        texto = `Devolução em atraso há ${p.diasAtraso} dia(s): o prazo terminou às 23:59 de ${dataFormatada}. Enquanto o objeto não for devolvido, ${meuPapel === "locatario" ? "sua conta fica impedida de solicitar novos aluguéis ou aprovar locações" : "a conta de quem alugou fica restrita"}. Eventuais valores devem ser combinados diretamente entre locador e locatário.`;
         prazoCard.classList.add("prazo-urgente");
-
-        // Valor e dias de atraso "oficiais" vêm do back (projeção até a devolução ser confirmada).
-        window.SolicitacoesVizin.obterMulta(solicitacao.id).then(m => {
-            if (m && m.valorTotal > 0) {
-                const dias = m.diasAtraso > 0 ? m.diasAtraso : p.diasAtraso;
-                prazoTexto.textContent = `Devolução em atraso há ${dias} dia(s): o prazo terminou às 23:59 de ${dataFormatada}. Já acumulou ${formatarReal(m.valorTotal)} de multa (${formatarReal(m.valorDia)}/dia), cobrados quando a devolução for confirmada.`;
-            }
-        }).catch(() => { /* mantém o texto sem valor */ });
     }
 
     prazoTexto.textContent = texto;
     prazoCard.style.display = "flex";
 }
 
-// ================= RESUMO DA MULTA ANTES DE CONFIRMAR =================
-// Repete o valor exato perto do botão de confirmar, pra ninguém confirmar a
-// devolução sem saber quanto vai ser cobrado (ou recebido). Valores do back.
-function renderizarResumoMulta() {
-    const resumoEl = document.getElementById("resumo-multa-confirmar");
-    if (!resumoEl || solicitacao.status !== "retirado") return;
-
-    window.SolicitacoesVizin.obterMulta(solicitacao.id).then(multa => {
-        if (!multa || multa.diasAtraso <= 0) return;
-
-        const textoValor = meuPapel === "locatario"
-            ? `<strong>${formatarReal(multa.valorTotal)} será cobrado agora</strong> ao confirmar a devolução`
-            : `<strong>${formatarReal(multa.valorProprietario)} será creditado a você</strong> ao confirmar a devolução`;
-
-        resumoEl.innerHTML = `
-            <i class="bi bi-receipt"></i>
-            <span>${textoValor} — ${multa.diasAtraso} dia(s) de atraso (${formatarReal(multa.valorDia)}/dia).</span>
-        `;
-        resumoEl.classList.add("prazo-urgente");
-        resumoEl.style.display = "flex";
-    }).catch(() => { /* sem resumo: o valor final aparece após confirmar */ });
-}
-
 renderizarPrazo();
-renderizarResumoMulta();
 
 // Se a tela ficar aberta na virada do dia (00:00 de São Paulo), o prazo passa
 // de "hoje" pra "em atraso" sozinho, sem perder as fotos já selecionadas.
 DevolucaoVizin.aoVirarODia(() => {
     renderizarPrazo();
-    renderizarResumoMulta();
 });
 
 // ================= COMPRESSÃO DAS FOTOS ANTES DO ENVIO =================
@@ -432,69 +398,24 @@ function finalizarDevolucao() {
     clearInterval(intervaloAcompanhamento);
     fotosJaEnviadas = true;
 
-    // Snapshot congelado da multa (se houve atraso), vindo do back.
+    // Registro do atraso (só informativo). A plataforma não cobra nem repassa
+    // valores: qualquer acerto é entre locador e locatário.
     const atual = window.SolicitacoesVizin.obterPorId(solicitacao.id);
-    const multa = atual?.multaAtraso || { diasAtraso: 0, valorTotal: 0, valorPlataforma: 0, valorProprietario: 0 };
+    const diasAtraso = atual?.multaAtraso?.diasAtraso || 0;
 
-    const notaMulta = document.getElementById("confirmada-multa-nota");
-    if (notaMulta) {
-        if (multa.diasAtraso > 0) {
-            notaMulta.textContent = meuPapel === "locatario"
-                ? `${formatarReal(multa.valorTotal)} de multa por ${multa.diasAtraso} dia(s) de atraso na devolução — o pagamento é feito na próxima etapa.`
-                : `A devolução ficou ${multa.diasAtraso} dia(s) em atraso: você vai receber ${formatarReal(multa.valorProprietario)} de multa (a plataforma retém ${formatarReal(multa.valorPlataforma)}) assim que o locatário pagar.`;
-            notaMulta.classList.remove("hidden");
+    const notaAtraso = document.getElementById("confirmada-multa-nota");
+    if (notaAtraso) {
+        if (diasAtraso > 0) {
+            notaAtraso.textContent = `A devolução ficou ${diasAtraso} dia(s) em atraso. O atraso foi registrado; eventuais valores devem ser combinados diretamente entre locador e locatário.`;
+            notaAtraso.classList.remove("hidden");
         } else {
-            notaMulta.classList.add("hidden");
+            notaAtraso.classList.add("hidden");
         }
     }
-
-    atualizarAcaoMulta(atual, multa);
 
     document.getElementById("etapa-enviar").style.display = "none";
     document.getElementById("etapa-aguardando").style.display = "none";
     document.getElementById("etapa-confirmada").style.display = "block";
-}
-
-// ================= PAGAR A MULTA =================
-// Mostra (só pro locatário) o botão de pagar a multa obrigatória. O
-// pagamento acontece na página dedicada (/pagamento-multa).
-function atualizarAcaoMulta(solic, multa) {
-    const acaoCard = document.getElementById("confirmada-multa-acao");
-    const textoAcao = document.getElementById("confirmada-multa-acao-texto");
-    const btnPagar = document.getElementById("btn-pagar-multa");
-    if (!acaoCard) return;
-
-    if (meuPapel !== "locatario" || !multa || multa.diasAtraso <= 0 || !window.SolicitacoesVizin) {
-        acaoCard.classList.add("hidden");
-        return;
-    }
-
-    const status = solic?.multaStatus || "pendente";
-    acaoCard.classList.remove("hidden", "multa-acao-ok", "multa-acao-suspensa");
-
-    if (status === "paga") {
-        textoAcao.textContent = "Multa paga. Sua conta está liberada para novas locações.";
-        if (btnPagar) btnPagar.style.display = "none";
-        acaoCard.classList.add("multa-acao-ok");
-        return;
-    }
-
-    if (status === "contestada") {
-        textoAcao.textContent = "Multa contestada. A cobrança fica suspensa até o Suporte analisar seu relato.";
-        if (btnPagar) btnPagar.style.display = "none";
-        acaoCard.classList.add("multa-acao-suspensa");
-        return;
-    }
-
-    textoAcao.textContent = "Enquanto essa multa não for paga, você não pode solicitar novos aluguéis nem aprovar locações nos seus próprios objetos.";
-    if (btnPagar) btnPagar.style.display = "";
-}
-
-const btnPagarMulta = document.getElementById("btn-pagar-multa");
-if (btnPagarMulta) {
-    btnPagarMulta.addEventListener("click", () => {
-        window.location.href = `/pagamento-multa?solicitacaoId=${encodeURIComponent(solicitacao.id)}`;
-    });
 }
 
 // Consulta o back a cada 5 s enquanto espera a outra parte (sem WebSocket).

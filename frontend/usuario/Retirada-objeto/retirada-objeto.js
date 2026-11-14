@@ -56,9 +56,9 @@ if (!solicitacao.souProprietario && !solicitacao.souSolicitante) {
     return;
 }
 
-// Só existe retirada para locação paga (ou já além disso). Antes de pagar,
-// não há o que registrar aqui.
-if (["pendente", "aprovado", "rejeitado"].includes(solicitacao.status)) {
+// Só existe retirada para locação aprovada (ou já além disso). O aluguel não
+// passa por pagamento na plataforma: "aprovado" já é "aguardando retirada".
+if (["pendente", "rejeitado"].includes(solicitacao.status)) {
     document.getElementById("conteudo-retirada").style.display = "none";
     document.getElementById("etapa-erro").style.display = "block";
     return;
@@ -108,7 +108,7 @@ modalCancelarConfirmar.addEventListener("click", async () => {
     modalCancelarConfirmar.textContent = "Cancelando...";
 
     try {
-        // O back estorna (se houver pagamento) e libera o objeto.
+        // O back cancela a locação e libera o objeto.
         await window.SolicitacoesVizin.cancelar(solicitacao.id);
         fotosJaEnviadas = true; // não avisar "fotos não enviadas" ao sair
         window.location.href = `/historico`;
@@ -137,7 +137,7 @@ function verificarSeFoiCancelada() {
         clearInterval(intervaloAcompanhamento);
         fotosJaEnviadas = true;
         alert(atual.canceladoPeloSistema
-            ? "O prazo para registrar a retirada terminou às 23:59 do dia combinado e a locação foi cancelada automaticamente. O estorno do valor pago está em andamento."
+            ? "O prazo para registrar a retirada terminou às 23:59 do dia combinado e a locação foi cancelada automaticamente."
             : "Esta locação foi cancelada.");
         window.location.href = `/historico`;
         return true;
@@ -172,7 +172,7 @@ document.getElementById("retirada-subtitulo").textContent =
 // ================= JANELA DA RETIRADA (00:00–23:59 do dia agendado) =================
 // Regra de negócio: a retirada só pode ser registrada NO DIA combinado, das
 // 00:00 às 23:59 (fuso de São Paulo). Antes disso ainda não abriu; depois
-// disso o back cancela a locação sozinho e estorna o valor pago ao locatário.
+// disso o back cancela a locação sozinho.
 // Quem decide é o back (codigo_bloqueio no GET e códigos de erro no POST —
 // ver retirada-shared.js). O cálculo por data fica em RetiradaVizin.janela().
 let janelaAberta = true;      // false = não dá pra enviar fotos agora (ainda não abriu ou já fechou)
@@ -233,7 +233,7 @@ function atualizarJanela() {
     if (!prazoCard || !prazoTexto) return;
 
     const statusAtual = window.SolicitacoesVizin.obterPorId(solicitacao.id)?.status || solicitacao.status;
-    if (statusAtual !== "pago") {
+    if (statusAtual !== "pago" && statusAtual !== "aprovado") {
         // Já retirado/cancelado: a janela não se aplica mais.
         prazoCard.style.display = "none";
         definirJanelaAberta(true);
@@ -252,11 +252,11 @@ function atualizarJanela() {
         classe = "prazo-info";
     } else if (estado === "aberta") {
         texto = (diff === 0 || diff === null)
-            ? "Retirada disponível hoje, até as 23:59. Se ninguém registrar até lá, a locação é cancelada automaticamente e o valor pago é estornado ao locatário."
+            ? "Retirada disponível hoje, até as 23:59. Se ninguém registrar até lá, a locação é cancelada automaticamente."
             : "Retirada liberada para demonstração (fora da data contratual).";
         classe = "prazo-urgente";
     } else {
-        texto = `O prazo da retirada terminou às 23:59 de ${dataBR}. A locação será cancelada automaticamente e o valor pago estornado ao locatário.`;
+        texto = `O prazo da retirada terminou às 23:59 de ${dataBR}. A locação será cancelada automaticamente.`;
         classe = "prazo-urgente";
     }
 

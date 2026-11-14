@@ -6,6 +6,7 @@ import { removeUploadByUrl } from "../utils/files.ts";
 import { HttpError } from "../utils/httpError.ts";
 import { audit } from "../utils/admin.ts";
 import { activeStatuses } from "./rentalRules.ts";
+import { wakeEmailOutbox } from "./emailOutbox.ts";
 // Verifica obrigações abertas antes de desativar ou remover conta e seus vínculos permitidos.
 export async function removeAccount(id: string, deactivateOnly=false, adminId?: string): Promise<void> {
  // Bloqueia a conta e verifica aluguéis e pagamentos abertos antes de desativar.
@@ -24,6 +25,7 @@ export async function removeAccount(id: string, deactivateOnly=false, adminId?: 
   await tx.resetar_Senha.deleteMany({where:{userId:id}});await tx.emails_pendentes.deleteMany({where:{usuario_id:id}});
   return{avatar:deactivateOnly?null:user.foto_url,documents};
  },{isolationLevel:"Serializable"});
+ if (!deactivateOnly) wakeEmailOutbox();
  // Só depois da confirmação no banco remove arquivos locais que não são transacionais.
  await removeUploadByUrl(result.avatar);
  for(const row of result.documents)for(const file of Object.values(row.documentos as Record<string,string>))if(typeof file==="string" && path.basename(file)===file)await unlink(path.join(privateRoot,file)).catch(()=>undefined);

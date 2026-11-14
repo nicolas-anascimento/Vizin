@@ -8,6 +8,7 @@ declare global {
         tipo: "admin" | "usuario";
         ativo: boolean;
       };
+      validated?: Record<string, unknown>;
     }
   }
 }

@@ -38,7 +38,11 @@ const produto = window.ObjetosVizin ? normalizarProduto(await window.ObjetosVizi
 // As solicitações do usuário vêm do back (cache em SolicitacoesVizin): espera a 1ª carga.
 if (window.SolicitacoesVizin) await window.SolicitacoesVizin.pronto;
 
-if (!produto) {
+// Anúncio arquivado pela administração: só o dono ainda enxerga a página.
+const arquivadoParaVisitante = !!produto && produto.status === "arquivado" &&
+    !(usuarioLogado?.id && produto.proprietario?.id && usuarioLogado.id === produto.proprietario.id);
+
+if (!produto || arquivadoParaVisitante) {
     document.querySelector(".produto-grid").innerHTML =
         `<div style="grid-column:1/-1; text-align:center; padding:60px 20px;">
             <p style="color:var(--texto-suave); margin-bottom:20px;">
@@ -264,7 +268,9 @@ async function preencherProduto(obj) {
     document.getElementById("produto-localizacao").textContent = obj.localizacao;
     document.getElementById("produto-categoria").textContent = obj.categoria;
     document.getElementById("produto-descricao").textContent = obj.descricao;
-    document.getElementById("proprietario-avatar").textContent = (obj.proprietarioNome || "?").charAt(0);
+    document.getElementById("proprietario-avatar").innerHTML = window.AvatarVizin
+        ? window.AvatarVizin.html(obj.proprietario?.avatarUrl ?? obj.proprietario?.avatar_url, obj.proprietarioNome || "?")
+        : (obj.proprietarioNome || "?").charAt(0);
     document.getElementById("proprietario-nome").textContent = obj.proprietarioNome;
 
     renderizarGaleriaProduto(imagensProduto);
@@ -382,10 +388,9 @@ function esconderErroDatas() {
     if (erroDatas) erroDatas.style.display = "none";
 }
 
-// ESTIMATIVA só para exibição: 10% do preço de UMA diária (não do subtotal).
-// O valor oficial (subtotal, taxa e total) é calculado pelo back-end ao criar
-// a solicitação e aparece no checkout — este número não é enviado a ninguém.
-const TAXA_SERVICO_PERCENTUAL = 0.10;
+// O O Vizinho não cobra taxa de serviço nem processa o pagamento do aluguel:
+// o valor abaixo é só uma ESTIMATIVA (diária × dias) para referência. O
+// pagamento é combinado e feito direto entre locador e locatário.
 
 function calcularPeriodo() {
     const retirada = inputRetirada.value;
@@ -410,14 +415,15 @@ function calcularPeriodo() {
     esconderErroDatas();
 
     const subtotal = dias * produto.preco_dia;
-    const taxaServico = Math.round(produto.preco_dia * TAXA_SERVICO_PERCENTUAL * 100) / 100;
-    const totalComTaxa = subtotal + taxaServico;
+
+    // Linha "Taxa de serviço" não existe mais — esconde caso o HTML ainda a tenha.
+    const elTaxa = document.getElementById("resumo-taxa-servico");
+    if (elTaxa) (elTaxa.closest(".resumo-linha") || elTaxa.parentElement).style.display = "none";
 
     document.getElementById("resumo-periodo").textContent = `${dias} dia${dias > 1 ? "s" : ""}`;
     document.getElementById("resumo-preco-dia").textContent = formatarPreco(produto.preco_dia);
     document.getElementById("resumo-subtotal").textContent = formatarPreco(subtotal);
-    document.getElementById("resumo-taxa-servico").textContent = formatarPreco(taxaServico);
-    document.getElementById("resumo-total").textContent = formatarPreco(totalComTaxa);
+    document.getElementById("resumo-total").textContent = formatarPreco(subtotal);
     resumoDatas.style.display = "block";
 
     return { dias, total: subtotal, retirada, devolucao };
@@ -474,7 +480,10 @@ async function atualizarDisponibilidade() {
         return;
     }
 
-    const indisponivel = !atual.disponivel;
+    // Moderação do admin (arquivado/oculto) bloqueia o aluguel mesmo que `disponivel`
+    // continue true — o back sinaliza isso à parte.
+    const bloqueadoPelaAdmin = atual.status === "arquivado" || !!atual.oculto_pelo_admin;
+    const indisponivel = !atual.disponivel || bloqueadoPelaAdmin;
     const emLocacao = window.ObjetosVizin.temLocacaoAtiva(atual);
 
     // Locatário com uma devolução em atraso (ou multa em atraso pendente
@@ -490,8 +499,10 @@ async function atualizarDisponibilidade() {
     let avisoIndisponivel = document.getElementById("aviso-indisponivel");
 
     if (indisponivel) {
-        btnSolicitar.textContent = emLocacao ? "Objeto Alugado" : "Objeto Indisponível";
-        const mensagem = emLocacao
+        btnSolicitar.textContent = (!bloqueadoPelaAdmin && emLocacao) ? "Objeto Alugado" : "Objeto Indisponível";
+        const mensagem = bloqueadoPelaAdmin
+            ? "Este anúncio foi ocultado ou arquivado pela administração e não pode ser alugado."
+            : emLocacao
             ? "Este objeto já está alugado no momento. Tente novamente mais tarde."
             : "Este objeto não está disponível no momento.";
 
@@ -504,9 +515,7 @@ async function atualizarDisponibilidade() {
         }
         avisoIndisponivel.textContent = mensagem;
     } else if (bloqueadoPorAtraso) {
-        btnSolicitar.textContent = bloqueioDetalhes.motivo === "multa_pendente"
-            ? "Multa Pendente"
-            : "Devolução Pendente";
+        btnSolicitar.textContent = "Devolução Pendente";
 
         if (!avisoIndisponivel) {
             avisoIndisponivel = document.createElement("p");
@@ -515,9 +524,7 @@ async function atualizarDisponibilidade() {
             avisoIndisponivel.style.color = "#dc2626";
             btnSolicitar.insertAdjacentElement("afterend", avisoIndisponivel);
         }
-        avisoIndisponivel.innerHTML = bloqueioDetalhes.motivo === "multa_pendente"
-            ? `Você tem uma multa por atraso pendente de pagamento. <a href="/historico">Pague ou conteste</a> para poder solicitar novos aluguéis.`
-            : "Você tem um objeto com devolução em atraso. Devolva-o para poder solicitar novos aluguéis.";
+        avisoIndisponivel.innerHTML = "Você tem um objeto com devolução em atraso. Devolva-o para poder solicitar novos aluguéis.";
     } else {
         btnSolicitar.textContent = "Solicitar Aluguel";
         if (avisoIndisponivel) avisoIndisponivel.remove();
@@ -621,9 +628,7 @@ if (souDono) {
 
         const detalhes = window.SolicitacoesVizin.detalhesBloqueio();
         if (detalhes) {
-            avisoDono.innerHTML = detalhes.motivo === "multa_pendente"
-                ? `Você tem uma multa por atraso pendente de pagamento — não vai conseguir aprovar novas solicitações recebidas por este objeto até pagá-la (ou contestá-la). <a href="/historico">Ver no Histórico</a>`
-                : `Você tem uma devolução em atraso em outra locação — não vai conseguir aprovar novas solicitações recebidas por este objeto até resolver isso. <a href="/historico">Ver no Histórico</a>`;
+            avisoDono.innerHTML = `Você tem uma devolução em atraso em outra locação — não vai conseguir aprovar novas solicitações recebidas por este objeto até resolver isso. <a href="/historico">Ver no Histórico</a>`;
             avisoDono.style.display = "block";
         } else {
             avisoDono.style.display = "none";
@@ -681,7 +686,7 @@ function configurarLinksPosPagamento(s) {
 btnSolicitar.addEventListener("click", async () => {
     if (souDono) return; // proteção extra: o botão já fica oculto pro dono, isso é só reforço
     const objetoAtual = await window.ObjetosVizin.obterPorId(produto.id);
-    if (!objetoAtual || !objetoAtual.disponivel) {
+    if (!objetoAtual || !objetoAtual.disponivel || objetoAtual.oculto_pelo_admin || objetoAtual.status === "arquivado") {
         alert("Este objeto não está mais disponível.");
         atualizarDisponibilidade();
         return;
@@ -722,10 +727,8 @@ btnSolicitar.addEventListener("click", async () => {
     } catch (err) {
         console.error(err);
 
-        if (err.codigo === "usuario_com_devolucao_pendente" || err.codigo === "usuario_com_multa_pendente") {
-            alert(err.codigo === "usuario_com_multa_pendente"
-                ? "Você tem uma multa por atraso pendente de pagamento. Pague ou conteste no Histórico para poder solicitar novos aluguéis."
-                : "Você tem um objeto com devolução em atraso. Devolva-o para poder solicitar novos aluguéis.");
+        if (err.codigo === "usuario_com_devolucao_pendente") {
+            alert("Você tem um objeto com devolução em atraso. Devolva-o para poder solicitar novos aluguéis.");
         } else if (err.codigo === "solicitacao_duplicada") {
             // Já existe uma solicitação pendente sua pra este objeto (pode ter
             // sido criada em outra aba). Recarrega do back e leva a pessoa
@@ -797,7 +800,10 @@ async function aplicarEstadoDaSolicitacao(solicitacao) {
                 devolucao: solicitacao.dataDevolucao
             };
             preencherIdAluguel(solicitacao.id);
-            mostrarEstado("aprovado");
+            // Sem pagamento pela plataforma: aprovado já é "aguardando retirada"
+            // (mesmo cartão do antigo "pago", que continua valendo p/ dados antigos).
+            configurarLinksPosPagamento(solicitacao);
+            mostrarEstado("pago");
             break;
 
         case "pago":
@@ -953,16 +959,13 @@ function abrirModalCancelarSolicitacao() {
     const solicitacao = window.SolicitacoesVizin.obterPorId(idSolicitacaoAtual);
     const status = solicitacao?.status;
 
-    if (status === "pendente") {
-        if (modalCancelarTitulo) modalCancelarTitulo.textContent = "Cancelar solicitação?";
-        if (modalCancelarTexto) modalCancelarTexto.textContent = "Tem certeza que deseja cancelar seu pedido de aluguel? Nada foi cobrado ainda.";
-    } else if (status === "pago") {
-        if (modalCancelarTitulo) modalCancelarTitulo.textContent = "Cancelar locação?";
-        if (modalCancelarTexto) modalCancelarTexto.textContent = "Tem certeza que deseja cancelar? Quando aplicável, a solicitação de estorno será enviada ao provedor de pagamento e ficará sujeita à confirmação.";
-    } else {
-        // "aprovado" (aceito, mas ainda sem pagamento)
-        if (modalCancelarTitulo) modalCancelarTitulo.textContent = "Cancelar locação?";
-        if (modalCancelarTexto) modalCancelarTexto.textContent = "Tem certeza que deseja cancelar? Nenhum valor foi pago ainda. O objeto voltará a ficar disponível.";
+    if (modalCancelarTitulo) {
+        modalCancelarTitulo.textContent = status === "pendente" ? "Cancelar solicitação?" : "Cancelar locação?";
+    }
+    if (modalCancelarTexto) {
+        modalCancelarTexto.textContent = status === "pendente"
+            ? "Tem certeza que deseja cancelar seu pedido de aluguel?"
+            : "Tem certeza que deseja cancelar esta locação? O objeto voltará a ficar disponível. Se vocês já combinaram algum pagamento, resolvam diretamente entre vocês.";
     }
 
     modalCancelar.classList.add("show");
@@ -991,9 +994,8 @@ async function confirmarCancelamentoSolicitacao() {
     if (modalCancelarConfirmar) modalCancelarConfirmar.disabled = true;
 
     try {
-        // O back estorna (se já houve pagamento) e libera o objeto. Um 202 quer
-        // dizer que o estorno aguarda confirmação do provedor de pagamento.
-        const resultado = await window.SolicitacoesVizin.cancelar(idSolicitacaoAtual);
+        // O back cancela a locação e libera o objeto (sem nenhuma operação financeira).
+        await window.SolicitacoesVizin.cancelar(idSolicitacaoAtual);
 
         clearInterval(intervaloAcompanhamento);
         dadosSolicitacao = null;
@@ -1010,9 +1012,7 @@ async function confirmarCancelamentoSolicitacao() {
 
         fecharModalCancelarSolicitacao();
 
-        mostrarToast(resultado.operacaoFinanceiraPendente
-            ? "Cancelamento em andamento — o estorno aguarda confirmação do provedor de pagamento"
-            : "Locação cancelada");
+        mostrarToast("Locação cancelada");
     } catch (erro) {
         console.error(erro);
         mostrarToast(erro.message || "Não foi possível cancelar. Tente novamente.", "erro");
@@ -1041,19 +1041,25 @@ document.getElementById("btn-tentar-novamente").addEventListener("click", () => 
     resumoDatas.style.display = "none";
 });
 
-// ================= IR PARA O PAGAMENTO =================
-document.getElementById("btn-ir-pagamento").addEventListener("click", () => {
-    if (!dadosSolicitacao) return;
+// ================= IR PARA A RETIRADA =================
+// Antes este botão levava ao checkout do aluguel. Agora o aluguel é pago
+// direto entre as partes, então a locação aprovada segue para a retirada.
+const btnIrPagamento = document.getElementById("btn-ir-pagamento");
+if (btnIrPagamento) {
+    btnIrPagamento.innerHTML = '<i class="bi bi-box-arrow-in-down"></i> Ir para a retirada';
+    btnIrPagamento.addEventListener("click", () => {
+        if (!dadosSolicitacao) return;
 
-    const query = new URLSearchParams({
-        produtoId: produto.id,
-        retirada: dadosSolicitacao.retirada,
-        devolucao: dadosSolicitacao.devolucao,
-        solicitacaoId: dadosSolicitacao.id
+        const query = new URLSearchParams({
+            produtoId: produto.id,
+            retirada: dadosSolicitacao.retirada,
+            devolucao: dadosSolicitacao.devolucao,
+            solicitacaoId: dadosSolicitacao.id
+        });
+
+        window.location.href = `/retirada?${query.toString()}`;
     });
-
-    window.location.href = `/finalizar-pagamento?${query.toString()}`;
-});
+}
 
 document.addEventListener("avaliacoesAtualizadas", async () => {
     if (!window.SolicitacoesVizin || !window.AvaliacoesVizin) return;
@@ -1132,9 +1138,10 @@ async function renderizarAvaliacoesProduto() {
             // fez a avaliação direto por aqui.
             const linkPerfilAvaliador = av.avaliadorId ? `/perfil?id=${encodeURIComponent(av.avaliadorId)}` : null;
 
+            const miolo = window.AvatarVizin ? window.AvatarVizin.html(window.AvatarVizin.deAvaliacao(av), nome) : inicial;
             const avatarHtml = linkPerfilAvaliador
-                ? `<a class="produto-avaliacao-avatar-link" href="${linkPerfilAvaliador}" title="Ver perfil de ${nomeSeguro}"><div class="produto-avaliacao-avatar">${inicial}</div></a>`
-                : `<div class="produto-avaliacao-avatar">${inicial}</div>`;
+                ? `<a class="produto-avaliacao-avatar-link" href="${linkPerfilAvaliador}" title="Ver perfil de ${nomeSeguro}"><div class="produto-avaliacao-avatar">${miolo}</div></a>`
+                : `<div class="produto-avaliacao-avatar">${miolo}</div>`;
 
             const nomeHtml = linkPerfilAvaliador
                 ? `<a class="produto-avaliacao-nome-link" href="${linkPerfilAvaliador}">${nomeSeguro}</a>`

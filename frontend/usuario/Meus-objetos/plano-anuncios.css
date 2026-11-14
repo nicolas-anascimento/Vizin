@@ -1,0 +1,61 @@
+/* Card de limite de anúncios (Meus Objetos / Cadastrar Objeto) */
+.plano-anuncios-card {
+  display: none;
+  background: #fff;
+  border-radius: 16px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 10px rgba(20, 20, 43, 0.06);
+  border: 1.5px solid transparent;
+}
+
+.plano-anuncios-card.limite-atingido { border-color: #f5c2c0; background: #fffafa; }
+
+.plano-anuncios-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: 14.5px;
+  color: #0d0d0d;
+}
+
+.plano-anuncios-topo a,
+.plano-anuncios-aviso a {
+  color: #6D49F2;
+  font-weight: 700;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.plano-anuncios-topo a:hover,
+.plano-anuncios-aviso a:hover { text-decoration: underline; }
+
+.plano-anuncios-itens {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.plano-anuncios-item { display: flex; flex-direction: column; gap: 2px; }
+.plano-anuncios-item small { font-size: 12px; color: #6b7280; }
+.plano-anuncios-item strong { font-size: 18px; color: #0d0d0d; }
+
+.plano-anuncios-barra {
+  height: 8px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  overflow: hidden;
+}
+
+.plano-anuncios-barra div { height: 100%; border-radius: 999px; background: #6D49F2; transition: width .3s ease; }
+.limite-atingido .plano-anuncios-barra div { background: #dc2626; }
+
+.plano-anuncios-aviso {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: #b91c1c;
+  line-height: 1.5;
+}

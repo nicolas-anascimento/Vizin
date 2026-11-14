@@ -8,13 +8,82 @@ import { authorizeTransition, normalizeRentalStatus } from "../app/services/rent
 import { serializeItem, serializePayment, serializeProfile, serializePublicPayment } from "../app/utils/serializers.ts";
 import { parseDateOnly, rentalDays } from "../app/utils/dates.ts";
 import { SYSTEM_OCCURRENCE_REASONS, userReportWhere } from "../app/services/reportRules.ts";
+import { subscriptionDto } from "../app/services/subscriptionService.ts";
+
+test("planos, assinatura e administração usam as rotas efetivamente registradas", async () => {
+ const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
+ const [client, routes, adminRoutes, apiRoutes, app, profile] = await Promise.all([
+  read("../../../frontend/usuario/utils/assinaturas-api.js"), read("../app/routes/subscriptions.ts"),
+  read("../app/routes/admin.ts"), read("../app/routes/api.ts"), read("../app.ts"),
+  read("../../../frontend/usuario/Perfil/perfil.js"),
+ ]);
+ for (const route of ["/planos", "/usuarios/me/assinatura", "/usuarios/me/publicacoes", "/assinaturas", "/assinaturas/:id", "/assinaturas/:id/cancelar", "/pagamentos-assinatura/:id"]) assert.ok(routes.includes(`"${route}"`), route);
+ for (const call of ["/planos", "/usuarios/me/assinatura", "/usuarios/me/publicacoes", "/assinaturas", "/pagamentos-assinatura/"]) assert.ok(client.includes(call), call);
+ assert.match(apiRoutes, /router\.use\(subscriptions\)/);
+ assert.match(app, /"\/api\/assinaturas\/webhook"/);
+ assert.match(adminRoutes, /"\/usuarios\/:id\/assinatura"/);
+ assert.match(adminRoutes, /"\/pagamentos\/estatisticas"/);
+ assert.doesNotMatch(profile, /AssinaturasAPI\.cancelar\(/);
+});
+
+test("DTO de assinatura conserva cota calculada e período do servidor", () => {
+ const start = new Date("2026-11-01T00:00:00.000Z"), end = new Date("2026-12-01T00:00:00.000Z");
+ const dto = subscriptionDto({ plano: { id: "plan-id", codigo: "gratuito", nome: "Gratuito", preco_centavos: 0, limite_publicacoes: 1, ativo: true } as any, assinatura: null, periodo: { inicio: start, fim: end }, utilizadas: 1, disponiveis: 0 });
+ assert.equal(dto.plano.codigo, "gratuito"); assert.equal(dto.anuncios_usados, dto.publicacoes.utilizadas);
+ assert.equal(dto.publicacoes.disponiveis, 0); assert.equal(dto.publicacoes.periodo_inicio, start);
+ assert.equal(dto.assinatura.status, "gratuita");
+});
 
 test("redirect pós autenticação usa o tipo devolvido pelo backend", async()=>{
  const source=await readFile(new URL("../../../frontend/usuario/Login/api.js",import.meta.url),"utf8");
- const context=vm.createContext({});
+ const context=vm.createContext({ URLSearchParams, window: { location: { search: "" } } });
  new vm.Script(source).runInContext(context);
  assert.equal(vm.runInContext("destinoAposAutenticacao({ tipo: 'admin' })",context),"/admin/inicio");
  assert.equal(vm.runInContext("destinoAposAutenticacao({ tipo: 'usuario' })",context),"/home");
+ context.window.location.search = "?plano=intermediario";
+ assert.equal(vm.runInContext("destinoAposAutenticacao({ tipo: 'usuario' })",context),"/finalizar-pagamento?plano=intermediario");
+ context.window.location.search = "?plano=avancado";
+ assert.equal(vm.runInContext("destinoAposAutenticacao({ tipo: 'usuario' })",context),"/finalizar-pagamento?plano=avancado");
+ assert.equal(vm.runInContext("destinoAposAutenticacao({ tipo: 'admin' })",context),"/admin/inicio");
+ context.window.location.search = "?plano=https://outro.exemplo";
+ assert.equal(vm.runInContext("destinoAposAutenticacao({ tipo: 'usuario' })",context),"/home");
+ context.window.location.search = "?next=https%3A%2F%2Foutro.exemplo";
+ assert.equal(vm.runInContext("destinoAposAutenticacao({ tipo: 'usuario' })",context),"/home");
+ context.window.location.search = "?next=%2Fsuporte";
+ assert.equal(vm.runInContext("destinoAposAutenticacao({ tipo: 'usuario' })",context),"/suporte");
+ context.window.location.search = "?next=https%3A%2F%2Foutro.exemplo&plano=avancado";
+ assert.equal(vm.runInContext("destinoAposAutenticacao({ tipo: 'usuario' })",context),"/finalizar-pagamento?plano=avancado");
+ const landing=await readFile(new URL("../../../frontend/landing-page/index.html",import.meta.url),"utf8");
+ assert.match(landing,/href="\/cadastro\?plano=intermediario"/);
+ assert.match(landing,/href="\/cadastro\?plano=avancado"/);
+});
+
+test("página de confirmação utiliza o endpoint correto e oculta o token", async () => {
+ const source=await readFile(new URL("../../../frontend/usuario/Confirmar-email/confirmar-email.js",import.meta.url),"utf8");
+ async function run(search: string, status=200) {
+  const calls: Array<{url:string, options:any}>=[];
+  const message={textContent:""};
+  let replaced="";
+  const context=vm.createContext({
+   URLSearchParams,
+   document:{getElementById:()=>message},
+   window:{location:{search,pathname:"/confirmar-email"},history:{replaceState:(_a:any,_b:any,url:string)=>{replaced=url;}}},
+   fetch:async(url:string,options:any)=>{calls.push({url,options});return {ok:status===200};},
+  });
+  new vm.Script(source).runInContext(context);
+  await new Promise(resolve=>setTimeout(resolve,0));
+  return {calls,message,replaced};
+ }
+ const token="a".repeat(64);
+ const initial=await run(`?token=${token}`);
+ assert.equal(initial.calls[0]?.url,"/api/usuarios/email/verificar");
+ assert.equal(JSON.parse(initial.calls[0]!.options.body).token,token);
+ assert.equal(initial.replaced,"/confirmar-email");
+ const changed=await run(`?tipo=alteracao&token=${token}`);
+ assert.equal(changed.calls[0]?.url,"/api/usuarios/email/confirmar");
+ assert.equal(changed.calls[0]?.options.method,"POST");
+ assert.equal((await run("?tipo=alteracao&token=ruim")).calls.length,0);
+ assert.match((await run(`?tipo=alteracao&token=${token}`,400)).message.textContent,/inválido/);
 });
 test("frontend admin usa contratos canônicos de usuário e objeto", async()=>{
  const userApi=await readFile(new URL("../../../frontend/admin/Usuarios/admin-api.js",import.meta.url),"utf8");
@@ -54,11 +123,31 @@ test("chat reconecta, reentra na room e sincroniza o histórico REST",async()=>{
  assert.match(source,/await API\.getMessages\(conversationId\)/);
  assert.match(source,/client_message_id/);
 });
-test("checkout preserva a operação lógica de cartão enquanto o resultado não é definitivo",async()=>{
+test("checkout PIX preserva a chave em retry e confirma por pagamento do backend",async()=>{
  const source=await readFile(new URL("../../../frontend/usuario/utils/checkout-shared.js",import.meta.url),"utf8");
- assert.match(source,/pagamento\.status === "pendente"[\s\S]*cartao_desconhecido/);
- assert.match(source,/concluirTentativaCartao\(\)[\s\S]*chaveCartao = null/);
- assert.match(source,/mesma operação/);
+ assert.match(source,/sessionStorage\.getItem\(chaveStorage\(\)\)/);
+ assert.match(source,/API\.contratar\(cfg\.planoCodigo, "pix", chavePix\)/);
+ assert.match(source,/API\.obterPagamento\(pagamentoId\)/);
+ assert.match(source,/API\.ehPago\(final\)/);
+ const confirmation=await readFile(new URL("../../../frontend/usuario/Pagamento-confirmado/pagamento-confirmado.js",import.meta.url),"utf8");
+ assert.match(confirmation,/URLSearchParams\(window\.location\.search\)\.get\("pagamentoId"\)/);
+ assert.match(confirmation,/AssinaturasAPI\.obterPagamento\(pagamentoId\)/);
+ assert.match(confirmation,/AssinaturasAPI\.obterMinhaAssinatura\(\)/);
+});
+test("rotas de aluguel descontinuam cobrança e planos usam namespace próprio",async()=>{
+ const rentals=await readFile(new URL("../app/routes/rentals.ts",import.meta.url),"utf8");
+ const payments=await readFile(new URL("../app/routes/payments.ts",import.meta.url),"utf8");
+ const subscriptions=await readFile(new URL("../app/routes/subscriptions.ts",import.meta.url),"utf8");
+ assert.match(rentals,/rota_financeira_descontinuada/);
+ assert.doesNotMatch(rentals,/createContractPayment|createDemoPayment/);
+ assert.match(payments,/status\(410\)/);
+ for(const route of ["/planos","/usuarios/me/assinatura","/usuarios/me/publicacoes","/assinaturas"])assert.match(subscriptions,new RegExp(route.replaceAll("/","\\/")));
+});
+test("frontend de aluguel não envia usuário para checkout financeiro",async()=>{
+ const product=await readFile(new URL("../../../frontend/usuario/Produto/produto.js",import.meta.url),"utf8");
+ const history=await readFile(new URL("../../../frontend/usuario/Historico/historico.js",import.meta.url),"utf8");
+ assert.doesNotMatch(product,/window\.location\.href\s*=\s*`\/finalizar-pagamento\?/);
+ assert.doesNotMatch(history,/href="\/finalizar-pagamento\?/);
 });
 test("produtores opcionais consultam a política de preferências antes de notificar",async()=>{
  const files=[

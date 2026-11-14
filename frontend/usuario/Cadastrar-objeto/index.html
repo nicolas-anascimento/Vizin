@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/assets/usuario/Cadastrar-objeto/objeto-form.css?v=1">
+<link rel="stylesheet" href="/assets/usuario/Meus-objetos/plano-anuncios.css?v=1">
 <link rel="stylesheet" href="/assets/usuario/header/header.css">
 <link rel="stylesheet" href="/assets/usuario/footer/footer.css">
 <link rel="stylesheet" href="/assets/usuario/Notificacoes/notificacoes-shared.css">
@@ -21,6 +22,9 @@
   <h1 class="page-title">Cadastrar Objeto</h1>
   <p class="page-subtitle">Preencha as informações do objeto que deseja alugar</p>
  
+  <!-- Plano atual, limite mensal de anúncios, usados e disponíveis -->
+  <div id="plano-anuncios-card"></div>
+
   <form id="form-cadastro-objeto" novalidate>
  
     <!-- FOTOS DO OBJETO -->
@@ -128,7 +132,10 @@
 <script src="/assets/usuario/utils/categorias-shared.js"></script>
 <script src="/assets/usuario/Notificacoes/notificacoes-shared.js?v=10"></script>
 <script src="/assets/usuario/Meus-objetos/objetos-shared.js?v=10"></script>
-<script src="/assets/usuario/Cadastrar-objeto/cadastrar-objeto.js?v=2"></script>
+<script src="/assets/usuario/utils/formatacao.js"></script>
+<script src="/assets/usuario/utils/pagamentos-api.js?v=planos-1"></script>
+<script src="/assets/usuario/Meus-objetos/plano-anuncios.js?v=1"></script>
+<script src="/assets/usuario/Cadastrar-objeto/cadastrar-objeto.js?v=3"></script>
  
 </body>
 </html>

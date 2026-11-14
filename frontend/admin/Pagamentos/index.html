@@ -21,13 +21,13 @@
 
         <header class="admin-page-header">
             <h1>Gerenciamento de Pagamentos</h1>
-            <p>Gerencie transações e receitas da plataforma</p>
+            <p>Pagamentos dos planos de anúncios — a única receita da plataforma</p>
         </header>
 
         <!-- ================= CARDS DE ESTATÍSTICA ================= -->
         <section class="admin-stats-grid">
             <div class="admin-stat-card">
-                <span class="admin-stat-label">Receita Total</span>
+                <span class="admin-stat-label">Receita Total (planos)</span>
                 <div class="admin-stat-valor" id="statReceitaTotal">—</div>
                 <span class="admin-stat-variacao" id="statReceitaVariacao"></span>
             </div>
@@ -35,6 +35,11 @@
                 <span class="admin-stat-label">Pagamentos Pendentes</span>
                 <div class="admin-stat-valor" id="statPendentes">—</div>
                 <span class="admin-stat-sublabel">Aguardando confirmação</span>
+            </div>
+            <div class="admin-stat-card">
+                <span class="admin-stat-label">Assinaturas Ativas</span>
+                <div class="admin-stat-valor" id="statAssinaturasAtivas">—</div>
+                <span class="admin-stat-sublabel">Planos pagos vigentes</span>
             </div>
             <div class="admin-stat-card">
                 <span class="admin-stat-label">Transações Falhadas</span>
@@ -61,7 +66,7 @@
             <section class="admin-toolbar">
                 <div class="admin-search-box">
                     <i class="bi bi-search"></i>
-                    <input type="text" id="buscaTransacoes" placeholder="Buscar por ID, usuário ou método...">
+                    <input type="text" id="buscaTransacoes" placeholder="Buscar por ID, usuário, plano ou método...">
                 </div>
 
                 <button class="admin-btn-filtro" id="btnFiltros" type="button">
@@ -91,8 +96,10 @@
                         <tr>
                             <th>ID</th>
                             <th>Usuário</th>
+                            <th>Plano</th>
                             <th>Método</th>
                             <th>Valor</th>
+                            <th>Período contratado</th>
                             <th>Data</th>
                             <th>Status</th>
                             <th>Ações</th>

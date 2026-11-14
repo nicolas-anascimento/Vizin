@@ -7,8 +7,8 @@
    - Expõe window.NotificacoesVizin, usado pela página notificacoes.js
 
    API REAL: quem GERA as notificações é o back-end (solicitação, aprovação,
-   cancelamento, retirada/devolução, lembretes, atraso, avaliação, multa,
-   mensagem, problema reportado). O front só lista, marca como lida e exclui.
+   cancelamento, retirada/devolução, lembretes, atraso, avaliação,
+   mensagem, problema reportado, plano de anúncios). O front só lista, marca como lida e exclui.
    Ids são UUID (string) — nunca converter com Number().
 
    Rotas: GET /notificacoes?limit=100 · PATCH /notificacoes/:id {lida:true} ·
@@ -62,6 +62,8 @@
             dataIso: dataValida ? iso : null,
             lida: !!n.lida,
             solicitacaoId: n.solicitacao_id ? String(n.solicitacao_id) : null,
+            // Notificações ligadas a um anúncio (ex.: anuncio_desarquivado_admin) trazem referencia.objetoId
+            objetoId: (n.referencia?.objetoId ?? n.referencia?.objeto_id ?? n.objetoId ?? n.objeto_id) ? String(n.referencia?.objetoId ?? n.referencia?.objeto_id ?? n.objetoId ?? n.objeto_id) : null,
             // usado pela página de Mensagens para marcar como lidas as notificações de uma conversa
             conversaId: (n.conversaId ?? n.conversa_id ?? n.conversation_id) ? String(n.conversaId ?? n.conversa_id ?? n.conversation_id) : null
         };
@@ -89,6 +91,8 @@
         "solicitacao_aluguel", "aluguel_aprovado", "aluguel_rejeitado", "aluguel_cancelado",
         "retirada_confirmada", "retirada_atrasada", "devolucao_confirmada",
         "pagamento_liberado", "multa_paga", "problema_reportado"
+        // pagamento_liberado e multa_paga são tipos LEGADOS: a plataforma não
+        // processa mais repasse nem multa, mas notificações antigas ainda existem.
     ]);
 
     function ressincronizarSolicitacoesSeNecessario(notificacoes) {
@@ -253,7 +257,13 @@
             // O admin tirou o selo de uma conta que já estava verificada.
             case "verificacao_revogada": return "bi-patch-minus-fill";
             case "problema_reportado": return "bi-flag-fill";
-            case "multa_paga": return "bi-receipt";
+            case "multa_paga": return "bi-receipt"; // legado
+            // Planos de anúncios (únicas notificações financeiras que a plataforma gera)
+            case "assinatura_ativada": return "bi-patch-check-fill";
+            case "assinatura_renovacao_cancelada": return "bi-calendar-x";
+            case "assinatura_expirada": return "bi-arrow-down-circle";
+            case "assinatura_pagamento_recusado": return "bi-exclamation-circle-fill";
+            case "limite_publicacoes_atingido": return "bi-megaphone";
             case "dados_atualizados_admin": return "bi-pencil-square";
             // Comunicado em massa enviado pela Central de Notificações do admin.
             // Sem destino (obterDestino cai em null): mostra só "Marcar como lida".
@@ -262,6 +272,8 @@
             // improcedente). A resposta escrita pelo atendente usa "resposta_email".
             case "ocorrencia_atualizada": return "bi-clipboard-check";
             case "anuncio_removido_admin": return "bi-x-octagon-fill";
+            // O admin desarquivou o anúncio (a disponibilidade anterior é mantida).
+            case "anuncio_desarquivado_admin": return "bi-box-arrow-up";
             // Ainda não existe no back (ver mensagem sobre isso) — preparado
             // aqui pra quando o admin passar a notificar também a OCULTAÇÃO
             // (não só o arquivamento) de um anúncio.
@@ -393,6 +405,12 @@
     // Notificações de conta/administrativas: não dependem de solicitacaoId.
     const TIPOS_CONTA = new Map([
         ["bloqueio_conta", () => "/perfil"],
+        // Planos de anúncios: o card "Meu plano" do Perfil mostra status, limite e período.
+        ["assinatura_ativada", () => "/planos"],
+        ["assinatura_renovacao_cancelada", () => "/planos"],
+        ["assinatura_expirada", () => "/planos"],
+        ["assinatura_pagamento_recusado", () => "/planos"],
+        ["limite_publicacoes_atingido", () => "/planos"],
         ["conta_reativada", () => "/perfil"],
         // O card "Verifique sua conta" (perfil.js) já mostra o motivo da reprovação e o botão pra tentar de novo.
         ["verificacao_aprovada", () => "/perfil"],
@@ -434,6 +452,9 @@
             || notificacao.tipo === "avaliacao_sobre_voce_ocultada_admin"
             || notificacao.tipo === "avaliacao_sobre_voce_removida_admin") {
             return obterDestinoAvaliacao(notificacao);
+        }
+        if (notificacao.tipo === "anuncio_desarquivado_admin") {
+            return notificacao.objetoId ? `/produto?id=${enc(notificacao.objetoId)}` : "/meus-objetos";
         }
         if (TIPOS_AVALIACAO_PROPRIA_MODERADA.has(notificacao.tipo)) return DESTINO_HISTORICO();
         if (TIPOS_CONTA.has(notificacao.tipo)) return TIPOS_CONTA.get(notificacao.tipo)();

@@ -8,10 +8,12 @@ import { HttpError } from "../utils/httpError.ts";
 import { password, email, text, boolean } from "../utils/validation.ts";
 import { cookieOptions } from "./authController.ts";
 import { removeUploadByUrl } from "../utils/files.ts";
+import { wakeEmailOutbox } from "../services/emailOutbox.ts";
 import {
   getNotificationPreferences,
   validateNotificationPreferencesPatch,
 } from "../services/notificationPreferences.ts";
+import { tokenSchema } from "../schemas/common.ts";
 
 // Exige senha atual antes de alterações sensíveis da conta.
 async function verifyPassword(id: string, value: unknown) {
@@ -67,39 +69,41 @@ export const changeEmail: RequestHandler = async (req, res) => {
   if (await prisma.usuarios.findUnique({ where: { email: novo } }))
     throw new HttpError(409, "E-mail já cadastrado");
   const token = crypto.randomBytes(32).toString("hex");
-  const url = `${env.APP_URL}/api/usuarios/email/confirmar?token=${token}`;
-  const key = `troca-email:${req.user!.id}:${novo}`;
+  const confirmUrl = new URL("/api/usuarios/email/confirmar", env.APP_URL);
+  confirmUrl.searchParams.set("token", token);
+  const url = confirmUrl.toString();
+  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+  const key = `troca-email:${req.user!.id}:${tokenHash}`;
   await prisma.$transaction(async tx => {
+    await tx.email_outbox.updateMany({ where: { tipo: "troca_email", chave: { startsWith: `troca-email:${req.user!.id}:` }, status: "pendente" }, data: { status: "cancelado", payload: {} } });
     await tx.emails_pendentes.upsert({
       where: { usuario_id: req.user!.id },
-      create: { usuario_id: req.user!.id, email: novo, token: crypto.createHash("sha256").update(token).digest("hex"), expira_em: new Date(Date.now() + 3600000) },
-      update: { email: novo, token: crypto.createHash("sha256").update(token).digest("hex"), expira_em: new Date(Date.now() + 3600000) },
+      create: { usuario_id: req.user!.id, email: novo, token: tokenHash, expira_em: new Date(Date.now() + 3600000) },
+      update: { email: novo, token: tokenHash, expira_em: new Date(Date.now() + 3600000) },
     });
-    await tx.email_outbox.upsert({
-      where: { chave: key },
-      create: { tipo: "troca_email", destinatario: novo, chave: key, payload: { subject: "Confirme seu e-mail VIZIN", text: url } },
-      update: { payload: { subject: "Confirme seu e-mail VIZIN", text: url }, status: "pendente", proxima_em: null, ultimo_erro: null },
-    });
+    await tx.email_outbox.create({ data: { tipo: "troca_email", destinatario: novo, chave: key, payload: { subject: "Confirme seu e-mail VIZIN", text: url } } });
   });
+  wakeEmailOutbox();
   res.status(202).json({ success: true, pendente: true, emailEnfileirado: true });
 };
 // Confirma token válido, altera email e invalida sessões anteriores em transação.
 export const confirmEmail: RequestHandler = async (req, res) => {
-  const token = text(req.body?.token ?? req.query.token, "Token", 128);
+  const parsed = tokenSchema.safeParse(req.body?.token ?? req.query.token);
+  if (!parsed.success)
+    throw new HttpError(400, "Link inválido ou expirado", "token_invalido");
+  const token = parsed.data;
   const pending = await prisma.emails_pendentes.findUnique({
     where: { token: crypto.createHash("sha256").update(token).digest("hex") },
   });
   if (!pending || pending.expira_em < new Date())
-    throw new HttpError(400, "Token inválido ou expirado");
+    throw new HttpError(400, "Link inválido ou expirado", "token_invalido");
   // Troca email e consome o token na mesma transação; incrementar token_version
   // força novo login após a confirmação.
-  await prisma.$transaction([
-    prisma.usuarios.update({
-      where: { id: pending.usuario_id },
-      data: { email: pending.email, token_version: { increment: 1 } },
-    }),
-    prisma.emails_pendentes.delete({ where: { id: pending.id } }),
-  ]);
+  await prisma.$transaction(async tx => {
+    const consumed = await tx.emails_pendentes.deleteMany({ where: { id: pending.id, expira_em: { gt: new Date() } } });
+    if (consumed.count !== 1) throw new HttpError(400, "Link inválido ou expirado", "token_invalido");
+    await tx.usuarios.update({ where: { id: pending.usuario_id }, data: { email: pending.email, email_verificado: true, token_version: { increment: 1 } } });
+  });
   res.clearCookie("token", cookieOptions());
   res.json({ success: true });
 };

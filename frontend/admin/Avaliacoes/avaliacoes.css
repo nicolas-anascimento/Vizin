@@ -1,17 +1,290 @@
 /**
  * avaliacoes.css
  * ------------------------------------------------------------------
- * Só o que é específico desta página. Header, toolbar de busca, pills de
- * filtro, admin-card, tabela, paginação, stats-grid e modais
- * (admin-modal-overlay/admin-modal/admin-form-campo/admin-form-erro) vêm
- * de admin-shared.css, reaproveitados como em Anúncios/Usuários/Pagamentos.
+ * ATENÇÃO: este arquivo achava que header, toolbar de busca, filtros,
+ * tabela, paginação e cards de estatística "vinham de admin-shared.css".
+ * Não vêm: na página de Anúncios esses estilos moram em anuncios.css
+ * (e admin-shared.css só tem o básico: admin-body/main, card, badge,
+ * botões, modais, toast). Por isso a página aparecia sem estilo.
+ *
+ * Aqui estão (1) o layout base copiado de anuncios.css, com os mesmos
+ * valores, e (2) o que é específico de Avaliações. Se um dia isso for
+ * movido pro admin-shared.css, a seção 1 pode ser apagada daqui.
  * ------------------------------------------------------------------
  */
+
+/* =====================================================================
+   1) LAYOUT BASE (mesmos valores de anuncios.css)
+   ===================================================================== */
+
+/* ---------- Cabeçalho da página ---------- */
+.admin-page-header{
+    margin-bottom: 24px;
+}
+
+.admin-page-header h1{
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--admin-texto);
+}
+
+.admin-page-header p{
+    margin-top: 4px;
+    font-size: 14.5px;
+    color: var(--admin-texto-muted);
+}
+
+/* ---------- Cards de estatística ---------- */
+.admin-stats-grid{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.admin-stat-card{
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-borda);
+    border-radius: 14px;
+    padding: 18px 20px;
+    min-width: 0;
+}
+
+.admin-stat-label{
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--admin-texto-muted);
+    margin-bottom: 8px;
+}
+
+.admin-stat-valor{
+    display: flex;
+    align-items: center;
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--admin-texto);
+    line-height: 1.1;
+}
+
+.admin-stat-sublabel{
+    display: block;
+    margin-top: 6px;
+    font-size: 12.5px;
+    color: var(--admin-texto-muted);
+}
+
+.admin-stat-variacao{
+    display: block;
+    margin-top: 6px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--admin-verde-txt);
+}
+
+.admin-stat-variacao:empty{ display: none; }
+
+.admin-stat-variacao.admin-stat-variacao-negativa{
+    color: var(--admin-vermelho-txt);
+}
+
+/* ---------- Barra de busca + botão de filtros ---------- */
+.admin-toolbar{
+    display: flex;
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.admin-search-box{
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-borda);
+    border-radius: 12px;
+    padding: 16px;
+    height: 46px;
+}
+
+.admin-search-box i{ color: var(--admin-texto-muted); font-size: 15px; }
+
+.admin-search-box input{
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 14.5px;
+    font-family: inherit;
+    color: var(--admin-texto);
+}
+
+.admin-search-box input::placeholder{ color: #A6A0BF; }
+
+.admin-btn-filtro{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 46px;
+    padding: 0 18px;
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-borda);
+    border-radius: 12px;
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--admin-texto);
+    cursor: pointer;
+    font-family: inherit;
+    transition: border-color .2s ease, color .2s ease;
+}
+
+.admin-btn-filtro:hover, .admin-btn-filtro.active{
+    border-color: var(--admin-roxo-500);
+    color: var(--admin-roxo-500);
+}
+
+/* ---------- Barra de filtro (aberta pelo botão Filtros) ---------- */
+.admin-filtro-status{
+    display: none;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    background: #F1F0F8;
+    border: 1px solid var(--admin-borda);
+    border-radius: 14px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+}
+
+.admin-filtro-status.aberta{ display: flex; }
+
+.admin-filtro-status-label{
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--admin-texto);
+}
+
+.admin-filtro-pills{ display: flex; flex-wrap: wrap; gap: 8px; }
+
+.admin-filtro-pill{
+    padding: 8px 18px;
+    border-radius: 999px;
+    border: 1px solid var(--admin-borda);
+    background: var(--admin-surface);
+    color: var(--admin-texto);
+    font-size: 13.5px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background .2s ease, color .2s ease, border-color .2s ease;
+}
+
+.admin-filtro-pill:hover{ border-color: var(--admin-roxo-500); color: var(--admin-roxo-500); }
+
+.admin-filtro-pill.active{
+    background: var(--admin-roxo-500);
+    border-color: var(--admin-roxo-500);
+    color: #F2F2F2;
+}
+
+/* ---------- Tabela ---------- */
+.admin-card > h2{
+    margin: 0;
+    padding: 6px 8px 4px;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--admin-texto);
+}
+
+.admin-tabela-scroll{ overflow-x: auto; }
+
+.admin-tabela{
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 860px;
+}
+
+.admin-tabela thead th{
+    text-align: left;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--admin-texto-muted);
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--admin-borda);
+    white-space: nowrap;
+}
+
+.admin-tabela tbody td{
+    padding: 14px 16px;
+    font-size: 14px;
+    color: var(--admin-texto);
+    border-bottom: 1px solid var(--admin-borda);
+    vertical-align: middle;
+}
+
+.admin-tabela tbody tr:last-child td{ border-bottom: none; }
+.admin-tabela tbody tr:hover{ background: #FAFAFD; }
+
+/* ---------- Rodapé / paginação ---------- */
+.admin-tabela-rodape{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+#infoPaginacao{ font-size: 13.5px; color: var(--admin-texto-muted); }
+
+.admin-paginacao{
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.admin-pagina-btn{
+    min-width: 34px;
+    height: 34px;
+    padding: 0 10px;
+    border-radius: 8px;
+    border: 1px solid var(--admin-borda);
+    background: var(--admin-surface);
+    color: var(--admin-texto);
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: .2s ease;
+}
+
+.admin-pagina-btn:hover:not(:disabled){
+    border-color: var(--admin-roxo-500);
+    color: var(--admin-roxo-500);
+}
+
+.admin-pagina-btn.active{
+    background: var(--admin-roxo-500);
+    border-color: var(--admin-roxo-500);
+    color: #F2F2F2;
+}
+
+@media (max-width: 640px){
+    .admin-toolbar{ flex-direction: column; }
+    .admin-toolbar .admin-btn-filtro{ width: 100%; justify-content: center; }
+    .admin-filtro-pills{ width: 100%; }
+    .admin-filtro-pill{ flex: 1; text-align: center; padding: 8px 10px; }
+}
+
+/* =====================================================================
+   2) ESPECÍFICO DE AVALIAÇÕES
+   ===================================================================== */
 
 /* ---------- Card "Nota Média" ---------- */
 .avaliacoes-stat-estrelas {
   font-size: 15px;
-  color: var(--amarelo, #f5a623);
+  color: var(--admin-laranja, #F27C38);
   margin-left: 8px;
 }
 
@@ -21,18 +294,18 @@
   align-items: center;
   gap: 10px;
   font-size: 12.5px;
-  color: var(--texto-suave, #6b7280);
+  color: var(--admin-texto-muted);
   margin-top: 8px;
 }
 
-.avaliacoes-dist-linha:first-child {
+.avaliacoes-dist-linha:first-of-type {
   margin-top: 4px;
 }
 
 .avaliacoes-dist-linha span:first-child {
   width: 22px;
   font-weight: 600;
-  color: var(--texto, #1f2430);
+  color: var(--admin-texto);
 }
 
 .avaliacoes-dist-linha span:last-child {
@@ -44,14 +317,14 @@
   flex: 1;
   height: 8px;
   border-radius: 999px;
-  background: var(--borda, #e5e7eb);
+  background: var(--admin-borda);
   overflow: hidden;
 }
 
 .avaliacoes-dist-fill {
   height: 100%;
   width: 0%;
-  background: var(--laranja, #f2803c);
+  background: var(--admin-laranja, #F27C38);
   border-radius: 999px;
   transition: width 0.25s ease;
 }
@@ -79,7 +352,7 @@
 }
 
 .avaliacoes-celula-estrelas {
-  color: var(--amarelo, #f5a623);
+  color: var(--admin-laranja, #F27C38);
   white-space: nowrap;
 }
 
@@ -100,9 +373,9 @@
   cursor: pointer;
   font-size: 15px;
   padding: 4px 6px;
-  color: var(--roxo, #6f5fe0);
+  color: var(--admin-roxo-500, #6D49F2);
 }
 
 .avaliacoes-acao-icone.avaliacoes-acao-perigo {
-  color: #dc2626;
+  color: var(--admin-vermelho-txt, #C4362B);
 }

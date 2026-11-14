@@ -6,8 +6,8 @@
  *   - "Ver anúncio": mostra todos os dados do anúncio (fotos, descrição,
  *     localização, proprietário, categoria, preço, disponibilidade) pro
  *     admin analisar antes de decidir alterar visibilidade ou arquivar.
- *   - "Alterar visibilidade": alterna o boolean `disponivel`; ocultar
- *     exige motivo e não altera dados comerciais do proprietário.
+ *   - "Alterar visibilidade": oculta/reexibe pela moderação (`oculto_pelo_admin`);
+ *     ocultar exige motivo e NÃO sobrescreve a preferência `disponivel` do dono.
  *   - "Arquivar anúncio": arquivamento administrativo, nunca hard-delete.
  *
  * Uso:
@@ -68,6 +68,7 @@ function garantirModaisAnuncio() {
                 </div>
 
                 <div class="admin-modal-botoes">
+                    <button class="admin-btn-primario" id="admModalVerAnuncioDesarquivar" hidden>Desarquivar</button>
                     <button class="admin-btn-secundario" id="admModalVerAnuncioFechar">Fechar</button>
                 </div>
             </div>
@@ -79,11 +80,12 @@ function garantirModaisAnuncio() {
                 <p>Anúncio: <strong id="admModalStatusAnuncioTitulo"></strong></p>
 
                 <div class="admin-form-campo">
-                    <label for="admModalStatusAnuncioSelect">Disponibilidade</label>
+                    <label for="admModalStatusAnuncioSelect">Visibilidade (moderação)</label>
                     <select id="admModalStatusAnuncioSelect">
-                        <option value="disponivel">Disponível</option>
-                        <option value="indisponivel">Indisponível</option>
+                        <option value="disponivel">Visível</option>
+                        <option value="indisponivel">Ocultar pela moderação</option>
                     </select>
+                    <small id="admModalStatusAnuncioNota" style="display:block;margin-top:6px;font-size:12.5px;color:var(--admin-texto-muted)"></small>
                 </div>
 
                 <div class="admin-form-campo">
@@ -128,6 +130,34 @@ function garantirModaisAnuncio() {
     `;
     document.body.appendChild(wrapper);
 
+    const wrapperDesarquivar = document.createElement("div");
+    wrapperDesarquivar.innerHTML = `
+        <div class="admin-modal-overlay" id="admModalDesarquivarAnuncioOverlay" hidden>
+            <div class="admin-modal">
+                <h3>Desarquivar anúncio</h3>
+                <p>Deseja desarquivar <strong id="admModalDesarquivarAnuncioTitulo"></strong>?
+                   O anúncio deixa de estar arquivado, mas mantém a disponibilidade anterior: se estava pausado pelo proprietário ou oculto pela moderação, continua assim.</p>
+
+                <div class="admin-form-campo">
+                    <label for="admModalDesarquivarAnuncioMotivo">
+                        Motivo <span>(obrigatório)</span>
+                    </label>
+                    <textarea id="admModalDesarquivarAnuncioMotivo" rows="3" maxlength="1000"
+                        placeholder="Registre o motivo administrativo do desarquivamento."></textarea>
+                </div>
+
+                <p class="admin-form-erro" id="admModalDesarquivarAnuncioErro"></p>
+
+                <div class="admin-modal-botoes">
+                    <button class="admin-btn-secundario" id="admModalDesarquivarAnuncioCancelar">Cancelar</button>
+                    <button class="admin-btn-primario" id="admModalDesarquivarAnuncioConfirmar">Desarquivar</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(wrapperDesarquivar);
+    document.getElementById("admModalDesarquivarAnuncioCancelar").addEventListener("click", fecharModalDesarquivarAnuncio);
+
     document.getElementById("admModalVerAnuncioFechar").addEventListener("click", fecharModalVerAnuncio);
     document.getElementById("admModalStatusAnuncioCancelar").addEventListener("click", fecharModalStatusAnuncio);
     document.getElementById("admModalExcluirAnuncioCancelar").addEventListener("click", fecharModalExcluirAnuncio);
@@ -167,13 +197,26 @@ function abrirModalVerAnuncio(anuncio) {
     document.getElementById("admModalVerAnuncioLocalizacao").textContent = anuncio.localizacao || "Não informado";
     // Mesmos nomes de campo que o back manda em /objetos (snake_case) — ver
     // objetos-shared.js e o comentário em anuncios.js:infoDisponibilidade.
-    document.getElementById("admModalVerAnuncioDisponibilidade").textContent = anuncio.em_locacao
-        ? "Em locação"
+    document.getElementById("admModalVerAnuncioDisponibilidade").textContent = anuncio.status === "arquivado"
+        ? "Arquivado"
+        : anuncio.oculto_pelo_admin
+        ? "Oculto pela moderação"
+        : anuncio.em_locacao ? "Em locação"
         : anuncio.tem_solicitacao_pendente
             ? "Solicitação pendente"
             : (anuncio.disponivel ? "Disponível" : "Pausado pelo dono");
     document.getElementById("admModalVerAnuncioStatus").textContent = labelStatusAnuncio(anuncio.status);
     document.getElementById("admModalVerAnuncioDescricao").textContent = anuncio.descricao || "Sem descrição.";
+
+    // Anúncio arquivado: o admin pode desarquivar direto daqui
+    const btnDesarquivar = document.getElementById("admModalVerAnuncioDesarquivar");
+    btnDesarquivar.hidden = anuncio.status !== "arquivado";
+    btnDesarquivar.onclick = () => {
+        fecharModalVerAnuncio();
+        abrirModalDesarquivarAnuncio(anuncio, () => {
+            if (typeof carregarAnuncios === "function") carregarAnuncios();
+        });
+    };
 
     document.getElementById("admModalVerAnuncioOverlay").hidden = false;
 
@@ -234,13 +277,13 @@ async function carregarAvaliacoesVerAnuncio(anuncioId) {
         .sort((a, b) => new Date(b.data) - new Date(a.data))
         .map(av => {
             const nome = av.nomeAvaliador || "Usuário";
-            const inicial = escAdminAcoes(nome.charAt(0).toUpperCase());
+            const inicial = nome.charAt(0).toUpperCase().replace(/[^\p{L}\p{N}]/gu, "?");
             const data = av.data ? new Date(av.data).toLocaleDateString("pt-BR") : "";
             const nota = Number(av.nota).toFixed(1);
             return `
                 <div class="admin-ver-anuncio-aval-item">
                     <div class="admin-ver-anuncio-aval-topo">
-                        <div class="admin-ver-anuncio-aval-avatar">${inicial}</div>
+                        <div class="admin-ver-anuncio-aval-avatar">${window.avatarAdminHtml ? window.avatarAdminHtml(av.avaliadorAvatarUrl, inicial) : inicial}</div>
                         <div class="admin-ver-anuncio-aval-info">
                             <strong>${escAdminAcoes(nome)}</strong>
                             <span class="admin-ver-anuncio-aval-data">${data}</span>
@@ -261,7 +304,13 @@ function abrirModalStatusAnuncio(anuncio, aoConfirmar) {
     _callbackStatusAnuncio = aoConfirmar;
 
     document.getElementById("admModalStatusAnuncioTitulo").textContent = anuncio.titulo;
-    document.getElementById("admModalStatusAnuncioSelect").value = anuncio.disponivel ? "disponivel" : "indisponivel";
+    // Só a ocultação administrativa conta aqui: `disponivel` é a preferência do dono e não é alterada pela moderação.
+    document.getElementById("admModalStatusAnuncioSelect").value = anuncio.oculto_pelo_admin ? "indisponivel" : "disponivel";
+    const notaEl = document.getElementById("admModalStatusAnuncioNota");
+    const notas = [];
+    if (anuncio.oculto_pelo_admin && anuncio.motivo_ocultacao) notas.push(`Motivo atual da ocultação: ${anuncio.motivo_ocultacao}`);
+    if (anuncio.disponivel === false) notas.push("O proprietário pausou este anúncio; isso continua valendo mesmo se você reexibir.");
+    notaEl.textContent = notas.join(" ");
     document.getElementById("admModalStatusAnuncioMotivo").value = "";
     document.getElementById("admModalStatusAnuncioErro").textContent = "";
     atualizarObrigatoriedadeMotivoAnuncio();
@@ -270,6 +319,7 @@ function abrirModalStatusAnuncio(anuncio, aoConfirmar) {
 
     const btn = document.getElementById("admModalStatusAnuncioConfirmar");
     const btnNovo = btn.cloneNode(true);
+    btnNovo.disabled = false; // cloneNode copia o `disabled` deixado pela confirmação anterior
     btn.replaceWith(btnNovo);
     btnNovo.addEventListener("click", confirmarModalStatusAnuncio);
 }
@@ -289,6 +339,13 @@ async function confirmarModalStatusAnuncio() {
 
     if (!disponivel && !motivo) {
         erroEl.textContent = "Informe o motivo da ocultação.";
+        return;
+    }
+
+    // Reexibir só faz sentido se o anúncio está oculto pela moderação; senão não há nada a desfazer
+    // (e enviar disponivel:true poderia mexer na preferência do dono).
+    if (disponivel && !_anuncioStatusAtual.oculto_pelo_admin) {
+        erroEl.textContent = "Este anúncio não está oculto pela moderação. Escolha \"Ocultar pela moderação\" ou cancele.";
         return;
     }
 
@@ -321,6 +378,7 @@ function abrirModalExcluirAnuncio(anuncio, aoConfirmar) {
 
     const btn = document.getElementById("admModalExcluirAnuncioConfirmar");
     const btnNovo = btn.cloneNode(true);
+    btnNovo.disabled = false; // idem: não herdar o `disabled` do arquivamento anterior
     btn.replaceWith(btnNovo);
     btnNovo.addEventListener("click", confirmarModalExcluirAnuncio);
 
@@ -357,5 +415,62 @@ async function confirmarModalExcluirAnuncio() {
 
     const callback = _callbackExcluirAnuncio;
     fecharModalExcluirAnuncio();
+    if (callback) callback();
+}
+
+// ================= DESARQUIVAR =================
+let _anuncioDesarquivarAtual = null;
+let _callbackDesarquivarAnuncio = null;
+
+function abrirModalDesarquivarAnuncio(anuncio, aoConfirmar) {
+    garantirModaisAnuncio();
+
+    _anuncioDesarquivarAtual = anuncio;
+    _callbackDesarquivarAnuncio = aoConfirmar;
+
+    document.getElementById("admModalDesarquivarAnuncioTitulo").textContent = anuncio.titulo;
+    document.getElementById("admModalDesarquivarAnuncioMotivo").value = "";
+    document.getElementById("admModalDesarquivarAnuncioErro").textContent = "";
+    document.getElementById("admModalDesarquivarAnuncioOverlay").hidden = false;
+
+    const btn = document.getElementById("admModalDesarquivarAnuncioConfirmar");
+    const btnNovo = btn.cloneNode(true);
+    btnNovo.disabled = false;
+    btn.replaceWith(btnNovo);
+    btnNovo.addEventListener("click", confirmarModalDesarquivarAnuncio);
+}
+
+function fecharModalDesarquivarAnuncio() {
+    document.getElementById("admModalDesarquivarAnuncioOverlay").hidden = true;
+    _anuncioDesarquivarAtual = null;
+    _callbackDesarquivarAnuncio = null;
+}
+
+async function confirmarModalDesarquivarAnuncio() {
+    const anuncio = _anuncioDesarquivarAtual;
+    if (!anuncio) return;
+    const motivo = document.getElementById("admModalDesarquivarAnuncioMotivo").value.trim();
+    const erroEl = document.getElementById("admModalDesarquivarAnuncioErro");
+    erroEl.textContent = "";
+
+    if (!motivo) {
+        erroEl.textContent = "Informe o motivo do desarquivamento.";
+        return;
+    }
+
+    const botao = document.getElementById("admModalDesarquivarAnuncioConfirmar");
+    botao.disabled = true;
+    try {
+        await desarquivarAnuncioAdmin(anuncio.id, motivo);
+    } catch (err) {
+        botao.disabled = false;
+        erroEl.textContent = err.message;
+        return;
+    }
+
+    window.mostrarToastAdmin(`"${anuncio.titulo}" foi desarquivado`, "sucesso");
+
+    const callback = _callbackDesarquivarAnuncio;
+    fecharModalDesarquivarAnuncio();
     if (callback) callback();
 }

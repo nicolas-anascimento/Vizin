@@ -4,13 +4,15 @@ import { recordHandover, handoverStatus } from "../controllers/handoverControlle
 import { requireAuth } from "../middlewares/auth.ts";
 import { withdrawalUpload } from "../middlewares/upload.ts";
 import { verifyUploads } from "../middlewares/privateUpload.ts";
+import { validate } from "../middlewares/validate.ts";
+import { handoverBodySchema, handoverParamsSchema } from "../schemas/rentals.schema.ts";
 // O parâmetro seleciona retirada ou devolução sem duplicar a regra de confirmação.
 export function handoverRouter(returning: boolean) {
  const router = Router(); router.use(requireAuth);
- router.get("/:aluguelId/status", handoverStatus(returning));
- router.post("/:aluguelId/fotos", withdrawalUpload, verifyUploads, recordHandover(returning));
- router.post("/fotos", withdrawalUpload, verifyUploads, recordHandover(returning));
- router.post("/", withdrawalUpload, verifyUploads, recordHandover(returning));
+ router.get("/:aluguelId/status", validate({params:handoverParamsSchema}), handoverStatus(returning));
+ router.post("/:aluguelId/fotos", validate({params:handoverParamsSchema}), withdrawalUpload, verifyUploads, validate({body:handoverBodySchema}), recordHandover(returning));
+ router.post("/fotos", withdrawalUpload, verifyUploads, validate({body:handoverBodySchema}), recordHandover(returning));
+ router.post("/", withdrawalUpload, verifyUploads, validate({body:handoverBodySchema}), recordHandover(returning));
  return router;
 }
 export default handoverRouter(false);

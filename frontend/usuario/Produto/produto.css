@@ -178,6 +178,20 @@
   font-size: 16px;
 }
  
+/* Foto de perfil dentro dos círculos (dono do anúncio e quem avaliou) */
+.avatar,
+.produto-avaliacao-avatar {
+  overflow: hidden;
+}
+
+.avatar img,
+.produto-avaliacao-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .proprietario-nome {
   margin: 0;
   font-weight: 700;

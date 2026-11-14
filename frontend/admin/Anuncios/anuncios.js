@@ -93,6 +93,8 @@ function labelStatus(status) {
 // com o restante do sistema — corrigido para não ficar sempre caindo no
 // fallback "Disponível/Pausado" mesmo quando o item está locado ou pendente.
 function infoDisponibilidade(anuncio) {
+    if (anuncio.status === "arquivado") return { classe: "arquivado", label: "Arquivado" };
+    if (anuncio.oculto_pelo_admin) return { classe: "pausado", label: "Oculto pela moderação" };
     if (anuncio.em_locacao) return { classe: "em-locacao", label: "Em locação" };
     if (anuncio.tem_solicitacao_pendente) return { classe: "solicitacao-pendente", label: "Solicitação pendente" };
     if (anuncio.disponivel) return { classe: "disponivel", label: "Disponível" };
@@ -125,7 +127,9 @@ function renderizarTabela() {
                 <div class="admin-acoes">
                     <button class="admin-acao-btn ver" title="Ver anúncio" data-acao="ver"><i class="bi bi-eye"></i></button>
                     <button class="admin-acao-btn status" title="Alterar visibilidade" data-acao="status" ${a.status === 'arquivado' ? 'disabled' : ''}><i class="bi bi-shield-lock"></i></button>
-                    <button class="admin-acao-btn excluir" title="Arquivar" data-acao="excluir" ${a.status === 'arquivado' ? 'disabled' : ''}><i class="bi bi-archive"></i></button>
+                    ${a.status === 'arquivado'
+                        ? '<button class="admin-acao-btn desarquivar" title="Desarquivar" data-acao="desarquivar"><i class="bi bi-arrow-counterclockwise"></i></button>'
+                        : '<button class="admin-acao-btn excluir" title="Arquivar" data-acao="excluir"><i class="bi bi-archive"></i></button>'}
                 </div>
             </td>
         </tr>`;
@@ -247,6 +251,10 @@ corpoTabela.addEventListener("click", async (e) => {
 
     if (acao === "excluir") {
         abrirModalExcluirAnuncio(anuncio, () => carregarAnuncios());
+    }
+
+    if (acao === "desarquivar") {
+        abrirModalDesarquivarAnuncio(anuncio, () => carregarAnuncios());
     }
 });
 

@@ -107,11 +107,6 @@
                 <div class="status-outra-parte" id="status-lista"></div>
             </div>
  
-            <!-- Resumo da multa PROJETADA (calculada pelo back-end), mostrado antes de
-                 confirmar quando a devolução já está em atraso — ver
-                 mostrarResumoMultaAntesConfirmar em devolucao-objeto.js. -->
-            <div class="card prazo-card resumo-multa-projetada" id="resumo-multa-confirmar" style="display:none;"></div>
- 
             <div class="devolucao-actions">
                 <button type="button" class="btn btn-secondary" id="btn-cancelar">Cancelar</button>
                 <button type="button" class="btn btn-primary" id="btn-enviar-minhas-fotos" disabled>
@@ -141,16 +136,6 @@
             <p class="status-texto">As fotos de ambas as partes foram registradas com sucesso.</p>
             <p class="status-subtexto">O aluguel foi concluído. Já é possível avaliar a transação.</p>
             <p class="status-subtexto multa-nota hidden" id="confirmada-multa-nota"></p>
- 
-            <!-- Card de ação da multa: pagar, só aparece pro
-                 locatário enquanto houver multa em aberto — ver
-                 atualizarAcaoMulta em devolucao-objeto.js. -->
-            <div class="multa-acao-card hidden" id="confirmada-multa-acao">
-                <p class="multa-acao-texto" id="confirmada-multa-acao-texto"></p>
-                <div class="multa-acao-botoes">
-                    <button type="button" class="btn btn-primary" id="btn-pagar-multa"><i class="bi bi-credit-card"></i> Pagar Multa Agora</button>
-                </div>
-            </div>
  
             <a class="btn btn-primary btn-block" id="btn-ver-status" style="margin-top:14px;">Ver Status da Locação</a>
         </div>

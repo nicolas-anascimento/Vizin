@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/assets/usuario/Produto/fluxo-aluguel.css">
-    <link rel="stylesheet" href="/assets/usuario/Perfil/perfil.css?v=11">
+    <link rel="stylesheet" href="/assets/usuario/Perfil/perfil.css?v=12">
     <link rel="stylesheet" href="/assets/usuario/header/header.css">
     <link rel="stylesheet" href="/assets/usuario/footer/footer.css">
     <link rel="stylesheet" href="/assets/usuario/Notificacoes/notificacoes-shared.css">
@@ -155,6 +155,46 @@
                     </div>
                 </div>
  
+                <!-- MEU PLANO (só aparece pro dono da conta) -->
+                <span id="plano"></span>
+                <div class="card" id="card-plano" style="display:none;">
+                    <div class="perfil-secao-titulo">
+                        <h2>Meu plano</h2>
+                        <span class="plano-status" id="plano-status"></span>
+                    </div>
+
+                    <p class="plano-carregando" id="plano-carregando">Carregando seu plano...</p>
+                    <p class="plano-erro" id="plano-erro" style="display:none;"></p>
+
+                    <div id="plano-conteudo" style="display:none;">
+                        <div class="plano-atual">
+                            <div>
+                                <p class="plano-nome" id="plano-nome"></p>
+                                <p class="plano-preco" id="plano-preco"></p>
+                            </div>
+                        </div>
+
+                        <div class="plano-uso">
+                            <div class="plano-uso-linhas">
+                                <span>Anúncios usados este mês</span>
+                                <strong><span id="plano-usados">0</span> de <span id="plano-limite">0</span></strong>
+                            </div>
+                            <div class="plano-barra"><div class="plano-barra-preenchida" id="plano-barra"></div></div>
+                            <p class="plano-disponiveis"><span id="plano-disponiveis">0</span> anúncio(s) disponível(is)</p>
+                        </div>
+
+                        <div class="plano-linha" id="plano-linha-periodo" style="display:none;">
+                            <span id="plano-periodo-rotulo">Válido até</span>
+                            <strong id="plano-periodo-fim"></strong>
+                        </div>
+
+                        <p class="plano-nota"><a href="/planos" style="color:var(--roxo);font-weight:700;">Ver todos os planos</a> · Os planos são pagos por período, via PIX, sem renovação automática. Ao fim do período você volta ao plano gratuito (seus anúncios já publicados continuam no ar) e pode contratar de novo.</p>
+
+                        <h3 class="plano-opcoes-titulo" id="plano-opcoes-titulo">Planos disponíveis</h3>
+                        <div class="plano-opcoes" id="plano-opcoes"></div>
+                    </div>
+                </div>
+
                 <!-- OBJETOS ANUNCIADOS PELO USUÁRIO -->
                 <div class="card" id="card-objetos-anunciados">
                     <div class="perfil-secao-titulo">
@@ -264,6 +304,12 @@
          na busca pública" antes de exibir os dados dele. -->
     <script src="/assets/usuario/Privacidade/privacidade-shared.js"></script>
  
-    <script src="/assets/usuario/Perfil/perfil.js?v=2"></script>
+    <!-- Planos: AssinaturasAPI só atende assinaturas dos planos de anúncios -->
+    <script src="/assets/usuario/utils/formatacao.js"></script>
+    <script src="/assets/usuario/utils/assinaturas-api.js?v=1"></script>
+    <!-- Precisa vir antes de perfil.js: expõe window.PlanoPerfilVizin -->
+    <script src="/assets/usuario/Perfil/meu-plano.js?v=2"></script>
+
+    <script src="/assets/usuario/Perfil/perfil.js?v=3"></script>
 </body>
 </html>

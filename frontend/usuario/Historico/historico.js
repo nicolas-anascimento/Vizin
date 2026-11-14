@@ -36,7 +36,7 @@ function filtrarPorPapel(lista, filtro) {
 // vez de serem derivados aqui a partir do status da solicitação mock.
 const STATUS_LABEL = {
     pendente: "Aguardando aprovação",
-    aprovado: "Aguardando pagamento",
+    aprovado: "Aguardando retirada",
     pago: "Aguardando retirada",
     retirado: "Em andamento",
     aguardando_devolucao: "Em andamento",
@@ -47,7 +47,7 @@ const STATUS_LABEL = {
  
 const STATUS_PILL_CLASSE = {
     pendente: "pendente",
-    aprovado: "pendente",
+    aprovado: "confirmado",
     pago: "confirmado",
     retirado: "confirmado",
     aguardando_devolucao: "confirmado",
@@ -101,7 +101,6 @@ function escaparHTML(texto) {
 // duas partes enviam as fotos; a disponibilidade do objeto e as notificações
 // também são do servidor). Aqui o Histórico só espelha.
 
-const STATUS_PAGO_OU_DEPOIS = new Set(["pago", "retirado", "aguardando_devolucao", "concluido"]);
  
 // Devolução atrasada NÃO muda o status real da locação (ver comentário em
 // solicitacoes-shared.js: o proprietário continua esperando o objeto de
@@ -161,18 +160,13 @@ function montarHistorico() {
                 dataDevolucao: formatarData(s.dataDevolucao),
                 localRetirada: s.localizacaoProduto || "A combinar com o proprietário",
                 preco: s.total,
-                pagamento: statusAtual === "cancelado"
-                    ? (s.pagamentoEstornado ? "Estornado" : "Cancelado")
-                    : (STATUS_PAGO_OU_DEPOIS.has(statusAtual) ? "Pago" : "Pendente"),
                 status: statusAtual,
                 atrasado: estaComDevolucaoAtrasada(s, statusAtual),
                 fotosRetirada: (statusRetirada && window.RetiradaVizin.ambosConcluidos(s.id)) ? statusRetirada : null,
                 fotosDevolucao: (statusDevolucao && window.DevolucaoVizin.ambosConcluidos(s.id)) ? statusDevolucao : null,
-                // Comprovante da multa (snapshot vindo do back).
+                // Registro do atraso (só informativo — valores são combinados entre as partes).
                 multaAtraso: s.multaAtraso || null,
-                multaStatus: s.multaStatus || null,
                 multaCongeladaEm: s.multaCongeladaEm || null,
-                multaPagaEm: s.multaPagaEm || null,
                 _raw: s
             };
         })
@@ -256,16 +250,7 @@ function atualizarAvisoBloqueio() {
         document.querySelector(".historico-tabs").insertAdjacentElement("beforebegin", aviso);
     }
 
-    // Duas mensagens diferentes pro mesmo tipo de restrição (não pode
-    // solicitar novos aluguéis nem aprovar locações nos próprios objetos —
-    // ver detalhesBloqueio em solicitacoes-shared.js), porque o motivo real
-    // é diferente: um caso ainda depende de devolver o objeto, o outro já
-    // foi devolvido e só falta pagar a multa.
-    const mensagem = detalhes.motivo === "multa_pendente"
-        ? `<strong>Você tem uma multa por atraso pendente de pagamento.</strong>
-           Enquanto ela não for paga, você não pode solicitar novos aluguéis
-           nem aprovar locações nos seus próprios objetos. Veja o comprovante no card do aluguel abaixo.`
-        : `<strong>Você tem uma devolução em atraso.</strong>
+    const mensagem = `<strong>Você tem uma devolução em atraso.</strong>
            Enquanto o objeto não for devolvido, você não pode solicitar novos aluguéis
            nem aprovar locações nos seus próprios objetos.`;
 
@@ -390,14 +375,10 @@ async function renderizarHistorico() {
                             <span class="label">Local de retirada:</span>
                             <span class="valor">${escaparHTML(item.localRetirada)}</span>
                         </div>
-                        <div class="card-aluguel-detalhe">
-                            <span class="label">Pagamento:</span>
-                            <span class="valor">${item.pagamento}</span>
-                        </div>
                     </div>
  
                     ${dicaSolicitacao}
-                    ${montarComprovanteMulta(item)}
+                    ${montarRegistroAtraso(item)}
  
                     <div class="card-aluguel-actions">
                         <button type="button" class="btn-historico ver-objeto" data-produto-id="${item.produtoId}">
@@ -501,59 +482,27 @@ function montarSecaoFotos(item) {
 // cancelar, enquanto o status ainda permitir (ver STATUS_CANCELAVEIS). Numa
 // solicitação pendente em que o usuário logado é o dono, a decisão dele já
 // é Aprovar/Recusar, então não repetimos a ação aqui.
-// ================= COMPROVANTE DA MULTA =================
-// Diferente da notificação de devolução (que some da lista assim que é
-// lida), este bloco fica fixo no card do aluguel enquanto ele existir no
-// Histórico — funciona como o "recibo" da multa: quanto foi, referente a
-// quantos dias, quando foi congelada, e se já foi paga/contestada. Só entra
-// no card quando a locação teve atraso de verdade (multaAtraso != null).
-function montarComprovanteMulta(item) {
-    if (!item.multaAtraso || item.multaAtraso.diasAtraso <= 0 || !window.SolicitacoesVizin) return "";
+// ================= REGISTRO DE ATRASO =================
+// Fica no card enquanto a locação existir no Histórico. É apenas um
+// REGISTRO (dias de atraso e quando foi apurado). O O Vizinho não calcula,
+// cobra nem repassa valores: qualquer acerto é feito direto entre as partes.
+function montarRegistroAtraso(item) {
+    if (!item.multaAtraso || item.multaAtraso.diasAtraso <= 0) return "";
 
-    const formatar = window.SolicitacoesVizin.formatarReal;
-    const status = item.multaStatus || "pendente";
-    const souLocatario = item.papel === "alugado";
-
-    const STATUS_INFO = {
-        pendente: { label: "Pendente", cor: "#dc2626", fundo: "#fdeaea" },
-        paga: { label: "Paga", cor: "#1f8b4c", fundo: "#e6f6ec" },
-        contestada: { label: "Contestada", cor: "#b7791f", fundo: "#fff6e0" }
-    };
-    const infoStatus = STATUS_INFO[status] || STATUS_INFO.pendente;
-
-    const quando = status === "paga" && item.multaPagaEm
-        ? `Paga em ${formatarDataHora(item.multaPagaEm)}`
-        : `Congelada em ${formatarDataHora(item.multaCongeladaEm)}`;
-
-    const valorParaMim = souLocatario ? item.multaAtraso.valorTotal : item.multaAtraso.valorProprietario;
-    const rotuloValor = souLocatario ? "Valor cobrado" : "Seu valor (após taxa da plataforma)";
-
-    // Pagar Multa não paga na hora mais — leva pra página de pagamento
-    // dedicada (Pagamento-multa), igual ao checkout normal do aluguel.
-    const acoes = (souLocatario && status === "pendente")
-        ? `<div style="display:flex; gap:10px; margin-top:10px;">
-                <a class="btn-historico preenchido" href="/pagamento-multa?solicitacaoId=${item.id}">
-                    <i class="bi bi-credit-card"></i> Pagar Multa
-                </a>
-           </div>`
+    const quando = item.multaCongeladaEm
+        ? `Apurado em ${formatarDataHora(item.multaCongeladaEm)}`
         : "";
 
     return `
-        <div class="card-aluguel-multa" style="margin-top:14px; padding:12px 14px; border-radius:12px; background:${infoStatus.fundo};">
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-                <span style="font-size:13px; font-weight:700; color:var(--texto);">
-                    <i class="bi bi-receipt"></i> Multa por atraso na devolução
-                </span>
-                <span style="font-size:11px; font-weight:700; padding:3px 10px; border-radius:999px; background:${infoStatus.cor}; color:#fff;">
-                    ${infoStatus.label}
-                </span>
-            </div>
+        <div class="card-aluguel-multa" style="margin-top:14px; padding:12px 14px; border-radius:12px; background:#fff6e0;">
+            <span style="font-size:13px; font-weight:700; color:var(--texto);">
+                <i class="bi bi-clock-history"></i> Atraso na devolução
+            </span>
             <div style="font-size:12.5px; color:var(--texto-suave); margin-top:8px; display:flex; flex-direction:column; gap:3px;">
-                <span>${item.multaAtraso.diasAtraso} dia(s) de atraso · ${formatar(item.multaAtraso.valorDia)}/dia</span>
-                <span>${rotuloValor}: <strong style="color:var(--texto);">${formatar(valorParaMim)}</strong></span>
-                <span>${quando}</span>
+                <span>${item.multaAtraso.diasAtraso} dia(s) de atraso</span>
+                ${quando ? `<span>${quando}</span>` : ""}
+                <span>Eventuais valores devem ser combinados diretamente entre locador e locatário.</span>
             </div>
-            ${acoes}
         </div>
     `;
 }
@@ -629,7 +578,7 @@ function botaoContextual(item, jaAvaliadoPorId) {
                 </a>`;
     }
  
-    if (item.status === "pago") {
+    if (item.status === "pago" || item.status === "aprovado") {
         // Registrar a retirada é uma ação DAS DUAS partes — tanto locatário
         // quanto proprietário precisam enviar fotos na página de Retirada
         // (ver retirada-objeto.js). Aqui só adaptamos o texto do botão
@@ -663,18 +612,6 @@ function botaoContextual(item, jaAvaliadoPorId) {
                     <i class="bi bi-box-arrow-in-down"></i> ${textoBotaoRetirada}
                 </a>
                 ${linkVerStatus}`;
-    }
- 
-    if (item.status === "aprovado" && item.papel === "alugado") {
-        const query = new URLSearchParams({
-            produtoId: item.produtoId,
-            retirada: s.dataRetirada,
-            devolucao: s.dataDevolucao,
-            solicitacaoId: item.id
-        });
-        return `<a class="btn-historico preenchido" href="/finalizar-pagamento?${query.toString()}">
-                    <i class="bi bi-credit-card"></i> Finalizar Pagamento
-                </a>`;
     }
  
     return "";
@@ -804,7 +741,7 @@ let solicitacaoIdParaCancelar = null;
  
 // A mesma pergunta "cancelar locação?" tem consequências bem diferentes
 // dependendo do momento: se ainda não houve pagamento (pendente/aprovado),
-// não existe nenhum estorno a fazer — prometer estorno nesse
+// não existe nenhuma operação financeira na plataforma — o texto não promete estorno
 // caso é enganoso. Só ajustamos o texto (o cancelamento em si continua
 // idêntico via SolicitacoesVizin.cancelar).
 function abrirModalCancelar(solicitacaoId) {
@@ -813,11 +750,9 @@ function abrirModalCancelar(solicitacaoId) {
     const solicitacao = window.SolicitacoesVizin ? window.SolicitacoesVizin.obterPorId(solicitacaoId) : null;
  
     if (modalCancelarTexto) {
-        modalCancelarTexto.textContent = (solicitacao && solicitacao.status === "pago")
-            ? `Tem certeza que deseja cancelar esta locação? Quando aplicável, a solicitação de estorno de ${formatarPreco(solicitacao.total)} será enviada ao provedor de pagamento e ficará sujeita à confirmação.`
-            : "Tem certeza que deseja cancelar este pedido de aluguel? Como ainda não houve pagamento, nada será cobrado. O objeto voltará a ficar disponível.";
+        modalCancelarTexto.textContent = "Tem certeza que deseja cancelar esta locação? O objeto voltará a ficar disponível. Se vocês já combinaram algum pagamento, resolvam diretamente entre vocês.";
     }
- 
+
     modalCancelar.classList.add("show");
 }
  
@@ -839,14 +774,11 @@ modalCancelarConfirmar.addEventListener("click", async () => {
     modalCancelarConfirmar.textContent = "Cancelando...";
  
     try {
-        // O back estorna (se já houve pagamento) e libera o objeto. Se o estorno
-        // depende de confirmação do provedor, responde 202 (operacaoFinanceiraPendente).
-        const resultado = await window.SolicitacoesVizin.cancelar(solicitacaoIdParaCancelar);
+        // O back cancela a locação e libera o objeto (sem operação financeira).
+        await window.SolicitacoesVizin.cancelar(solicitacaoIdParaCancelar);
  
         fecharModalCancelar();
-        mostrarToast(resultado.operacaoFinanceiraPendente
-            ? "Cancelamento em andamento — o estorno aguarda confirmação do provedor de pagamento"
-            : "Locação cancelada");
+        mostrarToast("Locação cancelada");
     } catch (erro) {
         console.error(erro);
         mostrarToast(erro.message || "Não foi possível cancelar. Tente novamente.", "erro");

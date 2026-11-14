@@ -1,4 +1,5 @@
 import path from "node:path";
+import { stat } from "node:fs/promises";
 import type { RequestHandler } from "express";
 import prisma from "../config/database.ts";
 import { HttpError } from "../utils/httpError.ts";
@@ -9,6 +10,7 @@ import { pageHeaders, pagination } from "../utils/listPage.ts";
 import { chatMessageInclude, markChatRead, sendChatMessage } from "../services/chatService.ts";
 import { publishPersistedMessage, publishReadUpdate } from "../../realtime/realtimeService.ts";
 import { avatarUrl } from "../utils/files.ts";
+import { isUserOnline } from "../../realtime/presence.ts";
 const include = { objeto: { select: { id:true,titulo:true } }, participantes: { include: { usuario: { select: { id:true,nome:true,foto_url:true,ativo:true } } } }, mensagens: { orderBy: { enviada_em: "desc" as const }, take:1, include:{anexo:true} }, _count: { select: { mensagens: true } } };
 // Busca conversa e verifica participação antes de expor mensagens ou alterar seu estado.
 async function conversation(id: unknown, userId: string) {
@@ -21,13 +23,14 @@ async function blocked(a:string,b:string) { return !!await prisma.bloqueios.find
 function dto(c: Awaited<ReturnType<typeof conversation>>, userId:string, unread = 0) {
  const other=c.participantes.find(p=>p.usuario_id!==userId)!.usuario;
  const item=c.objeto;
- return {id:c.id,user:{id:other.id,name:other.nome,avatar:avatarUrl(other.foto_url),online:false},item:{name:item?.titulo??"Conversa geral",icon:"tool",produtoId:item?.id??null},unreadCount:unread,lastMessage:c.mensagens[0]?serializeMessage(c.mensagens[0],userId):null};
+ return {id:c.id,user:{id:other.id,name:other.nome,avatar:avatarUrl(other.foto_url),online:isUserOnline(other.id)},item:{name:item?.titulo??"Conversa geral",icon:"tool",produtoId:item?.id??null},unreadCount:unread,lastMessage:c.mensagens[0]?serializeMessage(c.mensagens[0],userId):null};
 }
 // Lista conversas visíveis ao usuário com estado de leitura.
 export const listConversations: RequestHandler = async(req,res) => {
- const hidden=await prisma.bloqueios.findMany({where:{usuario_id:req.user!.id}});
+ const hidden=await prisma.bloqueios.findMany({where:{OR:[{usuario_id:req.user!.id},{bloqueado_id:req.user!.id}]}});
+ const hiddenIds=[...new Set(hidden.map(row=>row.usuario_id===req.user!.id?row.bloqueado_id:row.usuario_id))];
  const {page,limit,skip}=pagination(req);
- const where={participantes:{some:{usuario_id:req.user!.id,arquivada:false}},NOT:{participantes:{some:{usuario_id:{in:hidden.map(b=>b.bloqueado_id)}}}}};
+ const where={participantes:{some:{usuario_id:req.user!.id,arquivada:false}},NOT:{participantes:{some:{usuario_id:{in:hiddenIds}}}}};
  const [rows,total]=await Promise.all([prisma.conversas.findMany({where,include,orderBy:{atualizado_em:"desc"},skip,take:limit}),prisma.conversas.count({where})]);
  const unreadRows=rows.length?await prisma.mensagens.groupBy({by:["conversa_id"],where:{conversa_id:{in:rows.map(row=>row.id)},destinatario_id:req.user!.id,lida:false},_count:true}):[];
  const unreadByConversation=new Map(unreadRows.map(row=>[row.conversa_id,row._count]));
@@ -90,8 +93,9 @@ export const unblockUser: RequestHandler = async(req,res)=>{await prisma.bloquei
 export const blockedUsers: RequestHandler = async(req,res)=>{res.json((await prisma.bloqueios.findMany({where:{usuario_id:req.user!.id},include:{bloqueado:{select:{id:true,nome:true,foto_url:true}}}})).map(b=>({id:b.bloqueado.id,name:b.bloqueado.nome,avatar:avatarUrl(b.bloqueado.foto_url)})));};
 // Registra anexo privado já validado pelo middleware de upload.
 export const uploadAttachment: RequestHandler = async(req,res)=>{
- const f=req.file;if(!f) throw new HttpError(422,"Envie um arquivo");
- const a=await prisma.anexos.create({data:{usuario_id:req.user!.id,caminho:path.basename(f.path),nome:path.basename(f.originalname).replace(/[\x00-\x1f]/g,"").slice(0,200),mime:f.mimetype,tamanho:f.size}});
+ const f=req.file;if(!f) throw new HttpError(422,"Envie um arquivo.","arquivo_invalido");
+ const safeName=(f.originalname.replace(/\\/g,"/").split("/").pop() || "arquivo").replace(/[\x00-\x1f]/g,"").slice(0,200);
+ const a=await prisma.anexos.create({data:{usuario_id:req.user!.id,caminho:path.basename(f.path),nome:safeName,mime:f.mimetype,tamanho:f.size}});
  res.status(201).json({id:a.id,url:`/api/uploads/${a.id}`,name:a.nome,mimeType:a.mime,type:a.mime.startsWith("image/")?"image":a.mime.startsWith("video/")?"video":"file"});
 };
 // Confirma permissão de acesso antes de servir anexo privado.
@@ -100,5 +104,13 @@ export const downloadAttachment: RequestHandler = async(req,res)=>{
  const evidence=await prisma.denuncias.findFirst({where:{evidencias:{array_contains:[a.id]}}});
  if(a.usuario_id!==req.user!.id && a.mensagem?.destinatario_id!==req.user!.id && !(req.user!.tipo==="admin" && evidence)) throw new HttpError(403,"Anexo inacessível");
  if(path.basename(a.caminho)!==a.caminho) throw new HttpError(404,"Arquivo não encontrado");
- res.setHeader("Cache-Control","no-store");res.download(path.join(privateRoot,a.caminho),a.nome);
+ const filePath=path.join(privateRoot,a.caminho);
+ try { if (!(await stat(filePath)).isFile()) throw new Error("not-file"); }
+ catch { throw new HttpError(404,"Arquivo não encontrado","arquivo_nao_encontrado"); }
+ res.setHeader("Cache-Control","private, no-store");
+ res.setHeader("X-Content-Type-Options","nosniff");
+ if(a.mime.startsWith("video/")) {
+  // sendFile implementa Range/206 e envia o conteúdo por stream.
+  res.type(a.mime);res.setHeader("Content-Disposition","inline");res.sendFile(filePath);
+ } else res.download(filePath,a.nome);
 };

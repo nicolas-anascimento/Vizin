@@ -219,10 +219,12 @@ select{
 }
  
 /* GRID DOS PRODUTOS - 3 colunas fixas no desktop */
+/* minmax(0, 1fr): sem isso a coluna "1fr" nunca encolhe abaixo da largura
+   do conteúdo, então uma foto deitada (larga) empurrava o card pra fora da tela. */
 #lista-objetos {
     margin-top: 33px;
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 20px;
 }
  
@@ -233,6 +235,8 @@ select{
     box-shadow: 0 0 15px #00000020;
     display: flex;
     flex-direction: column;
+    min-width: 0;
+    max-width: 100%;
     text-decoration: none;
     color: inherit;
     cursor: pointer;
@@ -263,11 +267,14 @@ select{
         display: flex;
     justify-content: center;
     align-items: center;
+    width: 100%;
 }
  
-/* imagem */
+/* imagem: ocupa a largura do card e a altura fixa; "contain" mantém a
+   proporção (foto deitada ou em pé) sem estourar o card */
 .card-img {
-    width: auto;
+    width: 100%;
+    max-width: 100%;
     height: 172px;
     object-fit: contain;
     transition: transform 0.5s ease; /* animação suave */
@@ -316,6 +323,7 @@ select{
     font-size: 22px;
     color: #0D0D0D;
     margin: 0;
+    overflow-wrap: anywhere;
 }
  
 .card-body p {
@@ -337,11 +345,15 @@ select{
     font-size: 14px;
     color: #777;
     text-transform: capitalize;
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
  
 .localizacao {
     font-size: 14px;
     color: #777;
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
  
 .categoria-tag i,
@@ -559,7 +571,7 @@ hr{
      }
     #lista-objetos {
         margin-top: 24px;
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 14px;
     }
 }
@@ -617,7 +629,7 @@ hr{
         font-size: 13px;
     }
     #lista-objetos {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 12px;
         margin-top: 22px;
     }
@@ -703,4 +715,3 @@ hr{
         font-size: 21px;
     }
 }
- 

@@ -609,66 +609,6 @@
   display: none;
 }
  
-/* ---------- Resumo da multa projetada (antes de confirmar) ---------- */
-.resumo-multa-projetada {
-  font-weight: 600;
-}
-
-.resumo-multa-projetada i {
-  font-size: 16px;
-}
-
-/* ---------- Card de ação da multa (pagar / contestar) ---------- */
-.multa-acao-card {
-  background: #fdeaea;
-  border-radius: 14px;
-  padding: 14px 16px;
-  margin-top: 14px;
-  text-align: left;
-  animation: entrada-suave .35s ease both;
-}
-
-.multa-acao-card.hidden {
-  display: none;
-}
-
-.multa-acao-texto {
-  margin: 0 0 12px;
-  font-size: 13px;
-  color: #92200f;
-  font-weight: 600;
-}
-
-.multa-acao-botoes {
-  display: flex;
-  gap: 10px;
-}
-
-.multa-acao-botoes .btn {
-  flex: 1;
-  transition: transform .15s ease, box-shadow .15s ease;
-}
-
-.multa-acao-botoes .btn:not(:disabled):hover {
-  transform: translateY(-1px);
-}
-
-.multa-acao-card.multa-acao-ok {
-  background: var(--verde-claro);
-}
-
-.multa-acao-card.multa-acao-ok .multa-acao-texto {
-  color: var(--verde);
-}
-
-.multa-acao-card.multa-acao-suspensa {
-  background: #fef3e2;
-}
-
-.multa-acao-card.multa-acao-suspensa .multa-acao-texto {
-  color: var(--amarelo);
-}
-
 /* ---------- Zoom de foto ---------- */
 .foto-zoom-overlay {
   position: fixed;
@@ -735,8 +675,7 @@
 
 /* ---------- Acessibilidade ---------- */
 .parte-dropzone:focus-visible,
-.devolucao-actions .btn:focus-visible,
-.multa-acao-botoes .btn:focus-visible {
+.devolucao-actions .btn:focus-visible {
   outline: 2px solid var(--laranja);
   outline-offset: 2px;
 }

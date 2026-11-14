@@ -4,6 +4,7 @@ import env from "../app/config/env.ts";
 import { registerChatSocket } from "./chatSocket.ts";
 import { registerRealtimeServer, userRoom } from "./realtimeService.ts";
 import { authenticateSocket } from "./socketAuth.ts";
+import { trackPresence } from "./presence.ts";
 import type {
   ClientToServerEvents,
   InterServerEvents,
@@ -36,6 +37,15 @@ export function createRealtimeServer(httpServer: HttpServer): RealtimeServer {
   io.use((socket, next) => void authenticateSocket(socket, next));
   io.on("connection", (socket) => {
     void socket.join(userRoom(socket.data.userId));
+    trackPresence(io, socket);
+    const scheduleExpiry = () => {
+      const remaining = socket.data.expiresAt - Date.now();
+      if (remaining <= 0) { socket.disconnect(true); return; }
+      const timer = setTimeout(scheduleExpiry, Math.min(remaining, 2_147_483_647));
+      timer.unref();
+      socket.once("disconnect", () => clearTimeout(timer));
+    };
+    scheduleExpiry();
     // Conta suspensa mantém apenas a sala individual para alertas críticos.
     if (socket.data.active) registerChatSocket(socket);
   });

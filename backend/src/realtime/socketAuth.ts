@@ -9,6 +9,7 @@ interface TokenPayload {
   email: string;
   tipo: "admin" | "usuario";
   tokenVersion: number;
+  exp?: number;
 }
 
 function tokenFromCookies(header: string | undefined): string | null {
@@ -64,6 +65,7 @@ export async function authenticateSocket(
         socket.data.email = user.email;
         socket.data.role = user.tipo;
         socket.data.active = user.ativo;
+        socket.data.expiresAt = typeof payload.exp === "number" ? payload.exp * 1000 : Date.now();
         next();
         return;
       } catch {

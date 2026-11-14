@@ -1,16 +1,42 @@
 import prisma from "../config/database.ts";
 import { publishNotification } from "../../realtime/realtimeService.ts";
 import { serializeNotification } from "../utils/serializers.ts";
+import { publicationContext } from "./subscriptionService.ts";
 
-export const campaignSegments = ["todos", "ativos", "proprietarios", "locatarios", "novos"] as const;
+export const campaignSegments = ["todos", "ativos", "proprietarios", "locatarios", "novos", "assinantes", "plano_gratuito", "perto_do_limite", "limite_atingido"] as const;
 export type CampaignSegment = typeof campaignSegments[number];
 
 export function campaignAudienceWhere(segment: CampaignSegment): any {
-  const active = segment !== "todos" ? { ativo: true } : {};
+  const active = ["todos", "assinantes", "plano_gratuito", "perto_do_limite", "limite_atingido"].includes(segment) ? {} : { ativo: true };
+  const now = new Date();
+  const paid = { some: { status: "ativa", inicio: { lte: now }, fim: { gt: now }, planos: { codigo: { in: ["intermediario", "avancado"] } } } };
+  if (segment === "assinantes") return { ...active, assinaturas: paid };
+  if (segment === "plano_gratuito") return { ...active, assinaturas: { none: paid.some } };
   if (segment === "proprietarios") return { ...active, itens: { some: { arquivado: false } } };
   if (segment === "locatarios") return { ...active, alugueis_alugueis_locatario_idTousuarios: { some: {} } };
   if (segment === "novos") return { ...active, criado_em: { gte: new Date(Date.now() - 30 * 86400000) } };
   return active;
+}
+
+export async function matchesCampaignSegment(userId: string, segment: CampaignSegment): Promise<boolean> {
+  if (segment !== "perto_do_limite" && segment !== "limite_atingido") return true;
+  const context = await publicationContext(userId);
+  const ratio = context.utilizadas / context.plano.limite_publicacoes;
+  return segment === "limite_atingido" ? ratio >= 1 : ratio >= 0.8 && ratio < 1;
+}
+
+export async function countCampaignAudience(segment: CampaignSegment): Promise<number> {
+  if (segment !== "perto_do_limite" && segment !== "limite_atingido") return prisma.usuarios.count({ where: campaignAudienceWhere(segment) });
+  let total = 0;
+  let cursor: string | undefined;
+  while (true) {
+    const users = await prisma.usuarios.findMany({ where: campaignAudienceWhere(segment), select: { id: true }, orderBy: { id: "asc" }, take: 100, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}) });
+    if (!users.length) break;
+    for (const user of users) if (await matchesCampaignSegment(user.id, segment)) total++;
+    cursor = users[users.length - 1]!.id;
+    if (users.length < 100) break;
+  }
+  return total;
 }
 
 export async function processAdminCampaigns(): Promise<void> {
@@ -30,6 +56,7 @@ export async function processAdminCampaigns(): Promise<void> {
         const users = await prisma.usuarios.findMany({ where: campaignAudienceWhere(candidate.destinatarios as CampaignSegment), select: { id: true }, orderBy: { id: "asc" }, take: 100, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}) });
         if (!users.length) break;
         for (const user of users) {
+          if (!await matchesCampaignSegment(user.id, candidate.destinatarios as CampaignSegment)) continue;
           const notification = await prisma.$transaction(async tx => {
             const inserted = await tx.comunicados_admin_entregas.createMany({ data: [{ comunicado_id: candidate.id, usuario_id: user.id }], skipDuplicates: true });
             if (!inserted.count) return null;

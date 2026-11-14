@@ -8,7 +8,14 @@ const ADMIN_INDEX_URL = "/admin/inicio";
 // O papel vem sempre do usuário devolvido pelo back-end na autenticação
 // atual. O localStorage é somente cache e nunca decide o destino.
 function destinoAposAutenticacao(usuario) {
-    return usuario?.tipo === "admin" ? ADMIN_INDEX_URL : HOME_INDEX_URL;
+    if (usuario?.tipo === "admin") return ADMIN_INDEX_URL;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("next") === "/suporte") return "/suporte";
+    const plano = params.get("plano");
+    if (plano === "intermediario" || plano === "avancado") {
+        return `/finalizar-pagamento?plano=${plano}`;
+    }
+    return HOME_INDEX_URL;
 }
 
 function atualizarCacheUsuario(usuario) {

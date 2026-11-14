@@ -42,19 +42,22 @@ const ICONES_TIPO = {
     denuncia_critica_sem_resposta: "bi-alarm",
     ticket_suporte: "bi-headset",
     contestacao_suspensao: "bi-chat-left-dots",
+    // Pagamentos: só de PLANOS de anúncios (aluguéis e multas são entre os usuários)
     pagamento_processado: "bi-check-circle",
     pagamento_falhou: "bi-x-octagon",
     pagamento_estornado: "bi-arrow-counterclockwise",
+    assinatura_nova: "bi-patch-check",
+    assinatura_renovacao_cancelada: "bi-calendar-x",
+    assinatura_encerrada: "bi-arrow-down-circle",
     locacao_atrasada: "bi-clock-history",
-    multa_gerada: "bi-receipt",
     avaliacao_negativa: "bi-star-half",
     verificacao_enviada: "bi-patch-question",
     verificacao_reenviada: "bi-arrow-repeat",
     verificacao_atrasada: "bi-hourglass-bottom",
     verificacao_cancelada: "bi-slash-circle",
     sistema_webhook_falhou: "bi-plug",
-    sistema_estorno_pendente: "bi-hourglass-split",
-    sistema_erro_upload: "bi-cloud-slash"
+    sistema_erro_upload: "bi-cloud-slash",
+    comunicado_teste: "bi-send-check"
 };
 const ICONES_CATEGORIA = {
     usuarios: "bi-people", anuncios: "bi-megaphone", denuncias: "bi-shield-exclamation",
@@ -132,6 +135,7 @@ function htmlNotificacao(n, { acoes = true } = {}) {
         <div class="admin-notif-corpo">
             <div class="admin-notif-topo">
                 <span class="admin-notif-cat cat-${cat.cor}">${escNotif(cat.label)}</span>
+                ${n.tipo === "comunicado_teste" ? `<span class="admin-notif-teste">Teste</span>` : ""}
                 ${n.prioridade === "alta" ? `<span class="admin-notif-urgente"><i class="bi bi-exclamation-triangle-fill"></i> Urgente</span>` : ""}
                 <span class="admin-notif-tempo" title="${escNotif(dataCompleta(n.criadoEm))}">${escNotif(tempoRelativo(n.criadoEm))}</span>
             </div>

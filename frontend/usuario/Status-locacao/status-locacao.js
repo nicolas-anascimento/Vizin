@@ -50,7 +50,7 @@ document.addEventListener("solicitacoesAtualizadas", () => {
     const atual = window.SolicitacoesVizin.obterPorId(solicitacao.id);
     if (atual && atual.status === "cancelado" && solicitacao.status !== "cancelado") {
         alert(atual.canceladoPeloSistema
-            ? "Esta locação foi cancelada automaticamente (prazo expirado). Se houve pagamento, o estorno está em andamento."
+            ? "Esta locação foi cancelada automaticamente (prazo expirado)."
             : "Esta locação foi cancelada.");
         location.reload();
     }
@@ -81,7 +81,7 @@ function parseDataISOLocal(dataStr) {
 }
 
 // Mesma função de historico.js — formata um timestamp ISO (ex: o
-// "multaCongeladaEm"/"multaPagaEm" salvo pelo SolicitacoesVizin) pra
+// "multaCongeladaEm" salvo pelo SolicitacoesVizin) pra
 // "dd/mm/aaaa às HH:MM", usado no comprovante de multa abaixo.
 function formatarDataHora(isoStr) {
     if (!isoStr) return "-";
@@ -117,7 +117,7 @@ const ETAPAS = [
 ];
 
 function indiceAtual(status) {
-    if (status === "pago") return -1;                 // nenhum passo concluído ainda
+    if (status === "pago" || status === "aprovado") return -1;                 // nenhum passo concluído ainda
     if (status === "retirado") return 1;               // passo 0 feito, passo 1 é o atual
     if (status === "aguardando_devolucao") return 2;    // passos 0-1 feitos, passo 2 é o atual
     if (status === "concluido") return 3;               // tudo feito
@@ -130,7 +130,7 @@ function indiceAtual(status) {
 // cor no outro. Agora usam exatamente o mesmo agrupamento do Histórico.
 const STATUS_GERAL_LABEL = {
     pendente: "Aguardando aprovação",
-    aprovado: "Aguardando pagamento",
+    aprovado: "Aguardando retirada",
     pago: "Aguardando retirada",
     retirado: "Em andamento",
     aguardando_devolucao: "Em andamento",
@@ -141,7 +141,7 @@ const STATUS_GERAL_LABEL = {
 
 const STATUS_GERAL_CLASSE = {
     pendente: "pendente",
-    aprovado: "pendente",
+    aprovado: "confirmado",
     pago: "confirmado",
     retirado: "confirmado",
     aguardando_devolucao: "confirmado",
@@ -206,7 +206,7 @@ if (solicitacao.status === "cancelado") {
         const hoje = new Date();
         hoje.setHours(0, 0, 0, 0);
 
-        if (solicitacao.status === "pago") {
+        if (solicitacao.status === "pago" || solicitacao.status === "aprovado") {
             // Janela da retirada: só no dia agendado, das 00:00 às 23:59 (fuso de
             // São Paulo). A regra vive em RetiradaVizin.janela() (retirada-shared.js).
             const { estado, dataISO, diff } = RetiradaVizin.janela(solicitacao.id, solicitacao.dataRetirada);
@@ -216,13 +216,13 @@ if (solicitacao.status === "cancelado") {
 
             if (estado === "futura") {
                 const quando = diff > 1 ? ` (em ${diff} dias)` : diff === 1 ? " (amanhã)" : "";
-                texto = `A retirada só abre às 00:00 de ${dataFormatada}${quando} e vai até as 23:59 desse dia. Se ninguém registrar até lá, a locação é cancelada automaticamente e o valor pago é estornado ao locatário.`;
+                texto = `A retirada só abre às 00:00 de ${dataFormatada}${quando} e vai até as 23:59 desse dia. Se ninguém registrar até lá, a locação é cancelada automaticamente.`;
                 prazoCard.classList.add("prazo-info");
             } else if (estado === "aberta") {
-                texto = "A retirada precisa ser registrada hoje, até as 23:59. Depois disso a locação é cancelada automaticamente e o valor pago é estornado ao locatário.";
+                texto = "A retirada precisa ser registrada hoje, até as 23:59. Depois disso a locação é cancelada automaticamente.";
                 prazoCard.classList.add("prazo-urgente");
             } else {
-                texto = `O prazo da retirada terminou às 23:59 de ${dataFormatada}. A locação será cancelada automaticamente e o valor pago estornado ao locatário — atualize a página para ver o resultado.`;
+                texto = `O prazo da retirada terminou às 23:59 de ${dataFormatada}. A locação será cancelada automaticamente — atualize a página para ver o resultado.`;
                 prazoCard.classList.add("prazo-urgente");
             }
 
@@ -235,7 +235,7 @@ if (solicitacao.status === "cancelado") {
             const p = DevolucaoVizin.prazo(solicitacao.dataDevolucao);
             if (!p) return;
             const dataFormatada = formatarData(p.dataISO);
-            const aviso = "Depois disso começa a contar multa diária.";
+            const aviso = "Depois disso a devolução fica registrada como em atraso.";
             let texto;
 
             if (p.estado === "futura" && p.diff > 1) {
@@ -247,17 +247,7 @@ if (solicitacao.status === "cancelado") {
                 texto = `A devolução precisa ser confirmada hoje, até as 23:59. ${aviso}`;
                 prazoCard.classList.add("prazo-urgente");
             } else {
-                // O valor da multa é calculado pelo back-end (projeção até a
-                // devolução ser confirmada) — completamos o texto quando chegar.
-                texto = `Devolução em atraso há ${p.diasAtraso} dia(s): o prazo terminou às 23:59 de ${dataFormatada} e a multa diária já está correndo.`;
-                if (window.SolicitacoesVizin?.obterMulta) {
-                    window.SolicitacoesVizin.obterMulta(solicitacao.id).then(m => {
-                        if (m && m.valorTotal > 0) {
-                            const dias = m.diasAtraso > 0 ? m.diasAtraso : p.diasAtraso;
-                            prazoTexto.textContent = `Devolução em atraso há ${dias} dia(s): o prazo terminou às 23:59 de ${dataFormatada}. Já soma ${window.SolicitacoesVizin.formatarReal(m.valorTotal)} de multa por atraso.`;
-                        }
-                    }).catch(() => { /* mantém o texto sem valor */ });
-                }
+                texto = `Devolução em atraso há ${p.diasAtraso} dia(s): o prazo terminou às 23:59 de ${dataFormatada}. Eventuais valores devem ser combinados diretamente entre locador e locatário.`;
                 prazoCard.classList.add("prazo-urgente");
             }
 
@@ -266,13 +256,13 @@ if (solicitacao.status === "cancelado") {
         }
     })();
 
-    // ================= MULTA POR ATRASO NA DEVOLUÇÃO =================
+    // ================= REGISTRO DE ATRASO NA DEVOLUÇÃO =================
     // O mesmo comprovante que já existe no Histórico (ver
     // montarComprovanteMulta em historico.js), incluindo o botão Pagar
     // Multa — antes, quem estava aqui no Status precisava voltar pro
     // Histórico pra resolver a multa, mesmo essa tela já mostrando o valor
     // estimado no texto do prazo.
-    renderizarMulta();
+    renderizarAtraso();
 
     // ================= RENDER DO STEPPER =================
     const idxAtual = indiceAtual(solicitacao.status);
@@ -297,6 +287,10 @@ if (solicitacao.status === "cancelado") {
 
     // ================= TEXTO DA ETAPA ATUAL =================
     const ETAPA_TEXTO = {
+        aprovado: {
+            titulo: "Etapa atual: Aguardando retirada",
+            texto: "Combinem o pagamento do aluguel diretamente entre vocês. Assim que ambas as partes registrarem as fotos da retirada, o objeto passa para a posse do locatário."
+        },
         pago: {
             titulo: "Etapa atual: Aguardando retirada",
             texto: "Assim que ambas as partes registrarem as fotos da retirada, o objeto passa para a posse do locatário."
@@ -331,13 +325,13 @@ if (solicitacao.status === "cancelado") {
     // ================= CTA: INICIAR / CONTINUAR RETIRADA =================
     // Antes não existia NENHUM caminho, a partir desta tela, até a página de
     // Retirada — a pessoa só chegava lá se soubesse a URL de cor. Aparece
-    // pras duas partes assim que o pagamento é confirmado, já que as duas
+    // pras duas partes assim que a locação é aprovada, já que as duas
     // precisam enviar fotos pra retirada ser concluída.
     const ctaRetirada = document.getElementById("cta-retirada");
     const ctaRetiradaTexto = document.getElementById("cta-retirada-texto");
     const btnIrRetirada = document.getElementById("btn-ir-retirada");
 
-    if (solicitacao.status === "pago" && ctaRetirada) {
+    if ((solicitacao.status === "pago" || solicitacao.status === "aprovado") && ctaRetirada) {
         // Status de envio das fotos (já carregado do back no início da página).
         const statusRetirada = window.RetiradaVizin ? window.RetiradaVizin.obterStatus(solicitacao.id) : null;
         const jaEnviei = !!(statusRetirada && statusRetirada[meuPapel] && statusRetirada[meuPapel].enviado);
@@ -440,66 +434,34 @@ function mostrarToast(mensagem) {
     setTimeout(() => toast.classList.remove("show"), 2500);
 }
 
-// ================= COMPROVANTE + AÇÕES DA MULTA =================
-// Réplica do comprovante do Histórico (montarComprovanteMulta em
-// historico.js), adaptada pro papel já calculado aqui ("locatario"/
-// "proprietario" em vez de "alugado"/"alugado-para-outros") e pra um único
-// `solicitacao` em vez de uma lista de itens do histórico.
-function montarComprovanteMulta() {
-    if (!solicitacao.multaAtraso || solicitacao.multaAtraso.diasAtraso <= 0 || !window.SolicitacoesVizin) return "";
+// ================= REGISTRO DE ATRASO =================
+// Só informativo: dias de atraso e quando foi apurado. O O Vizinho não
+// calcula, cobra nem repassa valores — acertos são entre locador e locatário.
+function montarRegistroAtraso() {
+    if (!solicitacao.multaAtraso || solicitacao.multaAtraso.diasAtraso <= 0) return "";
 
-    const formatar = window.SolicitacoesVizin.formatarReal;
-    const status = solicitacao.multaStatus || "pendente";
-    const souLocatario = meuPapel === "locatario";
-
-    const STATUS_INFO = {
-        pendente: { label: "Pendente", cor: "#dc2626", fundo: "#fdeaea" },
-        paga: { label: "Paga", cor: "#1f8b4c", fundo: "#e6f6ec" },
-        contestada: { label: "Contestada", cor: "#b7791f", fundo: "#fff6e0" }
-    };
-    const infoStatus = STATUS_INFO[status] || STATUS_INFO.pendente;
-
-    const quando = status === "paga" && solicitacao.multaPagaEm
-        ? `Paga em ${formatarDataHora(solicitacao.multaPagaEm)}`
-        : `Congelada em ${formatarDataHora(solicitacao.multaCongeladaEm)}`;
-
-    const valorParaMim = souLocatario ? solicitacao.multaAtraso.valorTotal : solicitacao.multaAtraso.valorProprietario;
-    const rotuloValor = souLocatario ? "Valor cobrado" : "Seu valor (após taxa da plataforma)";
-
-    // Pagar Multa não paga na hora mais — leva pra página de pagamento
-    // dedicada (Pagamento-multa), igual ao checkout normal do aluguel.
-    const acoes = (souLocatario && status === "pendente")
-        ? `<div style="display:flex; gap:10px; margin-top:10px;">
-                <a class="btn btn-primary" href="/pagamento-multa?solicitacaoId=${solicitacao.id}">
-                    <i class="bi bi-credit-card"></i> Pagar Multa
-                </a>
-           </div>`
+    const quando = solicitacao.multaCongeladaEm
+        ? `Apurado em ${formatarDataHora(solicitacao.multaCongeladaEm)}`
         : "";
 
     return `
-        <div class="card card-aluguel-multa" style="background:${infoStatus.fundo};">
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-                <span style="font-size:13px; font-weight:700; color:var(--texto);">
-                    <i class="bi bi-receipt"></i> Multa por atraso na devolução
-                </span>
-                <span style="font-size:11px; font-weight:700; padding:3px 10px; border-radius:999px; background:${infoStatus.cor}; color:#fff;">
-                    ${infoStatus.label}
-                </span>
-            </div>
+        <div class="card card-aluguel-multa" style="background:#fff6e0;">
+            <span style="font-size:13px; font-weight:700; color:var(--texto);">
+                <i class="bi bi-clock-history"></i> Atraso na devolução
+            </span>
             <div style="font-size:12.5px; color:var(--texto-suave); margin-top:8px; display:flex; flex-direction:column; gap:3px;">
-                <span>${solicitacao.multaAtraso.diasAtraso} dia(s) de atraso · ${formatar(solicitacao.multaAtraso.valorDia)}/dia</span>
-                <span>${rotuloValor}: <strong style="color:var(--texto);">${formatar(valorParaMim)}</strong></span>
-                <span>${quando}</span>
+                <span>${solicitacao.multaAtraso.diasAtraso} dia(s) de atraso</span>
+                ${quando ? `<span>${quando}</span>` : ""}
+                <span>Eventuais valores devem ser combinados diretamente entre locador e locatário.</span>
             </div>
-            ${acoes}
         </div>
     `;
 }
 
-function renderizarMulta() {
+function renderizarAtraso() {
     const container = document.getElementById("multa-card-container");
     if (!container) return;
-    container.innerHTML = montarComprovanteMulta();
+    container.innerHTML = montarRegistroAtraso();
 }
 
 })();

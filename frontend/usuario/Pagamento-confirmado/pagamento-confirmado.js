@@ -1,8 +1,9 @@
 // ================= LER DADOS DA URL =================
-// Só o id da solicitação vem da URL. Objeto, datas e valor pago são buscados
-// no back-end — quem abrir esta página sem ter pago (ou com um link
-// adulterado) não vê uma confirmação falsa.
-const solicitacaoId = new URLSearchParams(window.location.search).get("solicitacaoId");
+// Esta tela confirma EXCLUSIVAMENTE o pagamento de um plano de anúncios.
+// Só o id do pagamento vem da URL; tudo o mais é buscado no back — quem abrir
+// esta página sem ter pago não vê uma confirmação falsa (a assinatura só é
+// ativada pelo webhook do provedor).
+const pagamentoId = new URLSearchParams(window.location.search).get("pagamentoId");
 
 // ================= TELAS =================
 const telas = {
@@ -20,36 +21,37 @@ function mostrarTela(nome) {
 const MENSAGENS_ERRO = {
     nao_encontrada: "Não encontramos este pagamento.",
     nao_pertence: "Este pagamento não pertence à sua conta.",
-    nao_paga: "O pagamento desta solicitação ainda não foi confirmado."
+    nao_paga: "O pagamento desta assinatura ainda não foi confirmado."
 };
 
 function mostrarErro(erro) {
     document.getElementById("confirmado-erro-texto").textContent =
         MENSAGENS_ERRO[erro?.codigo] ||
         erro?.message ||
-        "Não foi possível carregar os dados do pagamento. Tente novamente em instantes.";
+        "Não foi possível carregar os dados da assinatura. Tente novamente em instantes.";
     mostrarTela("erro");
 }
 
 document.getElementById("btn-confirmado-erro-voltar").addEventListener("click", () => {
-    window.location.href = "/historico";
+    window.location.href = "/planos";
 });
 
 // ================= PREENCHER =================
-function formatarData(dataStr) {
-    if (!dataStr) return "-";
-    const [ano, mes, dia] = dataStr.split("-");
-    return `${dia}/${mes}/${ano}`;
+function formatarData(valor) {
+    if (!valor) return "-";
+    const d = new Date(valor);
+    if (Number.isNaN(d.getTime())) return "-";
+    return d.toLocaleDateString("pt-BR", { timeZone: "UTC" });
 }
 
-function preencher(c) {
-    document.getElementById("confirmado-objeto-nome").textContent = c.produto.titulo;
-    document.getElementById("confirmado-retirada").textContent = formatarData(c.data_retirada);
-    document.getElementById("confirmado-devolucao").textContent = formatarData(c.data_devolucao);
-    document.getElementById("confirmado-periodo").textContent = `${c.dias} dia${c.dias > 1 ? "s" : ""}`;
-    document.getElementById("confirmado-total").textContent = formatarPreco(c.total_pago);
+function preencher(pagamento, atual) {
+    document.getElementById("confirmado-plano-nome").textContent = pagamento.plano?.nome || atual.plano.nome;
+    document.getElementById("confirmado-limite").textContent = atual.limite;
+    document.getElementById("confirmado-valor").textContent = formatarPreco(pagamento.valor ?? (pagamento.valor_centavos / 100));
+    document.getElementById("confirmado-inicio").textContent = formatarData(atual.inicioPeriodo);
+    document.getElementById("confirmado-fim").textContent = formatarData(atual.fimPeriodo);
     const avisoDemo = document.getElementById("confirmado-demo");
-    if (avisoDemo) avisoDemo.hidden = c.pagamento_demonstrativo !== true;
+    if (avisoDemo) avisoDemo.hidden = true;
 }
 
 // ================= INICIALIZAÇÃO =================
@@ -57,29 +59,21 @@ function preencher(c) {
 
     mostrarTela("carregando");
 
-    if (!solicitacaoId) {
+    if (!pagamentoId) {
         return mostrarErro({ message: "Não foi possível identificar o pagamento." });
     }
 
-    let confirmacao;
+    let pagamento, atual;
     try {
-        confirmacao = await PagamentosAPI.obterConfirmacaoAluguel(solicitacaoId);
+        pagamento = await AssinaturasAPI.obterPagamento(pagamentoId);
+        if (!AssinaturasAPI.ehPago(pagamento)) {
+            return mostrarErro({ codigo: "nao_paga" });
+        }
+        atual = await AssinaturasAPI.obterMinhaAssinatura(); // plano, cota e período vigentes
     } catch (erro) {
         return mostrarErro(erro);
     }
 
-    preencher(confirmacao);
+    preencher(pagamento, atual);
     mostrarTela("sucesso");
-
-    // Redireciona pra retirada. A página de destino também deve buscar os
-    // dados no back pelo solicitacaoId; os demais parâmetros são só conveniência.
-    setTimeout(() => {
-        const query = new URLSearchParams({
-            produtoId: confirmacao.produto.id ?? "",
-            retirada: confirmacao.data_retirada || "",
-            devolucao: confirmacao.data_devolucao || "",
-            solicitacaoId
-        });
-        window.location.href = `/retirada?${query.toString()}`;
-    }, 3000);
 })();

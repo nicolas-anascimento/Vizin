@@ -45,10 +45,11 @@ async function listarAvaliacoesAdmin() {
             null,
             'Não foi possível carregar as avaliações.'
         );
-        if (!Array.isArray(paginaAtual)) throw new Error('Resposta de avaliações inválida.');
-        linhas = linhas.concat(paginaAtual);
+        const itens = Array.isArray(paginaAtual) ? paginaAtual : (paginaAtual?.data || paginaAtual?.dados);
+        if (!Array.isArray(itens)) throw new Error('Resposta de avaliações inválida.');
+        linhas = linhas.concat(itens);
         pagina++;
-    } while (paginaAtual.length === LIMITE);
+    } while ((Array.isArray(paginaAtual) ? paginaAtual : (paginaAtual?.data || paginaAtual?.dados || [])).length === LIMITE);
 
     // Mais recentes primeiro — mesmo padrão usado em solicitacoes-shared.js
     // e notificacoes.js (ids são UUID, então a ordem vem sempre da data).

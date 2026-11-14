@@ -45,6 +45,11 @@ function corAvatar(id) {
 
 function formatarData(iso) {
     if (!iso) return "—";
+    // Mesmo comportamento da tela de detalhes: data pura não passa por Date (evita voltar um dia por fuso).
+    if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+        const [ano, mes, dia] = iso.split("-");
+        return `${dia}/${mes}/${ano}`;
+    }
     const d = new Date(iso);
     return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString("pt-BR");
 }
@@ -54,18 +59,6 @@ function formatarDataHora(iso) {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return "—";
     return `${d.toLocaleDateString("pt-BR")} às ${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
-}
-
-function formatarCPF(valor) {
-    const n = String(valor ?? "").replace(/\D/g, "");
-    return n.length === 11 ? n.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") : (valor || "—");
-}
-
-function formatarTelefone(valor) {
-    const n = String(valor ?? "").replace(/\D/g, "");
-    if (n.length === 11) return n.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
-    if (n.length === 10) return n.replace(/(\d{2})(\d{4})(\d{4})/, "($1) $2-$3");
-    return valor || "—";
 }
 
 // ================= CARREGAR =================
@@ -137,7 +130,7 @@ function renderizar(v) {
 
     conteudo.innerHTML = `
         <div class="detalhe-cabecalho">
-            <div class="detalhe-avatar" style="background:${corAvatar(u.id ?? v.id)}">${escAdmin(iniciais(u.nome))}</div>
+            <div class="detalhe-avatar" style="background:${corAvatar(u.id ?? v.id)}">${window.avatarAdminHtml ? window.avatarAdminHtml(u.avatarUrl ?? u.avatar_url, iniciais(u.nome)) : escAdmin(iniciais(u.nome))}</div>
             <div class="detalhe-info">
                 <h1>${escAdmin(u.nome || "Usuário")} <span class="admin-badge ${ui.classe}">${ui.label}</span></h1>
                 <p>Enviado em ${formatarDataHora(v.criado_em)}${tentativa}</p>
@@ -149,9 +142,9 @@ function renderizar(v) {
 
         <div class="detalhe-grid-info">
             <div class="detalhe-campo"><span>Email</span><strong>${escAdmin(u.email || "—")}</strong></div>
-            <div class="detalhe-campo"><span>CPF</span><strong>${escAdmin(formatarCPF(u.cpf))}</strong></div>
-            <div class="detalhe-campo"><span>WhatsApp</span><strong>${escAdmin(formatarTelefone(u.whatsapp))}</strong></div>
-            <div class="detalhe-campo"><span>Cadastrado em</span><strong>${formatarData(u.criado_em)}</strong></div>
+            <div class="detalhe-campo"><span>Tipo</span><strong>${u.tipo === "admin" ? "Administrador" : "Usuário"}</strong></div>
+            <div class="detalhe-campo"><span>Conta</span><strong>${u.ativo === false ? "Inativo" : "Ativo"}</strong></div>
+            <div class="detalhe-campo"><span>Data de Cadastro</span><strong>${formatarData(u.criado_em)}</strong></div>
             ${TIPOS_DOCUMENTO[v.tipo_documento] ? `<div class="detalhe-campo"><span>Documento enviado</span><strong>${TIPOS_DOCUMENTO[v.tipo_documento]}</strong></div>` : ""}
         </div>
 

@@ -579,169 +579,349 @@ button {
 .back-btn:active { background: var(--surface-alt); }
  
 /* ============================================================
-   MOBILE — estilo WhatsApp/Instagram, respeitando header e footer
+   MOBILE — estilo WhatsApp/Instagram
    ============================================================
-   O header é fixed (sobrepõe a página), então .app precisa de uma
-   margem no topo do tamanho de --header-h (medido via JS em
-   layout-fit.js) pra não ficar por baixo do menu.
-   O footer NÃO é fixed — ele já é um bloco normal no fluxo do
-   documento, então basta o .app também ficar em fluxo normal
-   (position: relative, não fixed) para o footer continuar
-   aparecendo logo depois dele, sem sobreposição.
+   Lista de conversas: fica dentro do .app, entre o header fixo e o
+   menu flutuante de baixo (--bottom-nav-h reserva o espaço dele).
+   Chat aberto: vira TELA CHEIA (position: fixed, acima do header e
+   do menu flutuante), como no WhatsApp. Assim o menu de baixo nunca
+   cobre o campo de texto. A altura acompanha o teclado via
+   --vv-h/--vv-top (visualViewport, definidos em app.js).
    ============================================================ */
-@media (max-width: 860px) {
- 
+@media (max-width: 900px) {
+
+  :root {
+    /* Menu flutuante (.bottom-nav: bottom 14px + ~70px de altura + o botão + que sobressai).
+       Só afeta a LISTA; o chat aberto cobre o menu. */
+    --bottom-nav-h: 100px;
+  }
+
+  html, body { overflow-x: hidden; }
+
+  /* Fundo não rola enquanto o chat está aberto */
+  body.chat-open-mobile {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  /* Remove atraso/flash de toque */
+  button, a, .conv-item, input {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
   .app {
     position: relative;
     margin: calc(var(--header-h) + var(--mobile-gutter)) var(--mobile-gutter) var(--mobile-gutter);
     width: auto;
     height: calc(100dvh - var(--header-h) - (var(--mobile-gutter) * 2));
     max-height: none;
-    display: block; /* sai do grid de duas colunas */
+    display: block;
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-panel);
     overflow: hidden;
   }
- 
-  .conv-panel,
-  .chat-panel {
+
+  /* -------- painel de conversas -------- */
+  .conv-panel {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
     border-right: none;
+    border-radius: var(--radius-lg);
     transition: transform .3s cubic-bezier(.4, 0, .2, 1);
     will-change: transform;
-  }
- 
-  .conv-panel {
-    transform: translateX(0);
     z-index: 1;
-    border-radius: var(--radius-lg);
   }
- 
-  .chat-panel {
-    transform: translateX(100%);
-    z-index: 2;
-    border-radius: var(--radius-lg);
-  }
- 
-  /* Classe alternada via JS em .app quando uma conversa é aberta */
+
   .app.is-chat-open .conv-panel {
     transform: translateX(-25%);
   }
-  .app.is-chat-open .chat-panel {
-    transform: translateX(0);
-  }
- 
-  /* -------- painel de conversas -------- */
+
   .conv-panel__header {
     padding: 16px 16px 12px;
     border-top-left-radius: var(--radius-lg);
     border-top-right-radius: var(--radius-lg);
   }
- 
-  .app-title {
-    font-size: 22px;
+
+  .app-title { font-size: 22px; }
+
+  /* Último item da lista nunca fica escondido atrás do menu flutuante */
+  .conv-list {
+    padding-bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px));
+    overscroll-behavior: contain;
   }
- 
+
+  .conv-list__empty,
+  .conv-list__error {
+    padding-bottom: calc(var(--bottom-nav-h) + 24px);
+  }
+
   .conv-item {
     padding: 13px 16px;
     gap: 13px;
+    min-height: 68px;
   }
- 
-  .avatar {
-    width: 50px;
-    height: 50px;
+
+  .avatar { width: 50px; height: 50px; }
+
+  /* Campo de busca com 16px: o iOS não dá zoom ao focar */
+  .search-box input { font-size: 16px; }
+
+  /* -------- painel do chat: TELA CHEIA -------- */
+  .chat-panel {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: var(--vv-top, 0px);
+    width: 100%;
+    height: var(--vv-h, 100dvh);
+    border-radius: 0;
+    z-index: 1200;               /* acima do header e do menu flutuante */
+    transform: translateX(100%);
+    visibility: hidden;          /* fechado: fora do foco/leitores de tela */
+    transition: transform .3s cubic-bezier(.4, 0, .2, 1), visibility 0s linear .3s;
+    will-change: transform;
+    overscroll-behavior: contain;
   }
- 
+
+  .app.is-chat-open .chat-panel {
+    transform: translateX(0);
+    visibility: visible;
+    transition: transform .3s cubic-bezier(.4, 0, .2, 1), visibility 0s;
+  }
+
   /* -------- cabeçalho do chat -------- */
   .chat-header {
-    padding: 12px 14px;
-    gap: 10px;
-    border-top-left-radius: var(--radius-lg);
-    border-top-right-radius: var(--radius-lg);
+    flex-wrap: wrap;
+    padding: 10px 12px;
+    padding-top: max(10px, env(safe-area-inset-top, 0px));
+    gap: 8px 10px;
+    border-radius: 0;
   }
- 
+
   .back-btn {
     display: flex;
-  }
- 
-  .chat-header__item {
-    display: none; /* chip do item some no mobile, cabe só o essencial */
-  }
- 
-  /* -------- mensagens -------- */
-  .messages {
-    padding: 14px 12px;
-  }
- 
-  .msg-row {
-    max-width: 82%;
-  }
- 
-  .msg-bubble {
-    padding: 9px 13px;
-    border-radius: 16px;
-  }
-  .msg-row.them .msg-bubble { border-bottom-left-radius: 4px; }
-  .msg-row.me .msg-bubble { border-bottom-right-radius: 4px; }
- 
-  /* -------- composer -------- */
-  .attachment-preview {
-    padding: 8px 12px;
-  }
- 
-  .composer {
-    padding: 8px 10px;
-    padding-bottom: max(8px, env(safe-area-inset-bottom));
-    border-bottom-left-radius: var(--radius-lg);
-    border-bottom-right-radius: var(--radius-lg);
-  }
- 
-  .composer__input {
-    font-size: 16px; /* evita zoom automático ao focar no iOS Safari */
-    padding: 11px 15px;
-  }
- 
-  .send-btn,
-  .icon-btn {
     width: 40px;
     height: 40px;
   }
- 
+
+  .chat-header__user { flex: 1; }
+
+  /* Item em negociação continua visível, em uma linha própria */
+  .chat-header__item {
+    display: flex;
+    order: 5;
+    flex: 1 0 100%;
+    justify-content: flex-start;
+    padding-left: 50px; /* alinha com o nome (depois do botão voltar) */
+    margin-top: -2px;
+  }
+  .chat-header__item .item-chip {
+    margin-top: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11.5px;
+    padding: 3px 10px 3px 8px;
+  }
+
+  .chat-header__info { min-width: 0; }
+
+  .chat-menu-dropdown {
+    top: 46px;
+    min-width: 210px;
+    z-index: 1300;
+  }
+  .chat-menu-dropdown button { padding: 15px 18px; font-size: 14.5px; }
+
+  /* -------- avisos -------- */
+  .safety-notice { padding: 6px 14px; font-size: 11px; line-height: 1.35; }
+  .item-banner   { padding: 8px 14px; font-size: 12px; }
+
+  /* Teclado aberto: libera espaço para as mensagens */
+  body.kb-open .safety-notice,
+  body.kb-open .item-banner,
+  body.kb-open .chat-header__item { display: none; }
+
+  /* -------- mensagens -------- */
+  .messages {
+    padding: 12px 12px;
+    overscroll-behavior: contain;
+    scroll-padding-bottom: 12px;
+  }
+
+  .msg-row { max-width: 85%; }
+
+  .msg-bubble {
+    padding: 9px 13px;
+    border-radius: 16px;
+    overflow-wrap: anywhere;      /* links/palavras longas não estouram a bolha */
+    word-break: break-word;
+  }
+  .msg-row.them .msg-bubble { border-bottom-left-radius: 4px; }
+  .msg-row.me .msg-bubble { border-bottom-right-radius: 4px; }
+
+  .msg-bubble img.msg-attachment,
+  .msg-bubble video.msg-attachment {
+    max-width: 100%;
+    max-height: 320px;
+    height: auto;
+  }
+
+  .msg-file { word-break: break-all; }
+
+  .msg-failed { gap: 10px; }
+  .msg-failed button { padding: 6px 2px; }   /* alvo de toque maior */
+
+  .typing-indicator { padding: 0 14px 8px; }
+
+  /* -------- composer -------- */
+  .attachment-preview { padding: 8px 12px; }
+
+  .char-counter { padding: 2px 14px 6px; }
+
+  .composer {
+    padding: 8px 10px;
+    padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+    border-radius: 0;
+  }
+
+  /* Com o teclado aberto não há barra home por baixo: tira a folga */
+  body.kb-open .composer { padding-bottom: 8px; }
+
+  .composer__input {
+    font-size: 16px;   /* evita zoom automático ao focar no iOS Safari */
+    padding: 11px 15px;
+    min-height: 44px;
+  }
+
+  .send-btn,
+  .composer .icon-btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  .icon-btn { width: 40px; height: 40px; }
+
+  /* -------- modal, toast: acima do chat em tela cheia -------- */
+  .modal-overlay {
+    z-index: 1400;
+    align-items: flex-end;       /* vira "bottom sheet" no celular */
+    padding: 0;
+  }
+  .modal-box {
+    max-width: none;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    padding: 22px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+    max-height: 85dvh;
+    overflow-y: auto;
+  }
+  .modal-actions { gap: 10px; }
+  .modal-btn { flex: 1; padding: 13px 18px; }
+  .modal-select, .modal-textarea { font-size: 16px; }  /* sem zoom no iOS */
+  .blocked-users-list { max-height: 50dvh; }
+  .blocked-user-unblock { padding: 9px 14px; }
+
+  .toaste {
+    z-index: 1500;
+    bottom: calc(var(--bottom-nav-h) + 12px);
+    max-width: calc(100vw - 32px);
+    text-align: center;
+  }
+  /* Com o chat aberto o menu de baixo está coberto: toast vai pro rodapé */
+  body.chat-open-mobile .toaste {
+    bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  }
+  body.kb-open .toaste { bottom: 70px; }
+
 }
- 
+
 /* Telas bem pequenas: aperta ainda mais o essencial */
 @media (max-width: 360px) {
   .conv-item__preview,
   .item-chip {
     font-size: 12px;
   }
- 
+
   :root {
     --mobile-gutter: 8px;
   }
- 
+
   .composer {
     gap: 6px;
     padding: 8px;
   }
- 
+
   .composer__input {
     padding: 10px 12px;
   }
- 
+
   .send-btn,
-  .icon-btn {
-    width: 36px;
-    height: 36px;
+  .composer .icon-btn {
+    width: 40px;
+    height: 40px;
   }
 }
- 
+
+/* Celular deitado (teclado ocupa quase tudo): compacta o chat */
+@media (max-width: 900px) and (max-height: 480px) {
+  .safety-notice,
+  .item-banner,
+  .chat-header__item { display: none; }
+  .chat-header { padding-top: 6px; padding-bottom: 6px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .conv-panel, .chat-panel { transition: none !important; }
+}
+
 #chatAvatar {
   cursor: pointer;
 }
+ 
+/* ============================================================
+   VISUALIZADOR DE IMAGEM
+   ============================================================ */
+.msg-bubble img.msg-attachment { cursor: zoom-in; }
+ 
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1600;               /* acima do chat em tela cheia e do modal */
+  background: rgba(10, 10, 16, .88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;              /* imagem maior que a tela rola, sem ser reduzida */
+  padding: 56px 16px 24px;
+  cursor: zoom-out;
+}
+.lightbox__img {
+  display: block;
+  margin: auto;
+  max-width: none;             /* tamanho original (natural) */
+  max-height: none;
+  cursor: default;
+  border-radius: 6px;
+}
+.lightbox__close {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.15);
+  color: #fff;
+  font-size: 26px;
+  line-height: 1;
+  z-index: 1;
+}
+.lightbox__close:hover { background: rgba(255,255,255,.28); }
+body.lightbox-open { overflow: hidden; }
  
 /* ============================================================
    OFFLINE / ERRO DE CARREGAMENTO

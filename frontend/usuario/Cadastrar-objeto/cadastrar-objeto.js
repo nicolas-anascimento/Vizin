@@ -365,8 +365,31 @@ function validateForm() {
   return valid;
 }
  
+// ================= LIMITE DE ANÚNCIOS DO PLANO =================
+// Mostra o plano/limite no topo e, se já atingiu o limite, orienta a contratar
+// um plano com mais publicações. A validação REAL é do back-end (ele recusa
+// com o código "limite_anuncios_atingido"); isto é só orientação.
+let limiteAtingido = false;
+
+function avisarLimiteAtingido() {
+  statusMsg.innerHTML = 'Você atingiu o limite de anúncios do seu plano neste mês. <a href="/planos">Contrate um plano com mais publicações</a>.';
+  statusMsg.className = "status-msg error";
+}
+
+window.PlanoAnunciosVizin?.renderizar("plano-anuncios-card").then(info => {
+  if (info?.atingiuLimite) {
+    limiteAtingido = true;
+    avisarLimiteAtingido();
+  }
+});
+
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
+
+  if (limiteAtingido) {
+    avisarLimiteAtingido();
+    return;
+  }
   usuarioLogado = await (window.SessaoVizin?.pronto ?? Promise.resolve(usuarioLogado));
   statusMsg.className = "status-msg";
   statusMsg.textContent = "";
@@ -436,7 +459,15 @@ form.addEventListener("submit", async (e) => {
     // no navegador). ROTA ASSUMIDA / combinar com o back: nesse caso o back
     // recusa com um `codigo` que menciona "categoria" (ex.: categoria_invalida
     // ou categoria_nao_encontrada) — ajuste o regex abaixo se o back usar outro nome.
-    if (err && err.codigo && /categoria/i.test(err.codigo)) {
+    if (err && err.codigo === "limite_anuncios_atingido") {
+      // O back barrou: o limite do plano foi atingido (ex.: em outra aba).
+      limiteAtingido = true;
+      window.PlanoAnunciosVizin?.renderizar("plano-anuncios-card");
+      avisarLimiteAtingido();
+      btnSubmit.disabled = false;
+      btnSubmit.textContent = "Cadastrar Objeto";
+      return;
+    } else if (err && err.codigo && /categoria/i.test(err.codigo)) {
       statusMsg.textContent = "A categoria selecionada não existe mais. Atualizamos a lista de categorias — escolha outra e envie de novo.";
       window.CategoriasVizin.invalidar();
       window.CategoriasVizin.carregar(document.getElementById("categoria")).catch(() => {});

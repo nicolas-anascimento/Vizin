@@ -2,16 +2,16 @@ import type { Request } from "express";
 import { HttpError } from "./httpError.ts";
 import type prisma from "../config/database.ts";
 import { businessDayStart, parseDateOnly } from "./dates.ts";
+import { positivePageSchema } from "../schemas/query.schema.ts";
 
 type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 // Valida página e limite de consultas administrativas paginadas.
 export function pagination(req: Request, defaultLimit = 20) {
   const parse = (value: unknown, fallback: number) => {
     if (value === undefined) return fallback;
-    if (typeof value !== "string" || !/^[1-9]\d*$/.test(value)) throw new HttpError(422, "Paginação inválida", "paginacao_invalida");
-    const n = Number(value);
-    if (!Number.isSafeInteger(n)) throw new HttpError(422, "Paginação inválida", "paginacao_invalida");
-    return n;
+    const result = positivePageSchema.safeParse(value);
+    if (!result.success) throw new HttpError(422, "Paginação inválida", "paginacao_invalida");
+    return result.data;
   };
   const page = parse(req.query.page, 1), limit = Math.min(100, parse(req.query.limit, defaultLimit));
   if ((page - 1) * limit > Number.MAX_SAFE_INTEGER) throw new HttpError(422, "Paginação inválida", "paginacao_invalida");

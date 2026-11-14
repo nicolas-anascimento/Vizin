@@ -67,6 +67,10 @@ const els = {
  
   toaste: document.getElementById("toaste"),
  
+  lightbox: document.getElementById("lightbox"),
+  lightboxImg: document.getElementById("lightboxImg"),
+  lightboxClose: document.getElementById("lightboxClose"),
+ 
   // Modal genérico (confirmação de bloqueio/exclusão e formulário de denúncia)
   modalOverlay: document.getElementById("modalOverlay"),
   modalTitle: document.getElementById("modalTitle"),
@@ -79,7 +83,7 @@ let pendingAttachment = null;
  
 const MESSAGE_MAX_LENGTH = 2000;
  
-const mobileQuery = window.matchMedia("(max-width: 860px)");
+const mobileQuery = window.matchMedia("(max-width: 900px)");
  
 /* ============================================================
    ÍCONES DOS ITENS (chip da ferramenta em negociação)
@@ -356,6 +360,7 @@ async function abrirConversaViaQueryParams() {
 }
  
 function bindEvents() {
+  setupMobileViewport();
   els.searchInput.addEventListener("input", onSearch);
   els.retryLoadBtn.addEventListener("click", loadConversations);
   els.composerForm.addEventListener("submit", onSendMessage);
@@ -364,6 +369,20 @@ function bindEvents() {
   els.fileInput.addEventListener("change", onFileSelected);
   els.attachmentRemoveBtn.addEventListener("click", clearAttachment);
   els.blockedUsersBtn.addEventListener("click", onBlockedUsersClick);
+ 
+  // Clicar numa imagem do chat abre ela em tamanho original (delegação,
+  // pois as mensagens são recriadas a cada render).
+  els.messagesList.addEventListener("click", (e) => {
+    const img = e.target.closest("img.msg-attachment");
+    if (img) openLightbox(img.currentSrc || img.src);
+  });
+  els.lightbox.addEventListener("click", (e) => {
+    if (e.target !== els.lightboxImg) closeLightbox();
+  });
+  els.lightboxClose.addEventListener("click", closeLightbox);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !els.lightbox.classList.contains("hidden")) closeLightbox();
+  });
  
   // Clicar na foto do usuário no cabeçalho do chat ativo leva ao perfil dele
   els.chatAvatar.addEventListener("click", () => {
@@ -535,6 +554,7 @@ async function openConversation(id) {
     realtimeSocket?.emit("chat:leave", { conversation_id: previousConversationId });
   }
   state.activeConversationId = id;
+  stickNextRender = true;
   const conv = state.conversations.find(c => c.id === id);
   if (!conv) return;
  
@@ -660,6 +680,8 @@ function abrirChatMobile() {
   if (!mobileQuery.matches) return;
  
   els.app.classList.add("is-chat-open");
+  document.body.classList.add("chat-open-mobile");
+  atualizarViewportMobile();
  
   if (!history.state?.chatOpen) {
     history.pushState({ chatOpen: true }, "");
@@ -669,6 +691,52 @@ function abrirChatMobile() {
 // Fecha o chat e volta para a lista de conversas (mobile).
 function fecharChatMobile() {
   els.app.classList.remove("is-chat-open");
+  document.body.classList.remove("chat-open-mobile", "kb-open");
+  els.chatMenuDropdown.classList.add("hidden");
+  els.messageInput.blur();
+  atualizarViewportMobile();
+}
+
+// Ajusta o chat à área realmente visível. No iOS o teclado NÃO reduz o
+// viewport de layout, só o visual — sem isso o campo de texto some atrás
+// do teclado. Também detecta teclado aberto (kb-open) para liberar espaço.
+function atualizarViewportMobile() {
+  const root = document.documentElement;
+  const vv = window.visualViewport;
+  const aberto = mobileQuery.matches && els.app.classList.contains("is-chat-open");
+  if (!vv || !aberto) {
+    root.style.removeProperty("--vv-h");
+    root.style.removeProperty("--vv-top");
+    document.body.classList.remove("kb-open");
+    return;
+  }
+  root.style.setProperty("--vv-h", vv.height + "px");
+  root.style.setProperty("--vv-top", vv.offsetTop + "px");
+  const tecladoAberto = window.innerHeight - vv.height > 120;
+  const mudou = tecladoAberto !== document.body.classList.contains("kb-open");
+  document.body.classList.toggle("kb-open", tecladoAberto);
+  if (mudou && tecladoAberto) {
+    els.messagesList.scrollTop = els.messagesList.scrollHeight;
+  }
+}
+
+function setupMobileViewport() {
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", atualizarViewportMobile);
+    window.visualViewport.addEventListener("scroll", atualizarViewportMobile);
+  }
+  // Virou o aparelho / foi para desktop com o chat aberto: limpa o estado
+  mobileQuery.addEventListener("change", () => {
+    if (!mobileQuery.matches) {
+      els.app.classList.remove("is-chat-open");
+      document.body.classList.remove("chat-open-mobile", "kb-open");
+    }
+    atualizarViewportMobile();
+  });
+  // Mantém o teclado aberto ao tocar em enviar (senão ele fecha a cada mensagem)
+  els.sendBtn.addEventListener("pointerdown", (e) => {
+    if (document.activeElement === els.messageInput) e.preventDefault();
+  });
 }
  
 // Botão de voltar do cabeçalho do chat (usado só em telas estreitas)
@@ -698,7 +766,14 @@ function ensureBackButton() {
 /* ============================================================
    MENSAGENS
    ============================================================ */
+let stickNextRender = false;
+
 function renderMessages(messages) {
+  const lista = els.messagesList;
+  const nearBottom = lista.scrollHeight - lista.scrollTop - lista.clientHeight < 140;
+  const stick = stickNextRender || nearBottom;
+  const scrollAnterior = lista.scrollTop;
+  stickNextRender = false;
   els.messagesList.innerHTML = "";
   let lastDate = null;
  
@@ -757,7 +832,15 @@ function renderMessages(messages) {
     btn.addEventListener("click", () => discardFailedMessage(btn.dataset.discardId));
   });
  
-  els.messagesList.scrollTop = els.messagesList.scrollHeight;
+  els.messagesList.scrollTop = stick ? els.messagesList.scrollHeight : scrollAnterior;
+
+  // Imagens/vídeos carregam depois e aumentam a altura: mantém no fim
+  if (stick) {
+    els.messagesList.querySelectorAll("img.msg-attachment, video.msg-attachment").forEach(m => {
+      const ev = m.tagName === "VIDEO" ? "loadedmetadata" : "load";
+      m.addEventListener(ev, () => { els.messagesList.scrollTop = els.messagesList.scrollHeight; }, { once: true });
+    });
+  }
 }
  
 function renderTicks(status) {
@@ -859,6 +942,7 @@ async function onSendMessage(e) {
     status: "sending"
   };
   state.messages.push(optimisticMsg);
+  stickNextRender = true;
   renderMessages(state.messages);
  
   await trySendMessage(id, optimisticMsg, { text, attachment, clientMessageId: tempId });
@@ -996,6 +1080,7 @@ function onBlockUserClick() {
         state.activeConversationId = null;
         els.chatActive.classList.add("hidden");
         els.chatEmpty.classList.remove("hidden");
+        fecharChatMobile();
         showToast(conv.user.name + " foi bloqueado(a).");
       } catch (err) {
         showToast("Não foi possível bloquear agora. Tente novamente.");
@@ -1013,7 +1098,7 @@ const MOTIVOS_DENUNCIA = [
   { value: "item_danificado", label: "Item danificado ou não devolvido" },
   { value: "anuncio_falso", label: "Anúncio falso ou enganoso" },
   { value: "conteudo_impropprio", label: "Conteúdo impróprio" },
-  { value: "pagamento", label: "Problema com pagamento ou reembolso" },
+  { value: "pagamento", label: "Problema com o pagamento combinado entre vocês (golpe, cobrança indevida)" },
   { value: "outro", label: "Outro" }
 ];
  
@@ -1083,6 +1168,7 @@ function promptBloquearAposDenuncia(conv) {
           state.activeConversationId = null;
           els.chatActive.classList.add("hidden");
           els.chatEmpty.classList.remove("hidden");
+          fecharChatMobile();
         }
         showToast(conv.user.name + " foi bloqueado(a).");
       } catch (err) {
@@ -1108,6 +1194,7 @@ function onDeleteConvClick() {
         state.activeConversationId = null;
         els.chatActive.classList.add("hidden");
         els.chatEmpty.classList.remove("hidden");
+        fecharChatMobile();
         showToast("Conversa apagada.");
       } catch (err) {
         showToast("Não foi possível apagar agora. Tente novamente.");
@@ -1210,6 +1297,22 @@ function closeModal() {
   els.modalBody.innerHTML = "";
   els.modalConfirmBtn.classList.remove("hidden");
   modalOnConfirm = null;
+}
+ 
+/* ============================================================
+   VISUALIZADOR DE IMAGEM (tamanho original)
+   ============================================================ */
+function openLightbox(src) {
+  if (!src) return;
+  els.lightboxImg.src = src;
+  els.lightbox.classList.remove("hidden");
+  document.body.classList.add("lightbox-open");
+}
+ 
+function closeLightbox() {
+  els.lightbox.classList.add("hidden");
+  els.lightboxImg.removeAttribute("src");
+  document.body.classList.remove("lightbox-open");
 }
  
 /* ============================================================

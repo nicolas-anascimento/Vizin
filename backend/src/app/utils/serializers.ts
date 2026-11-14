@@ -112,6 +112,8 @@ export function serializeRental(rental: any): Record<string, unknown> {
   const price = contractedPrice(rental);
   const photos = rental.itens?.fotos_item ?? [];
   const fine = rental.multa;
+  const returnedAt = rental.devolucoes?.length ? new Date(Math.max(...rental.devolucoes.map((row: any) => new Date(row.criado_em).getTime()))) : null;
+  const delayDays = returnedAt && returnedAt > rental.data_fim ? Math.max(0, Math.ceil((returnedAt.getTime() - rental.data_fim.getTime()) / 86400000)) : 0;
   return {
     id: rental.id,
     status: rental.status,
@@ -137,7 +139,7 @@ export function serializeRental(rental: any): Record<string, unknown> {
     subtotal: price.subtotal,
     taxa_servico: price.taxa_servico,
     expira_em: rental.expira_em,
-    pagamento_ate: rental.pagamento_ate,
+    pagamento_ate: null,
     total: price.total,
     retirada: rental.data_inicio?.toISOString?.().slice(0, 10),
     devolucao: rental.data_fim?.toISOString?.().slice(0, 10),
@@ -146,7 +148,9 @@ export function serializeRental(rental: any): Record<string, unknown> {
     proprietario: rental.usuarios_alugueis_locador_idTousuarios ? { id: rental.locador_id, nome: rental.usuarios_alugueis_locador_idTousuarios.nome } : undefined,
     solicitante: rental.usuarios_alugueis_locatario_idTousuarios ? { id: rental.locatario_id, nome: rental.usuarios_alugueis_locatario_idTousuarios.nome } : undefined,
     cancelado_por: rental.cancelado_por ?? null,
-    multa: fine ? { status: fine.status, dias_atraso: fine.dias_atraso, valor_dia: money(fine.valor_dia), valor_total: money(fine.valor_total), valor_plataforma: money(fine.valor_plataforma), valor_proprietario: money(fine.valor_proprietario), calculado_em: fine.calculado_em } : null,
+    atraso: { dias_atraso: delayDays, devolucao_pendente: rental.status === "retirado" && rental.data_fim < new Date() },
+    // Somente leitura para contratos legados; nenhuma ação financeira é oferecida.
+    multa_historica: fine ? { status: fine.status, dias_atraso: fine.dias_atraso, calculado_em: fine.calculado_em } : null,
     objeto: rental.itens ? serializeItem(rental.itens) : undefined,
     locador: rental.usuarios_alugueis_locador_idTousuarios ? serializeUser(rental.usuarios_alugueis_locador_idTousuarios) : undefined,
     locatario: rental.usuarios_alugueis_locatario_idTousuarios ? serializeUser(rental.usuarios_alugueis_locatario_idTousuarios) : undefined,

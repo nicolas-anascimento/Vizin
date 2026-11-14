@@ -1,14 +1,9 @@
 import type { SerializedMessage } from "../app/utils/serializers.ts";
+import type { ConversationEvent, SendMessageEvent } from "../app/schemas/conversations.schema.ts";
 
-export interface ConversationPayload {
-  conversation_id: string;
-}
+export type ConversationPayload = ConversationEvent;
 
-export interface SendMessagePayload extends ConversationPayload {
-  content: string;
-  attachment_id: string | null;
-  client_message_id: string;
-}
+export type SendMessagePayload = SendMessageEvent;
 
 export interface MessageAckPayload {
   client_message_id: string;
@@ -46,6 +41,7 @@ export interface ClientToServerEvents {
 }
 
 export interface ServerToClientEvents {
+  "presence:update": (payload: { user_id: string; online: boolean }) => void;
   "message:new": (message: SerializedMessage) => void;
   "message:ack": (payload: MessageAckPayload) => void;
   "message:read:update": (payload: ReadUpdatePayload) => void;
@@ -62,4 +58,5 @@ export interface SocketData {
   email: string;
   role: "admin" | "usuario";
   active: boolean;
+  expiresAt: number;
 }

@@ -3,12 +3,15 @@ import { Router } from "express";
 import { login, logout, session } from "../controllers/authController.ts";
 import { requireAuth } from "../middlewares/auth.ts";
 import { getLoginAccountRateLimitKey, rateLimit } from "../middlewares/rateLimit.ts";
+import { validate } from "../middlewares/validate.ts";
+import { loginSchema } from "../schemas/auth.schema.ts";
 
 const router = Router();
 router.post(
   "/",
   rateLimit({ windowMs: 15 * 60_000, max: 10, identity: "ip", scope: "login-ip" }),
   rateLimit({ windowMs: 15 * 60_000, max: 10, scope: "login-account", keyGenerator: getLoginAccountRateLimitKey }),
+  validate({ body: loginSchema }),
   login,
 );
 router.post("/logout", logout);

@@ -139,12 +139,8 @@
                             <span>Subtotal:</span>
                             <span id="resumo-subtotal"></span>
                         </div>
-                        <div class="resumo-linha">
-                            <span>Taxa de serviço:</span>
-                            <span id="resumo-taxa-servico"></span>
-                        </div>
                         <div class="resumo-linha resumo-total">
-                            <span>Total:</span>
+                            <span>Estimativa do aluguel:</span>
                             <span id="resumo-total"></span>
                         </div>
                     </div>
@@ -177,7 +173,7 @@
                     <h2 class="status-titulo">Solicitação aprovada!</h2>
                     <p class="status-texto">O proprietário aceitou seu pedido de aluguel.</p>
  
-                    <button type="button" class="btn btn-primary btn-block" id="btn-ir-pagamento">Finalizar Pagamento</button>
+                    <p class="status-subtexto">Combine o pagamento diretamente com a outra pessoa — o O Vizinho não participa do pagamento do aluguel.</p>
                     <button type="button" class="btn btn-secondary btn-block" id="btn-cancelar-aprovado" style="margin-top:10px;">
                         <i class="bi bi-x-circle"></i> Cancelar Locação
                     </button>
@@ -198,8 +194,9 @@
                     <div class="status-icone status-pendente">
                         <i class="bi bi-box-arrow-in-down"></i>
                     </div>
-                    <h2 class="status-titulo">Pagamento confirmado</h2>
+                    <h2 class="status-titulo">Locação aprovada</h2>
                     <p class="status-texto">Aguardando a retirada do objeto para iniciar a locação.</p>
+                    <p class="status-subtexto" style="margin-bottom:12px;">O pagamento do aluguel é combinado direto entre locador e locatário, fora do O Vizinho.</p>
                     <a class="btn btn-primary btn-block" id="btn-ir-retirada">Registrar Retirada</a>
                     <a class="btn btn-secondary btn-block" id="btn-ver-status-pago" style="margin-top:10px;">
                         <i class="bi bi-box-seam"></i> Ver Status da Locação
@@ -263,7 +260,7 @@
         <div class="modal-box modal-confirm">
             <i class="bi bi-exclamation-triangle"></i>
             <h2 id="modal-cancelar-titulo">Cancelar locação?</h2>
-            <p id="modal-cancelar-texto">Tem certeza que deseja cancelar? Quando aplicável, a solicitação de estorno será enviada ao provedor de pagamento.</p>
+            <p id="modal-cancelar-texto">Tem certeza que deseja cancelar?</p>
             <div class="modal-confirm-actions">
                 <button type="button" class="btn btn-secondary" id="modal-cancelar-voltar">Voltar</button>
                 <button type="button" class="btn btn-danger" id="modal-cancelar-confirmar">Cancelar Locação</button>
@@ -285,6 +282,7 @@
     <script src="/assets/usuario/Notificacoes/solicitacoes-shared.js"></script>
     <script src="/assets/usuario/Meus-objetos/objetos-shared.js"></script>
     <script src="/assets/usuario/Avaliacao/avaliacoes-shared.js"></script>
-    <script src="/assets/usuario/Produto/produto.js?v=18"></script>
+    <script src="/assets/usuario/utils/avatar-shared.js"></script>
+    <script src="/assets/usuario/Produto/produto.js?v=19"></script>
 </body>
 </html>

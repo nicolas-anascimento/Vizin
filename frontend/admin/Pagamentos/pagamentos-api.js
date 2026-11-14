@@ -1,8 +1,11 @@
 /**
  * pagamentos-api.js
  * ------------------------------------------------------------------
- * Chamadas do admin pra gerenciamento de pagamentos/transações da
- * plataforma.
+ * Chamadas do admin pra gerenciamento dos pagamentos de PLANOS DE ANÚNCIOS.
+ * A plataforma só recebe pagamentos de planos (assinaturas): aluguéis e
+ * multas são pagos direto entre os usuários e NÃO aparecem aqui nem entram
+ * na receita. Todas as chamadas enviam tipo=assinatura para o back filtrar
+ * (o back também deve garantir isso por conta própria).
  *
  * Métodos de pagamento confirmados no projeto: PIX e cartão (via Mercado
  * Pago — ver Login/pagamento.js do usuário). "Boleto" NÃO existe.
@@ -12,11 +15,13 @@
  * ------------------------------------------------------------------
  */
 
-// Cada item de `data` precisa vir com usuario: { id, nome, email } — o
+// Cada item de `data` precisa vir com usuario: { id, nome, email },
+// plano: { id, nome }, periodo_inicio, periodo_fim e assinatura_status
+// ("ativa" | "cancelamento_agendado" | "encerrada") — o
 // front usa id pra linkar pro perfil em Usuários e email pra diferenciar
 // usuários com o mesmo nome (tela financeira, então isso importa).
 async function listarTransacoesAdmin({ busca = '', status = 'todos', pagina = 1, porPagina = 10 } = {}) {
-    const params = new URLSearchParams({ page: String(pagina), limit: String(porPagina) });
+    const params = new URLSearchParams({ page: String(pagina), limit: String(porPagina), tipo: 'assinatura' });
     if (busca) params.set('busca', busca);
     if (status !== 'todos') params.set('status', status);
     return apiRequest(`/admin/pagamentos?${params}`, 'GET', null, 'Não foi possível carregar as transações.');
@@ -28,16 +33,17 @@ async function listarTransacoesAdmin({ busca = '', status = 'todos', pagina = 1,
 //     resumo seguro (sem número completo) que pagamento.js já expõe pro
 //     usuário, não é dado novo sendo exposto pro admin.
 async function obterTransacaoAdmin(id) {
-    return apiRequest(`/admin/pagamentos/${encodeURIComponent(id)}`, 'GET', null, 'Não foi possível carregar os detalhes da transação.');
+    return apiRequest(`/admin/pagamentos/${encodeURIComponent(id)}?tipo=assinatura`, 'GET', null, 'Não foi possível carregar os detalhes da transação.');
 }
 
 // Contrato do agregador:
 // {
 //   receita_total, receita_variacao_percentual,
 //   pagamentos_pendentes, transacoes_falhadas,
+//   assinaturas_ativas,   (assinaturas pagas com período vigente)
 //   receita_mensal: [{ mes: "2026-01", valor }, ...]  (últimos 6 meses),
 //   metodos: [{ metodo: "pix"|"cartao", total }, ...]
 // }
 async function obterEstatisticasPagamentosAdmin() {
-    return apiRequest('/admin/pagamentos/estatisticas', 'GET', null, 'Não foi possível carregar as estatísticas de pagamentos.');
+    return apiRequest('/admin/pagamentos/estatisticas?tipo=assinatura', 'GET', null, 'Não foi possível carregar as estatísticas de pagamentos.');
 }

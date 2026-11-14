@@ -74,7 +74,14 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
 // Direciona visitantes ao login antes de abrir páginas restritas.
 export function requireAuthPage(req: Request, res: Response, next: NextFunction): void {
   if (!req.user) {
-    res.redirect("/login");
+    const plano = req.path === "/finalizar-pagamento" ? req.query.plano : undefined;
+    if (plano === "intermediario" || plano === "avancado") {
+      res.redirect(`/login?plano=${plano}`);
+    } else if (req.path === "/suporte") {
+      res.redirect("/login?next=%2Fsuporte");
+    } else {
+      res.redirect("/login");
+    }
     return;
   }
   next();

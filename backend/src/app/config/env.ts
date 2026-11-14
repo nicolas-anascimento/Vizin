@@ -1,108 +1,77 @@
 import dotenv from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { z } from "zod";
 
-// Lê a configuração do backend e valida os valores necessários antes de iniciar o servidor.
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ quiet: true, path: path.resolve(currentDir, "../../../.env") });
 
-// Falha cedo se uma credencial obrigatória não estiver definida.
-function required(name: string): string {
-  const value = process.env[name]?.trim();
-  if (!value)
-    throw new Error(`Variável de ambiente obrigatória ausente: ${name}`);
-  return value;
-}
+const integer = (fallback: number) => z.string().optional().transform(value => value === undefined || value.trim() === "" ? fallback : Number(value)).pipe(z.int().positive());
+const flag = (fallback: boolean) => z.enum(["true", "1", "yes", "on", "false", "0", "no", "off"]).optional().transform(value => value === undefined ? fallback : ["true", "1", "yes", "on"].includes(value.toLowerCase()));
+const url = z.url();
 
-function positiveInteger(value: string | undefined, fallback: number): number {
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed < 1) return fallback;
-  return parsed;
-}
-
-function booleanValue(value: string | undefined, fallback: boolean): boolean {
-  if (value === undefined) return fallback;
-  return ["true", "1", "yes", "on"].includes(value.toLowerCase());
-}
-
-function trustProxyValue(value: string | undefined): false | string[] {
-  const raw = value?.trim();
-  if (!raw || raw.toLowerCase() === "false") return false;
-  if (["true", "1", "yes", "on"].includes(raw.toLowerCase())) {
-    throw new Error(
-      "TRUST_PROXY não aceita confiança irrestrita; use loopback no tunnel local ou IPs/CIDRs explícitos",
-    );
+export const environmentSchema = z.object({
+  NODE_ENV: z.enum(["dev", "test", "production"]).default("dev"),
+  PORT: integer(8080).pipe(z.number().max(65535)),
+  APP_URL: url.default("http://localhost:8080"),
+  FRONTEND_ORIGINS: z.string().optional(),
+  DATABASE_URL: z.url().refine(value => URL.canParse(value) && ["postgres:", "postgresql:"].includes(new URL(value).protocol)),
+  TEST_DATABASE_URL: z.string().optional(),
+  JWT_KEY: z.string().min(32),
+  TRUST_PROXY: z.string().optional(),
+  COOKIE_SAME_SITE: z.enum(["none", "lax"]).default("lax"),
+  CHAT_ATTACHMENT_MAX_MB: integer(50).pipe(z.number().max(50)),
+  SMTP_HOST: z.string().default(""),
+  SMTP_PORT: integer(587),
+  SMTP_SECURE: flag(false),
+  SMTP_USER: z.string().default(""),
+  SMTP_PASS: z.string().default(""),
+  SMTP_FROM: z.string().default(""),
+  EMAIL_TRANSPORT: z.string().default(""),
+  PASSWORD_TRANSPORT: z.string().default(""),
+  PAYMENT_MODE: z.enum(["demo", "gateway"]).default("gateway"),
+  MP_ACCESS_TOKEN: z.string().default(""),
+  MP_WEBHOOK_SECRET: z.string().default(""),
+  MP_NOTIFICATION_URL: z.string().default(""),
+}).superRefine((value, ctx) => {
+  const add = (field: string, message: string) => ctx.addIssue({ code: "custom", path: [field], message });
+  const origins = (value.FRONTEND_ORIGINS || value.APP_URL).split(",").map(part => part.trim());
+  if (origins.some(origin => !url.safeParse(origin).success)) add("FRONTEND_ORIGINS", "origens inválidas");
+  if (value.TRUST_PROXY && ["true", "1", "yes", "on"].includes(value.TRUST_PROXY.toLowerCase())) add("TRUST_PROXY", "proxy irrestrito não é permitido");
+  if (value.COOKIE_SAME_SITE === "none" && !value.APP_URL.startsWith("https://")) add("COOKIE_SAME_SITE", "SameSite=none exige HTTPS");
+  if (value.NODE_ENV === "production") {
+    const host = new URL(value.APP_URL).hostname;
+    if (!value.APP_URL.startsWith("https://") || ["localhost", "127.0.0.1", "::1"].includes(host)) add("APP_URL", "produção exige URL pública HTTPS");
+    if (value.PAYMENT_MODE === "demo") add("PAYMENT_MODE", "demo não é permitido em produção");
+    if (value.PAYMENT_MODE === "gateway" && (!value.MP_ACCESS_TOKEN || !value.MP_WEBHOOK_SECRET || !value.MP_NOTIFICATION_URL)) add("PAYMENT_MODE", "credenciais do gateway incompletas");
   }
-  const proxies = raw.split(",").map((entry) => entry.trim()).filter(Boolean);
-  if (!proxies.length) return false;
-  return proxies;
+  if (value.MP_NOTIFICATION_URL) {
+    const parsed = url.safeParse(value.MP_NOTIFICATION_URL);
+    if (!parsed.success) add("MP_NOTIFICATION_URL", "URL inválida");
+    else {
+      const notification = new URL(parsed.data);
+      if (notification.protocol !== "https:" || notification.pathname !== "/api/assinaturas/webhook" || notification.search || notification.hash) add("MP_NOTIFICATION_URL", "webhook deve usar HTTPS e /api/assinaturas/webhook");
+    }
+  }
+});
+
+const parsed = environmentSchema.safeParse(process.env);
+if (!parsed.success) {
+  const fields = [...new Set(parsed.error.issues.map(issue => String(issue.path[0] ?? "ambiente")))];
+  throw new Error(`Configuração inválida: ${fields.join(", ")}`);
 }
 
-const rawNodeEnv = process.env.NODE_ENV?.trim() || "dev";
-if (!["dev", "test", "production"].includes(rawNodeEnv)) {
-  throw new Error("NODE_ENV deve ser dev, test ou production");
-}
-const nodeEnv = rawNodeEnv as "dev" | "test" | "production";
-const appUrl = process.env.APP_URL?.trim() || "http://localhost:8080";
-try {
-  new URL(appUrl);
-} catch {
-  throw new Error("APP_URL deve ser uma URL válida");
-}
-
-// Centraliza URL, cookies, SMTP, pagamento e origens permitidas usadas pelos módulos.
+const raw = parsed.data;
 const env = {
-  NODE_ENV: nodeEnv,
-  FRONTEND_ORIGINS: (process.env.FRONTEND_ORIGINS || appUrl)
-    .split(",")
-    .map((v) => new URL(v.trim()).origin),
-  COOKIE_SAME_SITE:
-    process.env.COOKIE_SAME_SITE === "none"
-      ? ("none" as const)
-      : ("lax" as const),
-  PORT: positiveInteger(process.env.PORT, 8080),
-  DATABASE_URL: required("DATABASE_URL"),
-  JWT_KEY: required("JWT_KEY"),
-  APP_URL: appUrl,
-  // Express aceita nomes de sub-redes (por exemplo, loopback), IPs e CIDRs.
-  // Nunca habilitamos `true`, pois isso confiaria em qualquer cadeia encaminhada.
-  TRUST_PROXY: trustProxyValue(process.env.TRUST_PROXY),
-  SMTP_HOST: process.env.SMTP_HOST?.trim() ?? "",
-  SMTP_PORT: positiveInteger(process.env.SMTP_PORT, 587),
-  SMTP_SECURE: booleanValue(process.env.SMTP_SECURE, false),
-  SMTP_USER:
-    process.env.SMTP_USER?.trim() || process.env.EMAIL_TRANSPORT?.trim() || "",
-  SMTP_PASS:
-    process.env.SMTP_PASS?.trim() ||
-    process.env.PASSWORD_TRANSPORT?.trim() ||
-    "",
-  SMTP_FROM:
-    process.env.SMTP_FROM?.trim() ||
-    process.env.SMTP_USER?.trim() ||
-    process.env.EMAIL_TRANSPORT?.trim() ||
-    "",
-  EMAIL_TRANSPORT: process.env.EMAIL_TRANSPORT?.trim() ?? "",
-  PASSWORD_TRANSPORT: process.env.PASSWORD_TRANSPORT?.trim() ?? "",
-  PAYMENT_MODE: process.env.PAYMENT_MODE === "demo" ? "demo" : "gateway",
-  MP_ACCESS_TOKEN: process.env.MP_ACCESS_TOKEN?.trim() ?? "",
-  MP_WEBHOOK_SECRET: process.env.MP_WEBHOOK_SECRET?.trim() ?? "",
+  ...raw,
+  FRONTEND_ORIGINS: (raw.FRONTEND_ORIGINS || raw.APP_URL).split(",").map(value => new URL(value.trim()).origin),
+  TRUST_PROXY: raw.TRUST_PROXY && raw.TRUST_PROXY.toLowerCase() !== "false"
+    ? raw.TRUST_PROXY.split(",").map(value => value.trim()).filter(Boolean)
+    : false,
+  SMTP_USER: raw.SMTP_USER || raw.EMAIL_TRANSPORT,
+  SMTP_PASS: raw.SMTP_PASS || raw.PASSWORD_TRANSPORT,
+  SMTP_FROM: raw.SMTP_FROM || raw.SMTP_USER || raw.EMAIL_TRANSPORT,
 };
 
-// Impede configuração insegura ou incompleta de autenticação e pagamentos em produção.
-if (env.JWT_KEY.length < 32)
-  throw new Error("JWT_KEY deve ter pelo menos 32 caracteres");
-if (env.NODE_ENV === "production" && env.PAYMENT_MODE === "demo")
-  throw new Error("PAYMENT_MODE=demo não é permitido em produção");
-if (
-  env.NODE_ENV === "production" &&
-  env.PAYMENT_MODE === "gateway" &&
-  (!env.MP_ACCESS_TOKEN || !env.MP_WEBHOOK_SECRET)
-)
-  throw new Error(
-    "MP_ACCESS_TOKEN e MP_WEBHOOK_SECRET são obrigatórios em produção com PAYMENT_MODE=gateway",
-  );
-
+export type Environment = typeof env;
 export default env;
-
-if (env.COOKIE_SAME_SITE === "none" && !env.APP_URL.startsWith("https://"))
-  throw new Error("SameSite=none exige HTTPS");

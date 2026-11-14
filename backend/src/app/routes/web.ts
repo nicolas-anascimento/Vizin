@@ -21,18 +21,23 @@ const adminPage = (folder: string) =>
 const loginPage = userPage("Login");
 const guestOrHome: RequestHandler = (req, res, next) => {
   if (req.user) {
+    if (req.query.next === "/suporte") {
+      res.redirect("/suporte");
+      return;
+    }
+    const plan = req.query.plano;
+    if (req.user.tipo !== "admin" && (plan === "intermediario" || plan === "avancado")) {
+      res.redirect(`/finalizar-pagamento?plano=${plan}`);
+      return;
+    }
     res.redirect(req.user.tipo === "admin" ? "/admin" : "/home");
     return;
   }
   loginPage(req, res, next);
 };
 
-// Páginas públicas.
-router.get("/", (req, res) => {
-  res.redirect(
-    req.user ? (req.user.tipo === "admin" ? "/admin" : "/home") : "/login",
-  );
-});
+// A URL principal sempre entrega a Landing Page, independentemente da sessão.
+router.get("/", sendFrontendFile("landing-page", "index.html"));
 router.get("/login", guestOrHome);
 router.get("/cadastro", guestOrHome);
 router.get(
@@ -43,8 +48,10 @@ router.get(
   "/resetar-senha",
   userPage("Resetar-senha", "Resetar-senha-index.html"),
 );
+router.get("/confirmar-email", userPage("Confirmar-email"));
 router.get("/termos", userPage("Termos"));
 router.get("/politica-de-privacidade", userPage("Politica-de-privacidade"));
+router.get("/planos", requireAuthPage, userPage("Planos"));
 
 // Fragmentos de layout também ficam fora de /assets, que serve apenas arquivos estáticos.
 router.get("/partials/header", sendFrontendFile("usuario", "header", "index.html"));
@@ -84,12 +91,12 @@ const authenticatedPages: Record<string, RequestHandler> = {
   "/suporte": userPage("Suporte"),
   "/finalizar-pagamento": userPage("Finalizar-pagamento"),
   "/pagamento-confirmado": userPage("Pagamento-confirmado"),
-  "/pagamento-multa": userPage("Pagamento-multa"),
 };
 
 for (const [route, page] of Object.entries(authenticatedPages)) {
   router.get(route, requireAuthPage, page);
 }
+router.get("/pagamento-multa", requireAuthPage, (_req,res)=>res.redirect("/historico?aviso=multas-descontinuadas"));
 
 // Páginas administrativas existentes.
 const adminPages: Record<string, RequestHandler> = {

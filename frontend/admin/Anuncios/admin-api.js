@@ -27,6 +27,9 @@ function traduzirErroAnuncioAdmin(erro) {
     }
     if (erro.status === 409) {
         const codigo = String(erro.codigo || erro.message || '');
+        if (/nao_arquivado|ja_ativo|nao_esta_arquivado/i.test(codigo)) {
+            return new Error('Este anúncio já está ativo (talvez outro administrador o tenha desarquivado). Atualize a lista.');
+        }
         if (/locacao/i.test(codigo)) {
             return new Error('Este anúncio está em locação ativa no momento e não pode ser removido.');
         }
@@ -90,6 +93,24 @@ async function arquivarAnuncioAdmin(id, motivo) {
             'DELETE',
             { motivo },
             'Não foi possível arquivar o objeto.'
+        );
+    } catch (erro) {
+        throw traduzirErroAnuncioAdmin(erro);
+    }
+}
+
+// Desarquivar: reverte o arquivamento administrativo (DELETE acima).
+// POST /admin/objetos/:id/desarquivar   body: { motivo }   (motivo obrigatório, até 1000 caracteres)
+// -> 200 com o DTO administrativo do objeto (arquivado=false, status="ativo")
+// -> 404 nao_encontrada · 409 nao_arquivado · 422 dados_invalidos
+// O back preserva disponivel / oculto_pelo_admin / motivo_ocultacao: desarquivar NÃO torna o anúncio público sozinho.
+async function desarquivarAnuncioAdmin(id, motivo) {
+    try {
+        return await apiRequest(
+            `/admin/objetos/${encodeURIComponent(id)}/desarquivar`,
+            'POST',
+            { motivo },
+            'Não foi possível desarquivar o objeto.'
         );
     } catch (erro) {
         throw traduzirErroAnuncioAdmin(erro);

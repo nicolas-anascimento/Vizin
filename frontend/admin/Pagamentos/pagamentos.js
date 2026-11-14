@@ -27,6 +27,22 @@ function labelStatusPagamento(status) {
     return { pago: "Concluído", pendente: "Pendente", falhou: "Falhou", estornado: "Estornado" }[status] || status;
 }
 
+function labelStatusAssinatura(status) {
+    return { ativa: "Ativa", cancelamento_agendado: "Renovação cancelada", encerrada: "Encerrada" }[status] || status || "—";
+}
+
+function formatarDataPagamento(iso) {
+    if (!iso) return "—";
+    const [ano, mes, dia] = String(iso).slice(0, 10).split("-");
+    return `${dia}/${mes}/${ano}`;
+}
+
+// "dd/mm/aaaa – dd/mm/aaaa" do período pago pelo plano.
+function periodoContratado(t) {
+    if (!t.periodo_inicio && !t.periodo_fim) return "—";
+    return `${formatarDataPagamento(t.periodo_inicio)} – ${formatarDataPagamento(t.periodo_fim)}`;
+}
+
 function labelMetodoPagamento(metodo) {
     return { pix: "PIX", cartao: "Cartão" }[metodo] || metodo;
 }
@@ -42,7 +58,7 @@ async function carregarEstatisticas() {
         // "—" também é o estado inicial (carregando), então em erro real
         // usamos um texto diferente + título com a mensagem, pra não parecer
         // que a página só está demorando.
-        ["statReceitaTotal", "statPendentes", "statFalhadas"].forEach(id => {
+        ["statReceitaTotal", "statPendentes", "statAssinaturasAtivas", "statFalhadas"].forEach(id => {
             const el = document.getElementById(id);
             el.textContent = "Erro";
             el.title = err.message;
@@ -53,7 +69,7 @@ async function carregarEstatisticas() {
         return;
     }
 
-    ["statReceitaTotal", "statPendentes", "statFalhadas"].forEach(id => {
+    ["statReceitaTotal", "statPendentes", "statAssinaturasAtivas", "statFalhadas"].forEach(id => {
         const el = document.getElementById(id);
         el.classList.remove("erro");
         el.removeAttribute("title");
@@ -61,6 +77,7 @@ async function carregarEstatisticas() {
 
     document.getElementById("statReceitaTotal").textContent = formatarPrecoPagamento(est.receita_total);
     document.getElementById("statPendentes").textContent = est.pagamentos_pendentes ?? 0;
+    document.getElementById("statAssinaturasAtivas").textContent = est.assinaturas_ativas ?? 0;
     document.getElementById("statFalhadas").textContent = est.transacoes_falhadas ?? 0;
 
     const variacaoEl = document.getElementById("statReceitaVariacao");
@@ -150,7 +167,7 @@ let tokenRequisicaoTransacoes = 0;
 async function carregarTransacoes() {
     const meuToken = ++tokenRequisicaoTransacoes;
 
-    corpoTabela.innerHTML = `<tr><td colspan="7" class="admin-tabela-vazio">Carregando...</td></tr>`;
+    corpoTabela.innerHTML = `<tr><td colspan="9" class="admin-tabela-vazio">Carregando...</td></tr>`;
     tabelaEstadoVazio.hidden = true;
 
     let resposta;
@@ -163,7 +180,7 @@ async function carregarTransacoes() {
         });
     } catch (err) {
         if (meuToken !== tokenRequisicaoTransacoes) return; // resposta obsoleta, ignora
-        corpoTabela.innerHTML = `<tr><td colspan="7" class="admin-tabela-vazio">${escAdmin(err.message)}</td></tr>`;
+        corpoTabela.innerHTML = `<tr><td colspan="9" class="admin-tabela-vazio">${escAdmin(err.message)}</td></tr>`;
         infoPaginacao.textContent = '';
         paginacaoEl.innerHTML = '';
         return;
@@ -198,12 +215,14 @@ function celulaUsuarioPagamento(usuario) {
 
     const nome = escAdmin(usuario.nome || "—");
     const nomeHtml = usuario.id
-        ? `<a href="/admin/usuarios.html?id=${encodeURIComponent(usuario.id)}" class="admin-usuario-link">${nome}</a>`
+        ? `<a href="/admin/usuarios/detalhe?id=${encodeURIComponent(usuario.id)}" class="admin-usuario-link">${nome}</a>`
         : nome;
 
-    return usuario.email
-        ? `${nomeHtml}<br><span class="admin-usuario-email">${escAdmin(usuario.email)}</span>`
-        : nomeHtml;
+    // Tudo dentro de um único wrapper: no mobile a <td> vira flex, e sem ele
+    // nome, <br> e e-mail viravam itens soltos lado a lado (e o e-mail vazava).
+    return `<span class="admin-usuario-cel">${nomeHtml}${usuario.email
+        ? `<span class="admin-usuario-email">${escAdmin(usuario.email)}</span>`
+        : ""}</span>`;
 }
 
 function renderizarTabela() {
@@ -213,8 +232,10 @@ function renderizarTabela() {
         <tr data-id="${t.id}">
             <td data-label="ID" class="admin-transacao-id">${escAdmin(idCurto(t.id))}</td>
             <td data-label="Usuário">${celulaUsuarioPagamento(t.usuario)}</td>
+            <td data-label="Plano">${escAdmin(t.plano?.nome || "—")}</td>
             <td data-label="Método"><span class="admin-metodo-pill">${escAdmin(labelMetodoPagamento(t.metodo))}</span></td>
             <td data-label="Valor" class="admin-preco">${formatarPrecoPagamento(t.valor)}</td>
+            <td data-label="Período contratado">${escAdmin(periodoContratado(t))}</td>
             <td data-label="Data">${t.criado_em ? new Date(t.criado_em).toLocaleDateString("pt-BR") : "—"}</td>
             <td data-label="Status"><span class="admin-badge ${t.status}">${escAdmin(labelStatusPagamento(t.status))}</span></td>
             <td data-label="Ações">
@@ -230,7 +251,7 @@ function renderizarPaginacao() {
     const inicio = estado.total === 0 ? 0 : (estado.pagina - 1) * POR_PAGINA + 1;
     const fim = Math.min(estado.pagina * POR_PAGINA, estado.total);
 
-    infoPaginacao.textContent = `Mostrando ${inicio}–${fim} de ${estado.total} transações`;
+    infoPaginacao.textContent = `Mostrando ${inicio}–${fim} de ${estado.total} pagamentos de planos`;
 
     let botoes = `<button class="admin-pagina-btn" data-pagina="anterior" ${estado.pagina === 1 ? "disabled" : ""}>Anterior</button>`;
     for (let p = 1; p <= totalPaginas; p++) {

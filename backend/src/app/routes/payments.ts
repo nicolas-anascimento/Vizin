@@ -1,15 +1,7 @@
 // Expõe pagamento, consulta, cancelamento e estorno apenas para usuários autenticados.
 import { Router } from "express";
-import { confirmPix, generatePix, payCard, paymentStatus, refundPayment, cancelPayment, simulatePayment } from "../controllers/paymentsController.ts";
 import { requireAuth } from "../middlewares/auth.ts";
 const router = Router();
 router.use(requireAuth);
-router.post("/pix/gerar", generatePix);
-router.post("/pix/confirmar", confirmPix);
-router.post("/cartao", payCard);
-router.get("/:id/status", paymentStatus);
-router.get("/:id", paymentStatus);
-router.post("/:id/estornar", refundPayment);
-router.post("/:id/cancelar", cancelPayment);
-router.post("/:id/simular", simulatePayment);
+router.use((_req,res)=>res.status(410).json({success:false,codigo:"rota_financeira_descontinuada",message:"Pagamentos de aluguel e multa não são processados pelo VIZIN. Use /api/assinaturas para planos de publicação."}));
 export default router;

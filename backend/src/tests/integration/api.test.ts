@@ -26,25 +26,87 @@ test("API → PostgreSQL/PostGIS: contratos e fluxos críticos",async t=>{
  const owner={nome:"Proprietário",cpf:makeCpf(),email:`owner-${crypto.randomUUID()}@test.local`,senha:"senha12345",whatsapp:"11999999999"};
  const renter={nome:"Locatário",cpf:makeCpf(),email:`renter-${crypto.randomUUID()}@test.local`,senha:"senha12345"};
  const stranger={nome:"Terceiro",cpf:makeCpf(),email:`stranger-${crypto.randomUUID()}@test.local`,senha:"senha12345"};
- let ownerId="",renterId="",ownerCookie="",renterCookie="",strangerCookie="",adminCookie="",itemId="",rentalId="",paymentId="";
+ let ownerId="",renterId="",strangerId="",ownerCookie="",renterCookie="",strangerCookie="",adminCookie="",itemId="",rentalId="";
 	 const today=businessDate().toISOString().slice(0,10);
  await t.test("cadastro CPF, duplicado e inválido",async()=>{
   let r=await api("/usuarios","POST",owner);assert.equal(r.status,201);ownerId=r.data.usuario.id;assert.equal(typeof ownerId,"string");
   assert.equal((await api("/usuarios","POST",{...owner,email:`duplicate-${crypto.randomUUID()}@test.local`})).status,409);
   assert.equal((await api("/usuarios","POST",{...owner,cpf:"11111111111"})).status,422);
   r=await api("/usuarios","POST",renter);assert.equal(r.status,201);renterId=r.data.usuario.id;
-  assert.equal((await api("/usuarios","POST",stranger)).status,201);
+  r=await api("/usuarios","POST",stranger);assert.equal(r.status,201);strangerId=r.data.usuario.id;
+  const plan=await prisma.planos.findUniqueOrThrow({where:{codigo:"avancado"}});
+  await prisma.assinaturas.createMany({data:[ownerId,renterId,strangerId].map(usuario_id=>({usuario_id,plano_id:plan.id,status:"ativa",inicio:new Date("2026-01-01"),fim:new Date("2099-01-01")}))});
  });
  await t.test("login CPF, senha incorreta e sessão",async()=>{
   assert.equal((await api("/login","POST",{cpf:owner.cpf,senha:"incorreta"})).status,401);
   assert.equal((await api("/login","POST",{email:owner.email,senha:owner.senha})).status,422);
   const r=await api("/login","POST",{cpf:owner.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,"$1.$2.$3-$4"),senha:owner.senha});assert.equal(r.status,200);ownerCookie=r.cookie;
   renterCookie=(await api("/login","POST",renter)).cookie;strangerCookie=(await api("/login","POST",stranger)).cookie;
+  const landing=await fetch(base.slice(0,-4)+"/",{headers:{Cookie:ownerCookie}});
+  assert.equal(landing.status,200);
+  assert.match(await landing.text(),/Vizin — alugue/);
   assert.equal((await api("/login/sessao","GET",undefined,ownerCookie)).data.id,ownerId);
   assert.equal((await api("/usuarios/me")).status,401);
   const profile=(await api(`/usuarios/${ownerId}`)).data;for(const field of["cpf","email","telefone","whatsapp","senha_hash"])assert.equal(profile[field],undefined);
  });
+ await t.test("confirmação de email usa token único persistido e atualiza sessão",async()=>{
+  const pending=await prisma.tokens_verificacao_email.findUniqueOrThrow({where:{usuario_id:ownerId}});
+  const mail=await prisma.email_outbox.findFirstOrThrow({where:{tipo:"verificacao_email",destinatario:owner.email}});
+  const link=String((mail.payload as any).text).match(/https?:\/\/\S+\/confirmar-email\?token=[a-f0-9]{64}/)?.[0];
+  assert.ok(link);
+  const token=new URL(link).searchParams.get("token")!;
+  assert.equal(crypto.createHash("sha256").update(token).digest("hex"),pending.token_hash);
+  assert.equal((await prisma.usuarios.findUniqueOrThrow({where:{id:ownerId}})).email_verificado,false);
+  assert.equal((await api("/usuarios/email/verificar","POST",{token:"a".repeat(64)})).status,400);
+  const results=await Promise.all([api("/usuarios/email/verificar","POST",{token}),api("/usuarios/email/verificar","POST",{token})]);
+  assert.deepEqual(results.map(r=>r.status).sort(),[200,400]);
+  assert.equal((await prisma.usuarios.findUniqueOrThrow({where:{id:ownerId}})).email_verificado,true);
+  assert.equal((await api("/login/sessao","GET",undefined,ownerCookie)).data.email_verificado,true);
+  assert.equal((await api("/usuarios/email/verificar","POST",{token})).status,400);
+ });
+ await t.test("troca de email redireciona para HTML, persiste e rejeita tokens usados ou expirados",async()=>{
+  const person={nome:"Troca de email",cpf:makeCpf(),email:`troca-${crypto.randomUUID()}@test.local`,senha:"senha12345"};
+  assert.equal((await api("/usuarios","POST",person)).status,201);
+  const session=(await api("/login","POST",{cpf:person.cpf,senha:person.senha})).cookie;
+  const changed=`alterado-${crypto.randomUUID()}@test.local`;
+  assert.equal((await api("/usuarios/email","PUT",{email:changed,senha:person.senha},session)).status,202);
+  const outbox=await prisma.email_outbox.findFirstOrThrow({where:{tipo:"troca_email",destinatario:changed}});
+  const link=new URL(String((outbox.payload as {text:string}).text));
+  const token=link.searchParams.get("token")!;
+  assert.equal(link.pathname,"/api/usuarios/email/confirmar");
+  const redirect=await fetch(base+`/usuarios/email/confirmar?token=${token}`,{redirect:"manual"});
+  assert.equal(redirect.status,303);
+  assert.equal(redirect.headers.get("location"),`/confirmar-email?tipo=alteracao&token=${token}`);
+  assert.equal((await api("/usuarios/email/confirmar","POST",{token:"a".repeat(64)})).status,400);
+  assert.equal((await api("/usuarios/email/confirmar","POST",{token})).status,200);
+  assert.equal((await api("/usuarios/email/confirmar","POST",{token})).status,400);
+  assert.equal((await prisma.usuarios.findUniqueOrThrow({where:{email:changed}})).email_verificado,true);
+
+  const newSession=(await api("/login","POST",{cpf:person.cpf,senha:person.senha})).cookie;
+  const nextEmail=`expirado-${crypto.randomUUID()}@test.local`;
+  assert.equal((await api("/usuarios/email","PUT",{email:nextEmail,senha:person.senha},newSession)).status,202);
+  const pending=await prisma.emails_pendentes.findFirstOrThrow({where:{email:nextEmail}});
+  const expiredMail=await prisma.email_outbox.findFirstOrThrow({where:{tipo:"troca_email",destinatario:nextEmail}});
+  const expiredToken=new URL(String((expiredMail.payload as {text:string}).text)).searchParams.get("token")!;
+  await prisma.emails_pendentes.update({where:{id:pending.id},data:{expira_em:new Date(Date.now()-1000)}});
+  assert.equal((await api("/usuarios/email/confirmar","POST",{token:expiredToken})).status,400);
+  assert.equal(await prisma.usuarios.findUnique({where:{email:nextEmail}}),null);
+ });
+ await t.test("reenvio respeita cooldown e substitui token anterior",async()=>{
+  const original=await prisma.tokens_verificacao_email.findUniqueOrThrow({where:{usuario_id:renterId}});
+  assert.equal((await api("/usuarios/email/reenviar","POST",{},renterCookie)).status,429);
+  await prisma.tokens_verificacao_email.update({where:{usuario_id:renterId},data:{criado_em:new Date(Date.now()-120000)}});
+  assert.equal((await api("/usuarios/email/reenviar","POST",{},renterCookie)).status,202);
+  const current=await prisma.tokens_verificacao_email.findUniqueOrThrow({where:{usuario_id:renterId}});
+  assert.notEqual(current.token_hash,original.token_hash);
+  assert.equal((await api("/usuarios/email/reenviar","POST",{},renterCookie)).status,429);
+  assert.equal((await prisma.email_outbox.count({where:{tipo:"verificacao_email",destinatario:renter.email,status:"pendente"}})),1);
+ });
  await t.test("endereço com coordenadas e objeto multipart",async()=>{
+  const invalidAddress=await api("/usuarios/me/enderecos","POST",{cep:12,rua:"Rua"},ownerCookie);
+  assert.equal(invalidAddress.status,422);
+  assert.equal(invalidAddress.data.codigo,"dados_invalidos");
+  assert.ok(invalidAddress.data.erros.cep?.length);
   const a=await api("/usuarios/me/enderecos","POST",{cep:"01001-000",rua:"Praça da Sé",numero:"1",bairro:"Sé",cidade:"São Paulo",estado:"SP",latitude:-23.55,longitude:-46.63,principal:true},ownerCookie);assert.equal(a.status,201,JSON.stringify(a.data));
   const r=await api("/objetos","POST",photos({titulo:"Furadeira",descricao:"Furadeira para testes",categoria:"Ferramentas",preco_dia:"10",valor_mercado:"300",localizacao:"São Paulo",endereco_id:a.data.id}),ownerCookie);assert.equal(r.status,201,JSON.stringify(r.data));itemId=r.data.id;
   assert.equal((await api("/objetos?latitude=-23.55&longitude=-46.63&raio=1")).data.some((i:any)=>i.id===itemId),true);
@@ -121,26 +183,24 @@ test("API → PostgreSQL/PostGIS: contratos e fluxos críticos",async t=>{
  });
  await t.test("datas, cálculo servidor, conflito e IDOR",async()=>{
   assert.equal((await api("/solicitacoes","POST",{objeto_id:itemId,data_retirada:"2020-01-01",data_devolucao:today},renterCookie)).status,422);
-  const r=await api("/solicitacoes","POST",{objeto_id:itemId,data_retirada:today,data_devolucao:today,total:1,proprietarioId:renterId},renterCookie);assert.equal(r.status,201,JSON.stringify(r.data));rentalId=r.data.id;assert.equal(r.data.total,13.2);assert.equal(r.data.subtotal,12);
+  const r=await api("/solicitacoes","POST",{objeto_id:itemId,data_retirada:today,data_devolucao:today,total:1,proprietarioId:renterId},renterCookie);assert.equal(r.status,201,JSON.stringify(r.data));rentalId=r.data.id;assert.equal(r.data.total,12);assert.equal(r.data.subtotal,12);
   assert.equal((await api("/solicitacoes","POST",{objeto_id:itemId,data_retirada:today,data_devolucao:today},strangerCookie)).status,201);
   assert.equal((await api(`/solicitacoes/${rentalId}`,"GET",undefined,strangerCookie)).status,403);
   assert.equal((await api(`/objetos/${itemId}`,"PATCH",{preco:20},ownerCookie)).status,200);
-  assert.equal((await api(`/solicitacoes/${rentalId}`,"GET",undefined,renterCookie)).data.total,13.2);
+  assert.equal((await api(`/solicitacoes/${rentalId}`,"GET",undefined,renterCookie)).data.total,12);
   assert.equal((await api("/usuarios/me","DELETE",{senha:renter.senha},renterCookie)).status,409);
  });
- await t.test("aceitar, impedir status arbitrário e pagar PIX",async()=>{
+ await t.test("aceitar, impedir status arbitrário e desativar checkout do aluguel",async()=>{
   assert.equal((await api(`/solicitacoes/${rentalId}`,"PATCH",{status:"aprovado"},renterCookie)).status,403);
   assert.equal((await api(`/solicitacoes/${rentalId}`,"PATCH",{status:"aprovado"},ownerCookie)).status,200);
   assert.equal((await api(`/solicitacoes/${rentalId}`,"PATCH",{status:"pago"},renterCookie)).status,422);
-  const p=await api("/pagamentos/pix/gerar","POST",{aluguel_id:rentalId},renterCookie);assert.equal(p.status,200);paymentId=p.data.id;assert.equal(p.data.ambiente,"simulado");
-  assert.equal((await api(`/pagamentos/${paymentId}/status`,"GET",undefined,strangerCookie)).status,403);
-  assert.equal((await api("/pagamentos/pix/confirmar","POST",{aluguel_id:rentalId},renterCookie)).status,200);
-  assert.equal((await api("/pagamentos/pix/confirmar","POST",{aluguel_id:rentalId},renterCookie)).status,200);
-  assert.equal(await prisma.pagamentos.count({where:{aluguel_id:rentalId,status:"pago"}}),1);
+  assert.equal((await api("/pagamentos/pix/gerar","POST",{aluguel_id:rentalId},renterCookie)).status,410);
+  assert.equal((await api(`/solicitacoes/${rentalId}/pagamentos`,"POST",{metodo:"pix"},renterCookie)).status,410);
+  assert.equal(await prisma.pagamentos.count({where:{aluguel_id:rentalId}}),0);
  });
  await t.test("retirada exige fotos de ambas as partes",async()=>{
   assert.equal((await api(`/retiradas/${rentalId}/fotos`,"POST",photos(),strangerCookie)).status,403);
-  let r=await api(`/retiradas/${rentalId}/fotos`,"POST",photos({observacoes:"Sem danos"}),renterCookie);assert.equal(r.status,201);assert.equal(r.data.status,"pago");
+  let r=await api(`/retiradas/${rentalId}/fotos`,"POST",photos({observacoes:"Sem danos"}),renterCookie);assert.equal(r.status,201);assert.equal(r.data.status,"aprovado");
   assert.equal((await api(`/retiradas/${rentalId}/fotos`,"POST",photos(),renterCookie)).status,409);
   r=await api(`/retiradas/${rentalId}/fotos`,"POST",photos(),ownerCookie);assert.equal(r.status,201);assert.equal(r.data.status,"retirado");assert.ok(r.data.concluidoEm);
   const url=r.data.locatario.fotos[0];
@@ -202,6 +262,9 @@ test("API → PostgreSQL/PostGIS: contratos e fluxos críticos",async t=>{
   assert.equal((await api("/conversations","GET",undefined,renterCookie)).data.length,0);
  });
  await t.test("suporte real, exportação e preferências",async()=>{
+  const invalidHelp=await api("/suporte/ajuda","POST",{assunto:"",mensagem:"Mensagem"},renterCookie);
+  assert.equal(invalidHelp.status,422);
+  assert.ok(invalidHelp.data.erros.assunto?.length);
   const s=await api("/suporte/ajuda","POST",{assunto:"Ajuda",mensagem:"Mensagem"},renterCookie);assert.equal(s.status,201);assert.ok(await prisma.suportes.findUnique({where:{id:s.data.id}}));
   assert.equal((await api("/usuarios/privacidade","PUT",{perfilPublico:false},renterCookie)).status,200);
   assert.equal((await api(`/usuarios/${renterId}`)).status,404);
@@ -238,7 +301,7 @@ test("API → PostgreSQL/PostGIS: contratos e fluxos críticos",async t=>{
   assert.equal((await api("/usuarios/me","GET",undefined,renterCookie)).data.verificado,true);
  });
 
- await t.test("concorrência de reserva, cartão e estorno idempotente",async()=>{
+ await t.test("concorrência de reserva, cartão e estorno idempotente",{skip:"fluxo financeiro legado preservado apenas como histórico"},async()=>{
   const future=new Date(Date.now()+2*86400000).toISOString().slice(0,10);
   const body={objeto_id:itemId,data_retirada:future,data_devolucao:future};
   const attempts=await Promise.all([api("/solicitacoes","POST",body,renterCookie),api("/solicitacoes","POST",body,strangerCookie)]);
@@ -254,7 +317,7 @@ test("API → PostgreSQL/PostGIS: contratos e fluxos críticos",async t=>{
  });
 
  // Prova que eventos financeiros exigem assinatura, valor coerente e processamento único.
- await t.test("webhook autenticado confirma, valida valor e deduplica eventos",async()=>{
+ await t.test("webhook autenticado confirma, valida valor e deduplica eventos",{skip:"webhook de aluguel foi descontinuado"},async()=>{
   const future=new Date(Date.now()+4*86400000).toISOString().slice(0,10);
   const r=await api("/solicitacoes","POST",{objeto_id:itemId,data_retirada:future,data_devolucao:future},renterCookie);assert.equal(r.status,201);
   assert.equal((await api(`/solicitacoes/${r.data.id}`,"PATCH",{status:"aprovado"},adminCookie)).status,200);
@@ -271,7 +334,7 @@ test("API → PostgreSQL/PostGIS: contratos e fluxos críticos",async t=>{
    assert.equal((await api(`/solicitacoes/${r.data.id}`,"GET",undefined,renterCookie)).data.status,"cancelado");
   } finally { if(previous===undefined)delete process.env.PAYMENT_WEBHOOK_SECRET;else process.env.PAYMENT_WEBHOOK_SECRET=previous; }
  });
- await t.test("auditoria financeira: troca cancela PIX, método e gateway persistidos",async()=>{
+ await t.test("auditoria financeira: troca cancela PIX, método e gateway persistidos",{skip:"operações financeiras de aluguel foram descontinuadas"},async()=>{
   const item=await prisma.itens.create({data:{usuario_id:ownerId,titulo:"Financeiro",preco_por_dia:12,valor_mercado:300}});
   async function approved(){return prisma.alugueis.create({data:{item_id:item.id,locador_id:ownerId,locatario_id:renterId,data_inicio:new Date(today),data_fim:new Date(today),valor_total:12,status:"aprovado",pagamento_ate:new Date(Date.now()+60000)}});}
   const r=await approved();
@@ -324,7 +387,7 @@ test("API → PostgreSQL/PostGIS: contratos e fluxos críticos",async t=>{
    assert.equal((await prisma.pagamentos.findUniqueOrThrow({where:{id:expiredPayment.id}})).status,"cancelado");
   } finally {globalThis.fetch=originalFetch;if(oldUrl===undefined)delete process.env.PAYMENT_GATEWAY_URL;else process.env.PAYMENT_GATEWAY_URL=oldUrl;if(oldToken===undefined)delete process.env.PAYMENT_GATEWAY_TOKEN;else process.env.PAYMENT_GATEWAY_TOKEN=oldToken;}
  });
- await t.test("webhook estrutural, antecipado e recebimento após expiração persistidos",async()=>{
+ await t.test("webhook estrutural, antecipado e recebimento após expiração persistidos",{skip:"reconciliação de aluguel é somente histórico"},async()=>{
   const old=process.env.PAYMENT_WEBHOOK_SECRET;process.env.PAYMENT_WEBHOOK_SECRET="audit-secret";
   async function send(e:unknown){const raw=JSON.stringify(e);return (await fetch(base+"/pagamentos/webhook",{method:"POST",headers:{"Content-Type":"application/json","X-Webhook-Signature":crypto.createHmac("sha256","audit-secret").update(raw).digest("hex")},body:raw})).status;}
   try {
@@ -395,7 +458,7 @@ test("API → PostgreSQL/PostGIS: contratos e fluxos críticos",async t=>{
   const ids=rentals.map(r=>r.id);const {maintainRentals}=await import("../../app/services/rentalMaintenance.ts");
   await maintainRentals();await maintainRentals();await maintainRentals();
   assert.equal(await prisma.alugueis.count({where:{id:{in:ids},atraso_notificado:"devolucao"}}),121);
-  const notices=await prisma.notificacoes.findMany({where:{tipo:"bloqueio_conta"}});assert.equal(notices.filter(n=>ids.includes((n.contexto as any).aluguelId)).length,242);
+  const notices=await prisma.notificacoes.findMany({where:{tipo:"devolucao_atrasada"}});assert.equal(notices.filter(n=>ids.includes((n.contexto as any).aluguelId)).length,242);
   await prisma.alugueis.updateMany({where:{id:{in:ids}},data:{status:"devolvido"}});
  });
  await t.test("Permissions-Policy permite geo nas origens configuradas e mantém câmera bloqueada",async()=>{
@@ -407,8 +470,21 @@ test("API → PostgreSQL/PostGIS: contratos e fluxos críticos",async t=>{
   const form=new FormData();form.append("file",new Blob(["<script>alert(1)</script>"],{type:"image/png"}),"foto.png");
   assert.equal((await api("/uploads","POST",form,renterCookie)).status,422);
   assert.equal((await api("/usuarios/perfil","PATCH",{nome:"<img src=x onerror=alert(1)>"},renterCookie)).status,422);
-  assert.equal((await api("/pagamentos/webhook","POST",{id:"falso",referencia:paymentId,valor:12,status:"pago"})).status,401);
+  assert.equal((await api("/pagamentos/webhook","POST",{id:"falso",referencia:crypto.randomUUID(),valor:12,status:"pago"})).status,410);
   const response=await fetch(base+"/usuarios/me",{headers:{Origin:"https://malicioso.invalid",Cookie:renterCookie}});assert.equal(response.status,403);
+ });
+ await t.test("solicitação de recuperação preserva resposta genérica e grava token na outbox",async()=>{
+  const absent=await api("/contas/recuperar-senha","POST",{email:`absent-${crypto.randomUUID()}@test.local`});
+  const present=await api("/contas/recuperar-senha","POST",{email:owner.email});
+  assert.equal(absent.status,200);assert.equal(present.status,200);
+  assert.deepEqual(absent.data,present.data);
+  const pending=await prisma.resetar_Senha.findFirstOrThrow({where:{userId:ownerId}});
+  const outbox=await prisma.email_outbox.findFirstOrThrow({where:{tipo:"recuperacao_senha",destinatario:owner.email,status:"pendente"}});
+  const token=String((outbox.payload as any).text).match(/token=([a-f0-9]{64})/)?.[1];
+  assert.ok(token);
+  assert.equal(crypto.createHash("sha256").update(token).digest("hex"),pending.token);
+  assert.equal((await api("/contas/validar-token-senha","POST",{token})).status,200);
+  assert.equal((await api("/contas/validar-token-senha","POST",{token:"f".repeat(64)})).status,400);
  });
  await t.test("recuperação por token expira, invalida sessões e impede reutilização",async()=>{
   const user=await prisma.usuarios.findUniqueOrThrow({where:{cpf:stranger.cpf}});
@@ -429,7 +505,7 @@ test("API → PostgreSQL/PostGIS: contratos e fluxos críticos",async t=>{
   const addresses=(await api("/enderecos","GET",undefined,adminCookie)).data;
   assert.equal((await api(`/enderecos/${addresses[0].id}`,"GET",undefined,renterCookie)).status,404);
   const {default:env}=await import("../../app/config/env.ts");const previous=env.PAYMENT_MODE;
-  try{env.PAYMENT_MODE="gateway";assert.equal((await api("/pagamentos/pix/confirmar","POST",{aluguel_id:rentalId},renterCookie)).status,403);}
+  try{env.PAYMENT_MODE="gateway";assert.equal((await api("/pagamentos/pix/confirmar","POST",{aluguel_id:rentalId},renterCookie)).status,410);}
   finally{env.PAYMENT_MODE=previous;}
  });
  await t.test("coleções pessoais permitem navegar além de 100 registros",async()=>{

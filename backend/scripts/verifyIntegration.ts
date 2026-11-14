@@ -9,7 +9,9 @@ try{await admin.query(`CREATE DATABASE "${name}"`);}finally{await admin.end();}
 source.pathname=`/${name}`;
 const environment={...process.env,DATABASE_URL:source.toString(),TEST_DATABASE_URL:source.toString()};
 console.log('Banco isolado:',name);
-for(const args of [['exec','prisma','migrate','deploy'],['run','test:integration'],['run','test:financial'],['exec','prisma','migrate','status']]) {
+// test:integration já executa subscriptions.test.ts. Repeti-lo no mesmo banco
+// reutiliza IDs do provedor simulado e produz um conflito 409 artificial.
+for(const args of [['exec','prisma','migrate','deploy'],['run','test:integration'],['exec','prisma','migrate','status']]) {
  const result=spawnSync('npm',args,{env:environment,stdio:'inherit'});
  if(result.status!==0)process.exit(result.status??1);
 }

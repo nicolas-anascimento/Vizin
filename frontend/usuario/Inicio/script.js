@@ -12,6 +12,21 @@ if (btnAdicionar) {
  
 }
  
+// ================= ATUALIZAÇÃO AUTOMÁTICA DO CATÁLOGO =================
+// Assinatura do que está no catálogo (só campos que mudam o card). O polling
+// abaixo compara com ela e só refaz a lista (com as avaliações, que são caras:
+// uma requisição por objeto) quando algo realmente mudou — ex: o admin ocultou
+// ou arquivou um anúncio, ou o dono mudou preço/disponibilidade.
+let assinaturaCatalogo = null;
+
+function assinaturaDoCatalogo(objetos) {
+    return JSON.stringify(objetos.map(o => [o.id, o.titulo, o.preco_dia, o.disponivel, o.imagem, o.localizacao]));
+}
+
+function filtrarObjetosDoCatalogo(objetos) {
+    return objetos.filter(o => o.status !== "arquivado" && !o.oculto_pelo_admin);
+}
+
 // ================= OBJETOS REAIS =================
 // window.ObjetosVizin.obterTodos() já bate em GET /api/objetos de verdade
 // (ver objetos-shared.js) — não é mais mock. `categoriaSlug` já bate com
@@ -37,7 +52,11 @@ async function carregarObjetos() {
     // Tanto ObjetosVizin quanto AvaliacoesVizin já batem numa API real
     // agora (nenhum dos dois é mais síncrono/local) — por isso o await nas
     // duas chamadas e o Promise.all no lugar do .map() simples de antes.
-    const objetos = await window.ObjetosVizin.obterTodos();
+    // Defesa extra: anúncio arquivado ou ocultado pela moderação nunca aparece no
+    // catálogo, mesmo que o back o devolva em /objetos (`disponivel` pode continuar
+    // true nesses casos — a moderação é sinalizada à parte).
+    const objetos = filtrarObjetosDoCatalogo(await window.ObjetosVizin.obterTodos());
+    assinaturaCatalogo = assinaturaDoCatalogo(objetos);
 
     return Promise.all(objetos.map(async obj => {
 
@@ -450,6 +469,26 @@ function renderizarObjetos(lista, opcoes = {}) {
  
 // ================= LOAD INICIAL =================
 buscarObjetos();
+
+// Consulta só a lista (1 chamada paginada) e redesenha o catálogo apenas se mudou.
+// Só roda com a aba visível e sem a pessoa digitando nos filtros.
+async function verificarMudancasNoCatalogo() {
+    if (document.visibilityState !== "visible" || !window.ObjetosVizin) return;
+    if (assinaturaCatalogo === null) return; // a primeira carga ainda não terminou
+
+    const ativo = document.activeElement;
+    if (ativo === inputBusca || ativo === inputLocal) return;
+
+    try {
+        const objetos = filtrarObjetosDoCatalogo(await window.ObjetosVizin.obterTodos());
+        if (assinaturaDoCatalogo(objetos) !== assinaturaCatalogo) buscarObjetos();
+    } catch (erro) {
+        console.error("Não foi possível verificar mudanças no catálogo:", erro);
+    }
+}
+
+setInterval(verificarMudancasNoCatalogo, 30000);
+document.addEventListener("visibilitychange", verificarMudancasNoCatalogo);
  
 // Mantém os cards em dia se um objeto novo for cadastrado ou uma
 // avaliação for enviada enquanto esta aba estiver aberta.

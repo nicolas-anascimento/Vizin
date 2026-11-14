@@ -5,12 +5,14 @@ import { HttpError } from "../utils/httpError.ts";
 import { serializeNotification } from "../utils/serializers.ts";
 import { asBoolean } from "../utils/strings.ts";
 import { pageHeaders, pagination } from "../utils/listPage.ts";
+import { notificationSinceSchema } from "../schemas/notifications.schema.ts";
 
 // Consulta notificações do usuário autenticado e transforma os registros para a API.
 export const listNotifications: RequestHandler = async (req, res) => {
   const {page,limit,skip}=pagination(req);
-  const since = req.query.desde;
-  if (since !== undefined && (typeof since !== "string" || !/^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/.test(since) || !Number.isFinite(new Date(since).getTime()))) throw new HttpError(422, "Instante inválido", "data_invalida");
+  const sinceResult = notificationSinceSchema.safeParse(req.query.desde);
+  if (req.query.desde !== undefined && !sinceResult.success) throw new HttpError(422, "Instante inválido", "data_invalida");
+  const since = sinceResult.success ? sinceResult.data : undefined;
   // O filtro por usuário vale tanto para a página quanto para o total;
   // o parâmetro desde permite buscar apenas notificações novas.
   const where={usuario_id:req.user!.id,...(since ? { criado_em: { gt: new Date(since) } } : {})};

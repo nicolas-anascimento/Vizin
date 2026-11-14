@@ -1,4 +1,5 @@
 import type { Prisma } from "../../generated/prisma/client.ts";
+import { notificationPreferencesPatchSchema } from "../schemas/users.schema.ts";
 
 export const NOTIFICATION_PREFERENCE_DEFAULTS = Object.freeze({
   solicitacao_recebida: true,
@@ -55,17 +56,19 @@ export async function getNotificationPreferences(
 }
 
 export function validateNotificationPreferencesPatch(value: unknown): Partial<NotificationPreferences> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new TypeError("Preferências devem ser um objeto");
+  const parsed = notificationPreferencesPatchSchema.safeParse(value);
+  if (parsed.success) {
+    const patch: Partial<NotificationPreferences> = {};
+    for (const key of Object.keys(NOTIFICATION_PREFERENCE_DEFAULTS) as NotificationPreference[]) {
+      const enabled = parsed.data[key];
+      if (enabled !== undefined) patch[key] = enabled;
+    }
+    return patch;
   }
-  const allowed = new Set(Object.keys(NOTIFICATION_PREFERENCE_DEFAULTS));
-  const result: Partial<NotificationPreferences> = {};
-  for (const [key, fieldValue] of Object.entries(value)) {
-    if (!allowed.has(key)) throw new TypeError(`Preferência desconhecida: ${key}`);
-    if (typeof fieldValue !== "boolean") throw new TypeError(`${key} deve ser booleano`);
-    result[key as NotificationPreference] = fieldValue;
-  }
-  return result;
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new TypeError("Preferências devem ser um objeto");
+  const issue = parsed.error.issues[0];
+  if (issue?.code === "unrecognized_keys") throw new TypeError(`Preferência desconhecida: ${issue.keys[0] ?? "campo"}`);
+  throw new TypeError(`${String(issue?.path[0] ?? "Preferência")} deve ser booleano`);
 }
 
 export async function createNotification(

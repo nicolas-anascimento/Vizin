@@ -2,13 +2,13 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Mensagens · Empresta+</title>
 <link rel="stylesheet" href="/assets/usuario/header/header.css?v=12">
 <link rel="stylesheet" href="/assets/usuario/footer/footer.css">
 <link rel="stylesheet" href="/assets/usuario/Notificacoes/notificacoes-shared.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-<link rel="stylesheet" href="/assets/usuario/Mensagens/mensagens.css?v=24">
+<link rel="stylesheet" href="/assets/usuario/Mensagens/mensagens.css?v=26">
 </head>
 <body>
  
@@ -128,7 +128,7 @@
         </button>
         <input type="file" id="fileInput" accept="image/*,video/*,.pdf,.doc,.docx" hidden>
  
-        <input type="text" id="messageInput" class="composer__input" maxlength="2000" placeholder="Escreva uma mensagem..." autocomplete="off">
+        <input type="text" id="messageInput" class="composer__input" maxlength="2000" placeholder="Escreva uma mensagem..." autocomplete="off" enterkeyhint="send" autocapitalize="sentences">
  
         <button type="submit" class="send-btn" id="sendBtn" aria-label="Enviar mensagem" disabled>
           <svg viewBox="0 0 24 24"><path d="M22 2 11 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 2 15 22l-4-9-9-4 20-7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -155,6 +155,12 @@
   </div>
 </div>
  
+<!-- Visualizador de imagem em tamanho original -->
+<div class="lightbox hidden" id="lightbox" role="dialog" aria-modal="true" aria-label="Visualizar imagem">
+  <button type="button" class="lightbox__close" id="lightboxClose" aria-label="Fechar">&times;</button>
+  <img class="lightbox__img" id="lightboxImg" src="" alt="Imagem ampliada">
+</div>
+ 
 <div id="footer"></div>
  
 <div id="toast" class="toast">Copiado ✔</div>
@@ -168,9 +174,9 @@
 
 <script src="/assets/usuario/utils/conta-suspensa.js"></script>
  
-<script src="/assets/usuario/Notificacoes/notificacoes-shared.js?v=10"></script>
+<script src="/assets/usuario/Notificacoes/notificacoes-shared.js?v=11"></script>
  
 <script src="/assets/usuario/Mensagens/api.js"></script>
-<script src="/assets/usuario/Mensagens/app.js?v=2"></script>
+<script src="/assets/usuario/Mensagens/app.js?v=4"></script>
 </body>
 </html>

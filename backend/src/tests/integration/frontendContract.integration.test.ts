@@ -1,4 +1,4 @@
-// Verifica o contrato esperado pelo frontend em solicitações, fotos, bloqueios, multa e notificações.
+// Verifica o contrato esperado pelo frontend em solicitações, fotos, atrasos e notificações.
 import assert from "node:assert/strict";
 import test from "node:test";
 import crypto from "node:crypto";
@@ -16,7 +16,7 @@ const dateText = (d: Date) => d.toISOString().slice(0, 10);
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=", "base64");
 function makeCpf() { let value = String(crypto.randomInt(100000000, 999999999)); for (const n of [9, 10]) value += String(([...value].reduce((sum, digit, index) => sum + Number(digit) * (n + 1 - index), 0) * 10 % 11) % 10); return value; }
 
-test("contrato do frontend: solicitações, bloqueios, fotos, multa e notificações", async t => {
+test("contrato do frontend: solicitações, bloqueios, fotos, atrasos e notificações", async t => {
   const { default: app } = await import("../../app.ts");
   const { default: prisma } = await import("../../app/config/database.ts");
   const { default: env } = await import("../../app/config/env.ts");
@@ -49,8 +49,8 @@ test("contrato do frontend: solicitações, bloqueios, fotos, multa e notificaç
     assert.equal(first.data.proprietario.id, owner.id);
     assert.equal(first.data.solicitante.id, renter.id);
     assert.equal(first.data.subtotal, 70);
-    assert.equal(first.data.taxa_servico, 3.5);
-    assert.equal(first.data.total, 73.5);
+    assert.equal(first.data.taxa_servico, 0);
+    assert.equal(first.data.total, 70);
     assert.equal((await request("/solicitacoes", renter, "POST", period)).data.codigo, "solicitacao_duplicada");
     assert.equal((await request("/solicitacoes?papel=abc")).status, 422);
     assert.ok((await request("/solicitacoes?papel=locatario")).data.some((r: any) => r.id === first.data.id));
@@ -91,11 +91,11 @@ test("contrato do frontend: solicitações, bloqueios, fotos, multa e notificaç
     const paidRental = await prisma.alugueis.create({ data: { item_id: paidItem.id, locador_id: owner.id, locatario_id: renter.id, data_inicio: businessDate(new Date(Date.now() + 86400000)), data_fim: businessDate(new Date(Date.now() + 86400000)), valor_total: 10, status: "pago" } });
     const paidPayment = await prisma.pagamentos.create({ data: { aluguel_id: paidRental.id, tipo: "aluguel", valor: 11, metodo: "pix", status: "pago", gateway: "demo" } });
     assert.equal((await request(`/solicitacoes/${paidRental.id}/cancelamento`, renter, "POST", {})).status, 200);
-    assert.equal((await prisma.pagamentos.findUniqueOrThrow({ where: { id: paidPayment.id } })).status, "estornado");
+    assert.equal((await prisma.pagamentos.findUniqueOrThrow({ where: { id: paidPayment.id } })).status, "pago");
     assert.equal(await prisma.notificacoes.count({ where: { tipo: "aluguel_cancelado", chave: { startsWith: `${paidRental.id}:cancelamento:` } } }), 2);
   });
 
-  await t.test("devolução atrasada e multa pendente bloqueiam; contestação removida", async () => {
+  await t.test("devolução atrasada bloqueia operacionalmente; multa financeira não bloqueia", async () => {
     const target = await prisma.itens.create({ data: { usuario_id: owner.id, titulo: "Bloqueio", preco_por_dia: 10, valor_mercado: 100 } });
     const old = new Date(businessDate().getTime() - 2 * 86400000);
     const late = await prisma.alugueis.create({ data: { item_id: target.id, locador_id: owner.id, locatario_id: renter.id, data_inicio: old, data_fim: old, valor_total: 10, status: "retirado" } });
@@ -104,19 +104,14 @@ test("contrato do frontend: solicitações, bloqueios, fotos, multa e notificaç
     assert.equal((await request("/solicitacoes", renter, "POST", { ...period, produto_id: newItem.id })).data.codigo, "usuario_com_devolucao_pendente");
     await prisma.alugueis.update({ where: { id: late.id }, data: { status: "devolvido" } });
     await prisma.multas_aluguel.create({ data: { aluguel_id: late.id, dias_atraso: 2, valor_dia: 2, valor_total: 4, valor_plataforma: 0.4, valor_proprietario: 3.6 } });
-    assert.equal((await request("/usuarios/me/bloqueio")).data.motivo, "multa_pendente");
-    assert.equal((await request("/solicitacoes", renter, "POST", { ...period, produto_id: newItem.id })).data.codigo, "usuario_com_multa_pendente");
+    assert.equal((await request("/usuarios/me/bloqueio")).data, null);
+    assert.equal((await request("/solicitacoes", renter, "POST", { ...period, produto_id: newItem.id })).status, 201);
     assert.equal((await request(`/solicitacoes/${late.id}/multa/contestacao`, renter, "POST", { descricao: "Valor indevido" })).status, 404);
-    assert.equal((await request(`/solicitacoes/${late.id}/multa`)).data.status, "pendente");
-    assert.equal((await request("/usuarios/me/bloqueio")).data.motivo, "multa_pendente");
+    assert.equal((await request(`/solicitacoes/${late.id}/multa`)).status, 410);
+    assert.equal((await request("/usuarios/me/bloqueio")).data, null);
     await prisma.multas_aluguel.update({ where: { aluguel_id: late.id }, data: { status: "paga" } });
     assert.equal((await request("/usuarios/me/bloqueio")).data, null);
-    const paidFine = await prisma.pagamentos.create({ data: { aluguel_id: late.id, tipo: "multa", valor: 4, metodo: "pix", status: "pago", gateway: "demo" } });
-    assert.equal((await request(`/pagamentos/${paidFine.id}/estornar`, renter, "POST", {})).data.codigo, "estorno_multa_admin_required");
-    assert.equal((await request(`/admin/pagamentos/${paidFine.id}/estornar`, admin, "POST", {})).status, 200);
-    assert.equal((await prisma.multas_aluguel.findUniqueOrThrow({ where: { aluguel_id: late.id } })).status, "pendente");
-    assert.equal((await request("/usuarios/me/bloqueio")).data.motivo, "multa_pendente");
-    await prisma.multas_aluguel.update({ where: { aluguel_id: late.id }, data: { status: "paga" } });
+    assert.equal((await request(`/solicitacoes/${late.id}/multa/pagamentos`, renter, "POST", {})).status, 410);
   });
 
   await t.test("proprietário com obrigação atrasada não aprova outra solicitação", async () => {
@@ -131,12 +126,11 @@ test("contrato do frontend: solicitações, bloqueios, fotos, multa e notificaç
     assert.equal((await request(`/solicitacoes/${pending.data.id}`, owner, "PATCH", { status: "aprovado" })).status, 200);
   });
 
-  // Verifica a transição após confirmação das duas partes e o congelamento da multa.
-  await t.test("retirada/devolução canônicas exigem duas partes e congelam multa 10/90", async () => {
+  // Verifica a transição operacional após confirmação das duas partes.
+  await t.test("retirada/devolução canônicas exigem duas partes e registram atraso sem cobrança", async () => {
     const target = await prisma.itens.create({ data: { usuario_id: owner.id, titulo: "Fotos", preco_por_dia: 10, valor_mercado: 100 } });
     const today = businessDate();
-    const rental = await prisma.alugueis.create({ data: { item_id: target.id, locador_id: owner.id, locatario_id: renter.id, data_inicio: today, data_fim: today, valor_total: 10, status: "pago" } });
-    await prisma.pagamentos.create({data:{aluguel_id:rental.id,tipo:"aluguel",valor:10,metodo:"pix",status:"pago",gateway:"demo"}});
+    const rental = await prisma.alugueis.create({ data: { item_id: target.id, locador_id: owner.id, locatario_id: renter.id, data_inicio: today, data_fim: today, valor_total: 10, status: "aprovado" } });
     const form = () => { const f = new FormData(); f.append("observacoes", "Tudo certo"); f.append("fotos", new Blob([png], { type: "image/png" }), "foto.png"); return f; };
     assert.equal((await request(`/solicitacoes/${rental.id}/devolucao/fotos`, renter, "POST", form())).status, 409);
     assert.equal((await request(`/solicitacoes/${rental.id}/retirada/fotos`, other, "POST", form())).status, 403);
@@ -145,7 +139,7 @@ test("contrato do frontend: solicitações, bloqueios, fotos, multa e notificaç
     const tooLarge = new FormData(); tooLarge.append("fotos", new Blob([Buffer.alloc(5 * 1024 * 1024 + 1)], { type: "image/png" }), "foto.png");
     assert.equal((await request(`/solicitacoes/${rental.id}/retirada/fotos`, renter, "POST", tooLarge)).status, 422);
     assert.equal((await request(`/solicitacoes/${rental.id}/retirada/fotos`, renter, "POST", form())).status, 201);
-    assert.equal((await prisma.alugueis.findUniqueOrThrow({ where: { id: rental.id } })).status, "pago");
+    assert.equal((await prisma.alugueis.findUniqueOrThrow({ where: { id: rental.id } })).status, "aprovado");
     assert.equal((await request(`/solicitacoes/${rental.id}/retirada/fotos`, owner, "POST", form())).status, 201);
     assert.equal((await prisma.alugueis.findUniqueOrThrow({ where: { id: rental.id } })).status, "retirado");
     const status = (await request(`/solicitacoes/${rental.id}/retirada`)).data;
@@ -158,67 +152,32 @@ test("contrato do frontend: solicitações, bloqueios, fotos, multa e notificaç
     assert.equal((await request(`/solicitacoes/${rental.id}/devolucao/fotos`, owner, "POST", form())).status, 201);
     assert.equal(await prisma.multas_aluguel.count({ where: { aluguel_id: rental.id } }), 0);
 
-    // Uma retirada já concluída em data anterior permite validar a multa sem burlar a janela de retirada.
+    // Uma retirada concluída em data anterior registra somente o atraso operacional.
     const lateTarget = await prisma.itens.create({ data: { usuario_id: owner.id, titulo: "Fotos devolução atrasada", preco_por_dia: 10, valor_mercado: 100 } });
     const twoDaysAgo = new Date(today.getTime() - 2 * 86400000);
     const yesterday = new Date(today.getTime() - 86400000);
     const lateRental = await prisma.alugueis.create({ data: { item_id: lateTarget.id, locador_id: owner.id, locatario_id: renter.id, data_inicio: twoDaysAgo, data_fim: yesterday, valor_total: 10, status: "retirado" } });
     assert.equal((await request(`/solicitacoes/${lateRental.id}/devolucao/fotos`, renter, "POST", form())).status, 201);
     assert.equal((await request(`/solicitacoes/${lateRental.id}/devolucao/fotos`, owner, "POST", form())).status, 201);
-    const fine = await prisma.multas_aluguel.findUniqueOrThrow({ where: { aluguel_id: lateRental.id } });
-    assert.equal(Number(fine.valor_total), 2); assert.equal(Number(fine.valor_plataforma), 0.2); assert.equal(Number(fine.valor_proprietario), 1.8);
-    assert.equal(fine.status, "pendente");
-    assert.equal((await request(`/solicitacoes/${lateRental.id}/multa`)).data.valor_total, 2);
+    assert.equal(await prisma.multas_aluguel.count({ where: { aluguel_id: lateRental.id } }), 0);
+    assert.equal((await request(`/solicitacoes/${lateRental.id}/multa`)).status, 410);
     assert.equal((await request(`/solicitacoes/${lateRental.id}/devolucao`)).data.concluido_em !== null, true);
     assert.equal(await prisma.notificacoes.count({ where: { usuario_id: renter.id, tipo: "devolucao_confirmada", contexto: { path: ["solicitacao_id"], equals: lateRental.id } } }), 1);
   });
 
-  await t.test("retirada antecipada só é liberada por ação demo, sem alterar contrato nem substituir fotos das partes", async () => {
-    const { default: env } = await import("../../app/config/env.ts");
+  await t.test("retirada antecipada respeita a data e a antiga liberação demo está desativada", async () => {
     const target = await prisma.itens.create({ data: { usuario_id: owner.id, titulo: "Retirada antecipada demo", preco_por_dia: 10, valor_mercado: 100 } });
     const future = businessDate(new Date(Date.now() + 86400000));
     const end = new Date(future.getTime() + 86400000);
-    const rental = await prisma.alugueis.create({ data: { item_id: target.id, locador_id: owner.id, locatario_id: renter.id, data_inicio: future, data_fim: end, valor_total: 10, status: "pago" } });
-    await prisma.pagamentos.create({data:{aluguel_id:rental.id,tipo:"aluguel",valor:10,metodo:"pix",status:"pago",gateway:"demo"}});
-    const originalDate = (await prisma.alugueis.findUniqueOrThrow({where:{id:rental.id}})).data_inicio.toISOString();
+    const rental = await prisma.alugueis.create({ data: { item_id: target.id, locador_id: owner.id, locatario_id: renter.id, data_inicio: future, data_fim: end, valor_total: 10, status: "aprovado" } });
     const releasePath = `/solicitacoes/${rental.id}/retirada/demo`;
     const files = () => { const f = new FormData(); f.append("fotos", new Blob([png], { type: "image/png" }), "foto.png"); return f; };
-    const oldMode = env.PAYMENT_MODE, oldNodeEnv=env.NODE_ENV;
-    try {
-      env.NODE_ENV = "production";
-      env.PAYMENT_MODE = "demo";
-      assert.equal((await request(releasePath, renter, "POST", {demo:true})).status, 403);
-      assert.equal((await request(`/solicitacoes/${rental.id}/retirada/fotos`, renter, "POST", files())).data.codigo, "retirada_data_futura");
-      env.NODE_ENV = "dev";
-      env.PAYMENT_MODE = "gateway";
-      assert.equal((await request(releasePath, null, "POST", {})).status, 401);
-      assert.equal((await request(releasePath, renter, "POST", {demo:true})).status, 403);
-      assert.equal((await request(`/solicitacoes/${rental.id}/retirada/fotos`, renter, "POST", files())).data.codigo, "retirada_data_futura");
-      env.PAYMENT_MODE = "demo";
-      const current = await request(`/solicitacoes/${rental.id}/retirada`);
-      assert.equal(current.data.codigo_bloqueio, "retirada_data_futura");
-      assert.equal(current.data.pode_liberar_retirada_demo, true);
-      assert.equal((await request(releasePath, other, "POST", {demo:true})).status, 403);
-      assert.equal((await request(`/solicitacoes/${crypto.randomUUID()}/retirada/demo`, renter, "POST", {})).status, 404);
-      assert.ok((await request(`/solicitacoes/not-a-uuid/retirada/demo`, renter, "POST", {})).status >= 400);
-      const first = await request(releasePath, renter, "POST", {demo:true});
-      assert.equal(first.status, 200, JSON.stringify(first.data));
-      assert.equal(first.data.status, "pago");
-      assert.equal(first.data.retirada_demo_liberada, true);
-      assert.equal((await request(releasePath, renter, "POST", {})).status, 200);
-      assert.equal(await prisma.eventos_aluguel.count({where:{aluguel_id:rental.id,status:"demo_retirada_liberada"}}), 1);
-      assert.equal((await prisma.alugueis.findUniqueOrThrow({where:{id:rental.id}})).data_inicio.toISOString(), originalDate);
-      assert.equal((await request(`/solicitacoes/${rental.id}/retirada/fotos`, renter, "POST", files())).status, 201);
-      assert.equal((await prisma.alugueis.findUniqueOrThrow({where:{id:rental.id}})).status, "pago");
-      assert.equal((await request(`/solicitacoes/${rental.id}/retirada/fotos`, owner, "POST", files())).status, 201);
-      assert.equal((await prisma.alugueis.findUniqueOrThrow({where:{id:rental.id}})).status, "retirado");
-      const unpaidItem = await prisma.itens.create({ data: { usuario_id: owner.id, titulo: "Retirada demo sem pagamento", preco_por_dia: 10, valor_mercado: 100 } });
-      const unpaid = await prisma.alugueis.create({data:{item_id:unpaidItem.id,locador_id:owner.id,locatario_id:renter.id,data_inicio:future,data_fim:end,valor_total:10,status:"pago"}});
-      assert.equal((await request(`/solicitacoes/${unpaid.id}/retirada/demo`,renter,"POST",{})).data.codigo,"pagamento_obrigatorio");
-      const canceledItem = await prisma.itens.create({ data: { usuario_id: owner.id, titulo: "Retirada demo cancelada", preco_por_dia: 10, valor_mercado: 100 } });
-      const canceled = await prisma.alugueis.create({data:{item_id:canceledItem.id,locador_id:owner.id,locatario_id:renter.id,data_inicio:future,data_fim:end,valor_total:10,status:"cancelado"}});
-      assert.equal((await request(`/solicitacoes/${canceled.id}/retirada/demo`,renter,"POST",{})).data.codigo,"cancelada");
-    } finally { env.PAYMENT_MODE = oldMode; env.NODE_ENV=oldNodeEnv; }
+    assert.equal((await request(releasePath, null, "POST", {})).status, 401);
+    assert.equal((await request(releasePath, renter, "POST", {})).status, 410);
+    assert.equal((await request(`/solicitacoes/${rental.id}/retirada/fotos`, renter, "POST", files())).data.codigo, "retirada_data_futura");
+    const current = await request(`/solicitacoes/${rental.id}/retirada`);
+    assert.equal(current.data.codigo_bloqueio, "retirada_data_futura");
+    assert.equal(current.data.pode_liberar_retirada_demo, false);
   });
 
   await t.test("relatos deduplicados e notas internas não aparecem ao usuário", async () => {
@@ -331,27 +290,26 @@ test("contrato do frontend: solicitações, bloqueios, fotos, multa e notificaç
     assert.equal((await request("/blocked-users", renter)).data.find((row:any) => row.id === owner.id).avatar, null);
   });
 
-  await t.test("tokens demo têm resultados definidos e não alteram valores do servidor", async () => {
-    for (const [tokenValue, expected] of [["tok_demo_approved", "aprovado"], ["tok_demo_refused", "recusado"], ["tok_demo_pending", "pendente"]] as const) {
+  await t.test("checkout de aluguel permanece desativado para qualquer token", async () => {
+    for (const tokenValue of ["tok_demo_approved", "tok_demo_refused", "tok_demo_pending"] as const) {
       const target = await prisma.itens.create({ data: { usuario_id: owner.id, titulo: tokenValue, preco_por_dia: 10, valor_mercado: 100 } });
       const start = businessDate(new Date(Date.now() + 86400000));
       const rental = await prisma.alugueis.create({ data: { item_id: target.id, locador_id: owner.id, locatario_id: other.id, data_inicio: start, data_fim: start, valor_total: 10, preco_dia_contratado: 10, taxa_plataforma: 1, status: "aprovado" } });
       const response = await request(`/solicitacoes/${rental.id}/pagamentos`, other, "POST", { metodo: "cartao", token_cartao: tokenValue, payment_method_id: "demo", valor_total: 1 }, { "Idempotency-Key": crypto.randomUUID() });
-      assert.equal(response.status, 200, JSON.stringify(response.data));
-      assert.equal(response.data.status, expected);
-      assert.equal(response.data.valor_total, 11);
+      assert.equal(response.status, 410, JSON.stringify(response.data));
+      assert.equal(response.data.codigo, "rota_financeira_descontinuada");
     }
   });
 
-  await t.test("job estorna pagamento demo quando não houve retirada", async () => {
+  await t.test("job cancela ausência de retirada sem alterar pagamento histórico", async () => {
     const target = await prisma.itens.create({ data: { usuario_id: owner.id, titulo: "Sem retirada", preco_por_dia: 10, valor_mercado: 100 } });
     const old = new Date(businessDate().getTime() - 86400000);
     const rental = await prisma.alugueis.create({ data: { item_id: target.id, locador_id: owner.id, locatario_id: other.id, data_inicio: old, data_fim: old, valor_total: 10, status: "pago" } });
     const payment = await prisma.pagamentos.create({ data: { aluguel_id: rental.id, tipo: "aluguel", valor: 11, metodo: "pix", status: "pago", gateway: "demo" } });
     const { maintainRentals } = await import("../../app/services/rentalMaintenance.ts");
     await maintainRentals(true);
-    assert.equal((await prisma.pagamentos.findUniqueOrThrow({ where: { id: payment.id } })).status, "estornado");
+    assert.equal((await prisma.pagamentos.findUniqueOrThrow({ where: { id: payment.id } })).status, "pago");
     assert.equal((await prisma.alugueis.findUniqueOrThrow({ where: { id: rental.id } })).status, "cancelado");
-    assert.equal(await prisma.notificacoes.count({ where: { chave: `${rental.id}:retirada_nao_realizada:${other.id}` } }), 1);
+    assert.equal(await prisma.notificacoes.count({ where: { chave: `${rental.id}:retirada_prazo_expirado:${other.id}` } }), 1);
   });
 });

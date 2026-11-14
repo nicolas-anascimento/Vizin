@@ -1,7 +1,7 @@
 /**
  * pagamento-detalhes-admin.js
  * ------------------------------------------------------------------
- * Modal "Ver detalhes da transação" — única ação disponível na coluna
+ * Modal "Ver detalhes da transação" (pagamento de plano de anúncios) — única ação disponível na coluna
  * de Ações da tabela de Pagamentos (o admin não aprova/cancela
  * transações manualmente: quem confirma pagamento é o webhook do
  * gateway, como já documentado em pagamento.js/pagamento-confirmado.js
@@ -40,8 +40,9 @@ function garantirModalDetalhesTransacao() {
                     <div><span>Método</span><strong id="admDetTransacaoMetodo"></strong></div>
                     <div><span>Valor</span><strong id="admDetTransacaoValor"></strong></div>
                     <div><span>Data</span><strong id="admDetTransacaoData"></strong></div>
-                    <div><span>Tipo</span><strong id="admDetTransacaoTipo"></strong></div>
-                    <div><span>Referente a</span><strong id="admDetTransacaoReferencia"></strong></div>
+                    <div><span>Plano</span><strong id="admDetTransacaoPlano"></strong></div>
+                    <div><span>Situação da assinatura</span><strong id="admDetTransacaoAssinatura"></strong></div>
+                    <div class="admin-detalhes-linha-larga"><span>Período contratado</span><strong id="admDetTransacaoPeriodo"></strong></div>
                     <div class="admin-detalhes-linha-larga" id="admDetTransacaoCartaoLinha" hidden>
                         <span>Cartão</span><strong id="admDetTransacaoCartao"></strong>
                     </div>
@@ -104,8 +105,9 @@ async function abrirModalDetalhesTransacao(transacaoResumida) {
     document.getElementById("admDetTransacaoMetodo").textContent = labelMetodoPagamento(t.metodo);
     document.getElementById("admDetTransacaoValor").textContent = formatarPrecoPagamento(t.valor);
     document.getElementById("admDetTransacaoData").textContent = t.criado_em ? new Date(t.criado_em).toLocaleString("pt-BR") : "—";
-    document.getElementById("admDetTransacaoTipo").textContent = t.tipo === "multa" ? "Multa por atraso" : "Aluguel";
-    document.getElementById("admDetTransacaoReferencia").textContent = t.produto?.titulo || "—";
+    document.getElementById("admDetTransacaoPlano").textContent = t.plano?.nome || "—";
+    document.getElementById("admDetTransacaoAssinatura").textContent = labelStatusAssinatura(t.assinatura_status);
+    document.getElementById("admDetTransacaoPeriodo").textContent = periodoContratado(t);
 
     // Qual cartão foi usado — só faz sentido pra método "cartao", e só se o
     // back mandar o resumo seguro (bandeira + últimos 4 dígitos), do mesmo

@@ -51,12 +51,21 @@ model assinaturas {
   id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   usuario_id String    @db.Uuid
   plano_id   String    @db.Uuid
-  status     String?   @default("ativa") @db.VarChar(30)
-  inicio     DateTime  @db.Date
-  fim        DateTime? @db.Date
+  status     String?   @default("pendente") @db.VarChar(30)
+  inicio     DateTime  @db.Timestamp(6)
+  fim        DateTime? @db.Timestamp(6)
+  cancelar_ao_final Boolean @default(false)
+  renovacao_habilitada Boolean @default(false)
+  referencia_provedor String? @unique @db.VarChar(200)
+  proxima_cobranca DateTime?
   criado_em  DateTime? @default(now()) @db.Timestamp(6)
+  atualizado_em DateTime @default(now()) @updatedAt @db.Timestamp(6)
   planos     planos    @relation(fields: [plano_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   usuarios   usuarios  @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  pagamentos pagamentos_assinatura[]
+  publicacoes publicacoes_anuncio[]
+
+  @@index([usuario_id, status, fim])
 }
 
 /// Nota e comentário de um participante após a locação; a chave única evita avaliação duplicada.
@@ -174,6 +183,7 @@ model itens {
   categorias        categorias?  @relation(fields: [categoria_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   enderecos         enderecos?   @relation(fields: [endereco_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   usuarios          usuarios     @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  publicacoes       publicacoes_anuncio[]
 
   @@index([usuario_id])
   @@index([categoria_id])
@@ -255,11 +265,64 @@ model pagamentos {
 /// Definição dos planos associados a assinaturas.
 model planos {
   id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  codigo      String        @unique @db.VarChar(30)
   nome        String        @db.VarChar(80)
   preco       Decimal       @db.Decimal(10, 2)
+  preco_centavos Int
+  limite_publicacoes Int
+  periodo     String        @default("mensal") @db.VarChar(20)
+  ativo       Boolean       @default(true)
+  criado_em   DateTime      @default(now()) @db.Timestamp(6)
+  atualizado_em DateTime    @default(now()) @updatedAt @db.Timestamp(6)
   descricao   String?
   beneficios  String[]
   assinaturas assinaturas[]
+  pagamentos  pagamentos_assinatura[]
+}
+
+/// Cobranças exclusivas dos planos de publicação. Não se relacionam a aluguéis legados.
+model pagamentos_assinatura {
+  id                    String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  assinatura_id         String      @db.Uuid
+  usuario_id            String      @db.Uuid
+  plano_id              String      @db.Uuid
+  valor_centavos        Int
+  status                String      @default("pendente") @db.VarChar(30)
+  provedor              String      @db.VarChar(40)
+  referencia_pagamento  String?     @unique @db.VarChar(200)
+  chave_idempotencia    String      @unique @db.VarChar(200)
+  metodo                String?     @db.VarChar(30)
+  dados                 Json        @default("{}")
+  criado_em             DateTime    @default(now()) @db.Timestamp(6)
+  atualizado_em         DateTime    @default(now()) @updatedAt @db.Timestamp(6)
+  confirmado_em         DateTime?   @db.Timestamp(6)
+  assinatura            assinaturas @relation(fields: [assinatura_id], references: [id], onDelete: Restrict)
+  usuario               usuarios    @relation(fields: [usuario_id], references: [id], onDelete: Restrict)
+  plano                  planos      @relation(fields: [plano_id], references: [id], onDelete: Restrict)
+
+  @@index([usuario_id, criado_em])
+  @@index([status, criado_em])
+}
+
+/// Evento imutável que consome uma unidade da cota do período de publicação.
+model publicacoes_anuncio {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuario_id            String   @db.Uuid
+  objeto_id             String   @unique @db.Uuid
+  assinatura_id         String?  @db.Uuid
+  plano_codigo          String   @db.VarChar(30)
+  periodo_inicio        DateTime @db.Timestamp(6)
+  periodo_fim           DateTime @db.Timestamp(6)
+  chave_idempotencia    String   @db.VarChar(200)
+  fingerprint           String   @db.VarChar(64)
+  criado_em             DateTime @default(now()) @db.Timestamp(6)
+  usuario               usuarios @relation(fields: [usuario_id], references: [id], onDelete: Restrict)
+  objeto                 itens    @relation(fields: [objeto_id], references: [id], onDelete: Restrict)
+  assinatura             assinaturas? @relation(fields: [assinatura_id], references: [id], onDelete: Restrict)
+
+  @@unique([usuario_id, chave_idempotencia])
+  @@index([usuario_id, periodo_inicio, periodo_fim])
+  @@index([assinatura_id])
 }
 
 /// Registros de ocorrência relacionados a uma locação.
@@ -328,6 +391,8 @@ model usuarios {
   bio                                           String?
   cpf                                           String?                   @unique @db.VarChar(14)
   verificado                                    Boolean?                  @default(false)
+  email_verificado                              Boolean                   @default(false)
+  tokens_verificacao_email                      tokens_verificacao_email[]
   ativo                                         Boolean                   @default(true)
   motivo_suspensao                              String?
   token_version                                 Int                       @default(0)
@@ -337,6 +402,8 @@ model usuarios {
   alugueis_alugueis_locador_idTousuarios        alugueis[]                @relation("alugueis_locador_idTousuarios")
   alugueis_alugueis_locatario_idTousuarios      alugueis[]                @relation("alugueis_locatario_idTousuarios")
   assinaturas                                   assinaturas[]
+  pagamentos_assinatura                        pagamentos_assinatura[]
+  publicacoes_anuncio                           publicacoes_anuncio[]
   avaliacoes_avaliacoes_avaliado_idTousuarios   avaliacoes[]              @relation("avaliacoes_avaliado_idTousuarios")
   avaliacoes_avaliacoes_avaliador_idTousuarios  avaliacoes[]              @relation("avaliacoes_avaliador_idTousuarios")
   enderecos                                     enderecos[]
@@ -395,6 +462,14 @@ model Resetar_Senha {
   token     String   @unique
   expire_in DateTime
   user      usuarios @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model tokens_verificacao_email {
+  usuario_id String @id @db.Uuid
+  token_hash String @unique @db.VarChar(64)
+  expira_em DateTime
+  criado_em DateTime @default(now())
+  usuario usuarios @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
 }
 
 enum Tipos {

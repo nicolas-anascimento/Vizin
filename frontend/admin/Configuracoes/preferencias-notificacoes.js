@@ -32,10 +32,10 @@
         { chave: "usuarios",     titulo: "Usuários",     desc: "Novos cadastros, usuários reincidentes e sinais de abuso" },
         { chave: "anuncios",     titulo: "Anúncios",     desc: "Novos anúncios publicados e anúncios muito denunciados" },
         { chave: "denuncias",    titulo: "Denúncias e suporte", desc: "Denúncias, tickets de suporte e contestações de suspensão" },
-        { chave: "pagamentos",   titulo: "Pagamentos",   desc: "Pagamentos processados, falhas, estornos, atrasos e multas" },
+        { chave: "pagamentos",   titulo: "Pagamentos",   desc: "Assinaturas de planos: novas, canceladas, pagamentos falhos e estornos" },
         { chave: "avaliacoes",   titulo: "Avaliações",   desc: "Avaliações negativas" },
         { chave: "verificacoes", titulo: "Verificações", desc: "Documentos enviados, reenviados ou aguardando há muito tempo" },
-        { chave: "sistema",      titulo: "Sistema",      desc: "Falhas de webhook, estornos pendentes e erros de upload" }
+        { chave: "sistema",      titulo: "Sistema",      desc: "Falhas de webhook dos pagamentos de planos e erros de upload" }
     ];
 
     // Estilo mínimo dos interruptores (o resto reaproveita configuracoes.css)

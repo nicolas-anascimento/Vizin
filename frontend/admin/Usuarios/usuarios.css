@@ -84,9 +84,9 @@
    quando o botão "Filtros" é clicado (classe .aberta, ver usuarios.js). */
 .admin-filtro-status{
     display: none;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 12px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
     background: #F1F0F8;
     border: 1px solid var(--admin-borda);
     border-radius: 14px;
@@ -97,6 +97,39 @@
 .admin-filtro-status.aberta{
     display: flex;
 }
+
+/* Cada grupo (Status / Plano) numa linha: rótulo + pills */
+.admin-filtro-grupo{
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    width: 100%;
+}
+
+.admin-filtro-grupo .admin-filtro-status-label{
+    min-width: 60px;
+}
+
+/* ================= COLUNA "PLANO" ================= */
+.admin-plano-cel{
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.admin-plano-uso{
+    font-size: 12px;
+    color: var(--admin-texto-muted);
+}
+
+.admin-plano-uso.cheio{
+    color: var(--admin-vermelho-txt);
+    font-weight: 700;
+}
+
+.admin-badge.plano-gratuito{ color: var(--admin-texto-muted); background: var(--admin-bg); }
+.admin-badge.plano-pago{ color: var(--admin-roxo-500); background: #ECE8FD; }
 
 .admin-filtro-status-label{
     font-size: 14px;
@@ -143,7 +176,7 @@
 .admin-tabela{
     width: 100%;
     border-collapse: collapse;
-    min-width: 760px;
+    min-width: 900px;
 }
 
 .admin-tabela thead th{
@@ -349,4 +382,20 @@
     .admin-tabela td[data-label="Ações"]{
         justify-content: flex-end;
     }
+}
+/* ===================================================
+   TEXTO NÃO PODE VAZAR (nome/e-mail longos)
+   No card mobile o <td> é flex e o texto vira um item que não encolhe
+   abaixo do próprio conteúdo; overflow-wrap:anywhere + min-width:0
+   deixam ele quebrar dentro do card. Vale também para Verificações.
+   =================================================== */
+.admin-tabela td.admin-nome,
+.admin-tabela td.admin-email{
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+}
+
+@media (max-width: 680px){
+    .admin-tabela td{ min-width: 0; max-width: 100%; }
 }

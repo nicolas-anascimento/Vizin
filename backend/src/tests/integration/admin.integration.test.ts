@@ -97,7 +97,7 @@ test("admin: autorização, paginação, moderação, auditoria e conflitos", as
     assert.equal(result.data.data.filter((row:any)=>row.id===rows[2]!.id).length, 1);
     for (const row of rows) assert.ok(result.data.data.some((entry:any)=>entry.id===row.id));
     const dto=result.data.data.find((row:any)=>row.id===rows[0]!.id);
-    for(const field of ["produto","proprietario","solicitante","data_retirada","data_devolucao","dias","subtotal","taxa_servico","total","pagamentos","multa","criadoEm"])assert.ok(Object.hasOwn(dto,field),field);
+    for(const field of ["produto","proprietario","solicitante","data_retirada","data_devolucao","dias","subtotal","taxa_servico","total","pagamentos","multa_historica","criadoEm"])assert.ok(Object.hasOwn(dto,field),field);
     assert.equal(dto.produto.titulo,"Aluguel como dono");
     assert.equal(JSON.stringify(dto).includes("nao-expor"),false);
     assert.equal((await api(`/usuarios/${owner.id}/alugueis?limit=0`)).status,422);
@@ -261,10 +261,10 @@ test("admin: autorização, paginação, moderação, auditoria e conflitos", as
     assert.equal(typeof first.data.data[0].preco_por_dia,"number");assert.equal(typeof rents.data.data[0].valor_total,"number");
     assert.equal((await api("/alugueis?status=finalizado")).data.total >= 1, true);
     const metrics = await api("/metricas?dataInicio=2026-01-01&dataFim=2028-12-31");
-    assert.equal(metrics.status, 200); assert.equal(metrics.data.periodo.timezone, "America/Sao_Paulo");
-    assert.equal(typeof metrics.data.pagamentos.aluguel.valor, "number");
-    for(const field of ["aprovados","multas","estornosPendentes","estornosConcluidos","cancelamentosPendentes","cancelamentosConcluidos"])assert.equal(typeof metrics.data.pagamentos[field].valor,"number");
-    assert.equal(typeof metrics.data.pagamentos.taxaPlataformaRecebida,"number");
+    assert.equal(metrics.status, 200); assert.equal(metrics.data.periodo.timezone, "UTC");
+    assert.equal(typeof metrics.data.pagamentos.planos.valor, "number");
+    assert.equal(typeof metrics.data.pagamentos.planos.quantidade, "number");
+    assert.equal(typeof metrics.data.pagamentos.assinaturasAtivas, "number");
   });
   await t.test("status do usuário e obrigação", async () => {
     const activeItem = await prisma.itens.create({ data: { usuario_id: owner.id, titulo: "Em locação", preco_por_dia: 10, valor_mercado: 100 } });
@@ -530,15 +530,13 @@ test("admin: autorização, paginação, moderação, auditoria e conflitos", as
     assert.equal(await prisma.admin_auditoria.count({ where: { entidade: "conciliacao", entidade_id: reconciliation.id } }), 1);
     assert.equal(JSON.stringify((await api(`/pagamentos/${payment.id}`)).data).includes("secret"), false);
   });
-  await t.test("estorno administrativo auditado", async () => {
+  await t.test("estorno administrativo de aluguel está desativado", async () => {
     const target = await prisma.itens.create({ data: { usuario_id: owner.id, titulo: "Estorno", preco_por_dia: 10, valor_mercado: 100 } });
     const rental = await prisma.alugueis.create({ data: { item_id: target.id, locador_id: owner.id, locatario_id: renter.id, data_inicio: new Date("2027-06-01"), data_fim: new Date("2027-06-02"), valor_total: 10, status: "pago" } });
     const payment = await prisma.pagamentos.create({ data: { aluguel_id: rental.id, valor: 10, metodo: "pix", status: "pago", gateway: "demo", tipo: "aluguel" } });
     const response = await api(`/pagamentos/${payment.id}/estornar`, "POST", {});
-    assert.ok([200, 202].includes(response.status), JSON.stringify(response.data));
-    assert.equal(await prisma.admin_auditoria.count({ where: { entidade: "pagamento", entidade_id: payment.id, acao: "solicitar_estorno" } }), 1);
-    assert.equal((await api(`/pagamentos/${payment.id}/estornar`, "POST", {})).status, 200);
-    assert.equal(await prisma.admin_auditoria.count({ where: { entidade: "pagamento", entidade_id: payment.id, acao: "solicitar_estorno" } }), 1);
+    assert.equal(response.status, 410, JSON.stringify(response.data));
+    assert.equal(await prisma.admin_auditoria.count({ where: { entidade: "pagamento", entidade_id: payment.id, acao: "solicitar_estorno" } }), 0);
   });
   await t.test("conciliação e dados financeiros", async () => {
     assert.equal((await api("/conciliacoes")).status, 200);
@@ -548,12 +546,18 @@ test("admin: autorização, paginação, moderação, auditoria e conflitos", as
     assert.equal((await api("/pagamentos/fake/pagar", "POST", {})).status, 404);
   });
   await t.test("pagamentos administrativos: busca, relações seguras e estatísticas", async () => {
+    const plan = await prisma.planos.findUniqueOrThrow({ where: { codigo: "intermediario" } });
+    const subscription = await prisma.assinaturas.create({ data: { usuario_id: renter.id, plano_id: plan.id, status: "expirada", inicio: new Date("2026-01-01"), fim: new Date("2026-02-01") } });
+    await prisma.pagamentos_assinatura.create({ data: { assinatura_id: subscription.id, usuario_id: renter.id, plano_id: plan.id, valor_centavos: 2999, status: "pago", provedor: "mercado_pago", metodo: "pix", chave_idempotencia: `admin-list-${crypto.randomUUID()}`, confirmado_em: new Date() } });
     const list = await api("/pagamentos?busca=Renter&page=1&limit=100");
     assert.equal(list.status, 200);
     assert.equal(Array.isArray(list.data.data), true);
     if (list.data.data.length) {
       assert.equal(list.data.data[0].usuario.nome, "Renter");
-      assert.equal(typeof list.data.data[0].produto.titulo, "string");
+      assert.equal(list.data.data[0].plano.codigo, "intermediario");
+      assert.equal(list.data.data[0].assinatura_status, "expirada");
+      assert.equal(list.data.data[0].periodo_inicio.slice(0, 10), "2026-01-01");
+      assert.equal(list.data.data[0].periodo_fim.slice(0, 10), "2026-02-01");
       const serialized = JSON.stringify(list.data.data[0]);
       for (const secret of ["token_cartao", "access_token", "card_number", "cvv", "senha_hash", "dados"]) assert.equal(serialized.includes(secret), false, secret);
     }
@@ -565,21 +569,20 @@ test("admin: autorização, paginação, moderação, auditoria e conflitos", as
     assert.equal(typeof stats.data.pagamentos_pendentes, "number");
     assert.equal(typeof stats.data.transacoes_falhadas, "number");
     assert.equal(stats.data.receita_mensal.length, 6);
-    assert.equal(stats.data.timezone, "America/Sao_Paulo");
-    assert.equal(stats.data.receita_base, "pago_em");
+    assert.equal(stats.data.timezone, "UTC");
+    assert.equal(stats.data.receita_base, "pagamentos_assinatura.confirmado_em");
     assert.equal((await api("/pagamentos/estatisticas", "GET", undefined, null)).status, 401);
     assert.equal((await api("/pagamentos/estatisticas", "GET", undefined, token(renter))).status, 403);
   });
-  await t.test("métricas financeiras seguem o pagamento no período civil", async () => {
+  await t.test("métricas financeiras contabilizam somente pagamento confirmado de plano", async () => {
     const range = "/metricas?dataInicio=2041-03-04&dataFim=2041-03-04";
     const before = (await api(range)).data;
-    const item = await prisma.itens.create({ data: { usuario_id: owner.id, titulo: "Métrica", preco_por_dia: 70, valor_mercado: 100 } });
-    const rental = await prisma.alugueis.create({ data: { item_id: item.id, locador_id: owner.id, locatario_id: renter.id, data_inicio: new Date("2041-03-04"), data_fim: new Date("2041-03-05"), valor_total: 70, taxa_plataforma: 7.25, status: "pago" } });
-    await prisma.pagamentos.create({ data: { aluguel_id: rental.id, valor: 77.25, metodo: "pix", status: "pago", gateway: "demo", tipo: "aluguel", pago_em: new Date("2041-03-04T15:00:00Z") } });
+    const plan = await prisma.planos.findUniqueOrThrow({ where: { codigo: "avancado" } });
+    const subscription = await prisma.assinaturas.create({ data: { usuario_id: owner.id, plano_id: plan.id, status: "expirada", inicio: new Date("2041-03-04"), fim: new Date("2041-04-04") } });
+    await prisma.pagamentos_assinatura.create({ data: { assinatura_id: subscription.id, usuario_id: owner.id, plano_id: plan.id, valor_centavos: 5999, metodo: "pix", status: "pago", provedor: "mercado_pago", chave_idempotencia: `metrics-${crypto.randomUUID()}`, confirmado_em: new Date("2041-03-04T15:00:00Z") } });
     const after = (await api(range)).data;
-    assert.equal(after.pagamentos.aprovados.quantidade, before.pagamentos.aprovados.quantidade + 1);
-    assert.equal(after.pagamentos.aprovados.valor, before.pagamentos.aprovados.valor + 77.25);
-    assert.equal(after.pagamentos.taxaPlataformaRecebida, before.pagamentos.taxaPlataformaRecebida + 7.25);
-    assert.equal((await api("/metricas?dataInicio=2041-03-05&dataFim=2041-03-05")).data.pagamentos.aprovados.valor, 0);
+    assert.equal(after.pagamentos.planos.quantidade, before.pagamentos.planos.quantidade + 1);
+    assert.equal(after.pagamentos.planos.valor, before.pagamentos.planos.valor + 59.99);
+    assert.equal((await api("/metricas?dataInicio=2041-03-05&dataFim=2041-03-05")).data.pagamentos.planos.valor, 0);
   });
 });

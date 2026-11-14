@@ -103,6 +103,24 @@
         });
     }
 
+    // Botão "Filtros" abre/fecha a barra de nota (a barra fica escondida até ter a
+    // classe "aberta" — mesmo comportamento de anuncios.js). Sem isto o botão não fazia nada.
+    const btnFiltros = document.getElementById("btnFiltros");
+    if (btnFiltros && filtroStatusBar) {
+        btnFiltros.addEventListener("click", () => filtroStatusBar.classList.toggle("aberta"));
+
+        document.addEventListener("click", (e) => {
+            if (!e.target.closest(".admin-filtros-container")) filtroStatusBar.classList.remove("aberta");
+        });
+
+        filtroStatusBar.querySelectorAll(".admin-filtro-pill").forEach(pill => {
+            pill.addEventListener("click", () => {
+                btnFiltros.classList.toggle("active", pill.dataset.nota !== "todos");
+                filtroStatusBar.classList.remove("aberta");
+            });
+        });
+    }
+
     let debounceBusca;
     buscaInput.addEventListener("input", () => {
         clearTimeout(debounceBusca);
@@ -145,7 +163,7 @@
         for (let p = 1; p <= totalPaginas; p++) {
             const btn = document.createElement("button");
             btn.type = "button";
-            btn.className = `admin-paginacao-numero ${p === paginaAtual ? "active" : ""}`;
+            btn.className = `admin-pagina-btn ${p === paginaAtual ? "active" : ""}`;
             btn.textContent = String(p);
             btn.addEventListener("click", () => { paginaAtual = p; renderizarTabela(); });
             paginacaoEl.appendChild(btn);

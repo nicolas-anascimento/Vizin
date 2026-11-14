@@ -11,7 +11,7 @@
         páginas não precisam virar assíncronas em todo lugar;
      2. traduz o DTO da API (snake_case, status do banco) pro formato
         que as telas já usavam (camelCase, status "rejeitado"/"concluido");
-     3. expõe as AÇÕES (criar, responder, cancelar, contestarMulta) como
+     3. expõe as AÇÕES (criar, responder e cancelar) como
         funções assíncronas que chamam o back e depois atualizam o cache.
 
    COMO USAR NAS PÁGINAS
@@ -25,9 +25,17 @@
      - lembretes de retirada/devolução, aviso de atraso, expiração de
        pendências/prazos, cancelamento por não pagamento/não retirada;
      - criação de notificações (o back gera todas);
-     - cálculo de multa e de bloqueio (vêm do back);
+     - cálculo de bloqueio (vem do back);
      - marcarDisponibilidade do objeto (o back controla as reservas);
      - atualizarStatus (retirado/concluído/pago mudam por eventos do back).
+
+   MODELO FINANCEIRO: o O Vizinho NÃO processa pagamento de aluguel, multa
+   nem estorno. O preço do aluguel é só referência — locador e locatário
+   combinam e pagam direto, fora da plataforma. A locação aprovada segue
+   direto para a retirada (status "aprovado" = aguardando retirada; "pago"
+   só existe em dados antigos). O que continua registrado: datas, retirada,
+   devolução, fotos, atrasos (só dias de atraso, sem valores) e cancelamentos.
+   A plataforma só cobra os PLANOS de anúncios (ver pagamentos-api.js).
 
    Identificação das partes: por ID (UUID), nunca por e-mail. Cada
    solicitação traz `souProprietario` / `souSolicitante` já calculados
@@ -74,24 +82,18 @@
     }
 
     // ================= NORMALIZAÇÃO DO DTO =================
-    function normalizarMulta(m) {
+    // Registro do atraso na devolução (informativo): só os dias e quando foi
+    // apurado. Valores de multa não existem mais na plataforma.
+    function normalizarAtraso(m) {
         if (!m) return null;
         return {
-            status: m.status || null,                       // pendente | paga | contestada
             diasAtraso: Number(m.dias_atraso ?? 0),
-            valorDia: Number(m.valor_dia ?? 0),
-            valorTotal: Number(m.valor_total ?? 0),
-            valorPlataforma: Number(m.valor_plataforma ?? 0),
-            valorProprietario: Number(m.valor_proprietario ?? 0),
-            calculadoEm: m.calculado_em || null,
-            pagaEm: null // o DTO da solicitação não publica a data de pagamento
+            calculadoEm: m.calculado_em || null
         };
     }
 
     function normalizar(dto) {
-        const multa = normalizarMulta(dto.multa);
-        const foiPago = Array.isArray(dto.pagamentos)
-            && dto.pagamentos.some(p => ["pago", "estornado"].includes(p?.status));
+        const atraso = normalizarAtraso(dto.atraso ?? dto.multa);
 
         const s = {
             id: String(dto.id),
@@ -112,19 +114,17 @@
             dataDevolucao: dto.data_devolucao,
             dias: dto.dias,
 
+            // Preço do aluguel (diária × dias), só para referência: é combinado
+            // e pago direto entre as partes. Não há taxa de serviço.
             subtotal: dto.subtotal,
-            taxaServico: dto.taxa_servico,
-            total: dto.total, // preço contratual, já com a taxa de serviço
+            total: dto.subtotal ?? dto.total,
 
             canceladoPor: dto.cancelado_por || null,
-            pagamentoEstornado: dto.status === "cancelado" && foiPago,
             criadaEm: dto.criadoEm || null,
 
-            // Multa: só existe quando o back devolveu um snapshot.
-            multaAtraso: multa && multa.diasAtraso > 0 ? multa : null,
-            multaStatus: multa?.status || null,
-            multaCongeladaEm: multa?.calculadoEm || null,
-            multaPagaEm: multa?.pagaEm || null
+            // Atraso: só existe quando o back devolveu o registro (dias > 0).
+            multaAtraso: atraso && atraso.diasAtraso > 0 ? atraso : null,
+            multaCongeladaEm: atraso?.calculadoEm || null
         };
 
         aplicarPapel(s);
@@ -235,9 +235,9 @@
 
     // ================= BLOQUEIO POR ATRASO (regra do back) =================
     //   "devolucao_pendente" -> ainda está com um objeto cujo prazo passou
-    //   "multa_pendente"     -> devolveu, mas deve uma multa não paga
+    // (não existe mais bloqueio por multa: a plataforma não cobra multas).
     function detalhesBloqueio() {
-        if (!bloqueio?.motivo) return null;
+        if (bloqueio?.motivo !== "devolucao_pendente") return null;
         const sid = bloqueio.solicitacao_id ? String(bloqueio.solicitacao_id) : null;
         return {
             motivo: bloqueio.motivo,
@@ -249,22 +249,15 @@
         return !!detalhesBloqueio();
     }
 
-    // Locações concluídas, em que sou o locatário, com multa pendente.
-    function obterMultasPendentes() {
-        return obterDoSolicitante().filter(s =>
-            s.status === "concluido" && s.multaAtraso && s.multaStatus === "pendente"
-        );
-    }
-
     // ================= AÇÕES (assíncronas) =================
     // Erros: lançam ApiError com `codigo` e `message` (texto do back).
     //   criar:     solicitacao_duplicada, usuario_com_devolucao_pendente,
-    //              usuario_com_multa_pendente, nao_encontrada, dados_invalidos
-    //   responder: objeto_indisponivel, usuario_com_*, nao_pertence
-    //   cancelar:  cancelamento_indisponivel, operacao_pendente, nao_pertence
+    //              nao_encontrada, dados_invalidos
+    //   responder: objeto_indisponivel, usuario_com_devolucao_pendente, nao_pertence
+    //   cancelar:  cancelamento_indisponivel, nao_pertence
 
     // dados = { produtoId, dataRetirada, dataDevolucao }
-    // Valores, datas de cobrança e o proprietário são definidos pelo back.
+    // O proprietário e o preço de referência são definidos pelo back.
     async function criar({ produtoId, dataRetirada, dataDevolucao }) {
         await carregarIdentidade();
         const dto = await Api.post("/solicitacoes", {
@@ -288,37 +281,12 @@
         return obterPorId(id);
     }
 
-    // Devolve a solicitação atualizada, com `operacaoFinanceiraPendente: true`
-    // quando o back respondeu 202 (cancelamento de solicitação paga aguardando
-    // confirmação do estorno pelo provedor).
+    // Cancela a locação (sem nenhuma operação financeira: não há estorno na
+    // plataforma) e devolve a solicitação atualizada.
     async function cancelar(id) {
-        const resposta = await Api.requisitar("POST", `/solicitacoes/${enc(id)}/cancelamento`, {}, { comCabecalhos: true });
+        await Api.post(`/solicitacoes/${enc(id)}/cancelamento`, {});
         await atualizar();
-        return {
-            ...(obterPorId(id) || { id: String(id) }),
-            operacaoFinanceiraPendente: resposta.status === 202
-        };
-    }
-
-    // ================= MULTA =================
-    // Consulta a multa no back (nunca calculamos no navegador).
-    // Retorna null se a locação não tem multa (codigo "sem_multa").
-    async function obterMulta(id) {
-        try {
-            const dto = await Api.get(`/solicitacoes/${enc(id)}/multa`);
-            return { ...normalizarMulta(dto), produto: dto.produto || null };
-        } catch (erro) {
-            if (erro.codigo === "sem_multa") return null;
-            throw erro;
-        }
-    }
-
-    // Só o locatário pode contestar. Suspende a cobrança e o bloqueio até o
-    // Suporte decidir; o back avisa a outra parte.
-    async function contestarMulta(id, descricao) {
-        const r = await Api.post(`/solicitacoes/${enc(id)}/multa/contestacao`, { descricao });
-        await atualizar();
-        return r;
+        return obterPorId(id) || { id: String(id) };
     }
 
     // ================= UTILITÁRIOS =================
@@ -338,7 +306,6 @@
         obterDoSolicitante,
         contarPendentesComoProprietario,
         podeCancelar,
-        obterMultasPendentes,
 
         estaBloqueadoPorAtraso,
         detalhesBloqueio,
@@ -346,8 +313,6 @@
         criar,
         responder,
         cancelar,
-        obterMulta,
-        contestarMulta,
 
         formatarReal
     };

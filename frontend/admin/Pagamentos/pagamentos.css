@@ -16,7 +16,7 @@
 /* ================= CARDS DE ESTATÍSTICA ================= */
 .admin-stats-grid{
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 16px;
     margin-bottom: 20px;
 }
@@ -133,7 +133,7 @@
     background: var(--admin-surface);
     border: 1px solid var(--admin-borda);
     border-radius: 12px;
-    padding: 0 16px;
+    padding: 16px;
     height: 46px;
 }
 
@@ -222,7 +222,7 @@
 .admin-tabela{
     width: 100%;
     border-collapse: collapse;
-    min-width: 760px;
+    min-width: 980px;
 }
 
 .admin-tabela thead th{
@@ -259,7 +259,14 @@
 }
 .admin-usuario-link:hover{ color: var(--admin-roxo-500); text-decoration: underline; }
 
+.admin-usuario-cel{
+    display: block;
+    min-width: 0;
+    overflow-wrap: anywhere;   /* e-mails longos quebram em vez de vazar */
+}
+
 .admin-usuario-email{
+    display: block;
     font-size: 12px;
     font-weight: 500;
     color: var(--admin-texto-muted);
@@ -369,6 +376,10 @@
 /* ===================================================
    RESPONSIVO
    =================================================== */
+@media (max-width: 1100px){
+    .admin-stats-grid{ grid-template-columns: repeat(2, 1fr); }
+}
+
 @media (max-width: 900px){
     .admin-stats-grid{ grid-template-columns: 1fr; }
     .admin-graficos-grid{ grid-template-columns: 1fr; }
@@ -416,6 +427,12 @@
         color: var(--admin-texto-muted);
         text-align: left;
         flex: 0 0 auto;
+    }
+
+    .admin-tabela td[data-label="Usuário"] .admin-usuario-cel{
+        flex: 1 1 0;
+        min-width: 0;
+        text-align: right;
     }
 
     .admin-tabela td[data-label="Ações"]{ justify-content: flex-end; }

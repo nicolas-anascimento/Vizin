@@ -3,14 +3,14 @@ import { HttpError } from "../utils/httpError.ts";
 // Valores monetários são calculados em centavos para evitar erros de precisão de ponto flutuante.
 export const cents = (value: number): number => Math.round((value + Number.EPSILON) * 100);
 export const PAYMENT_TIME_ZONE = BUSINESS_TIME_ZONE;
-// Calcula subtotal e taxa de serviço de 10% sobre a diária; valida limites antes de persistir o contrato.
+// Calcula somente o valor de referência negociado entre os usuários. O VIZIN não
+// acrescenta taxa nem recebe esse valor.
 export function rentalPrice(daily: number, days: number) {
  const rate = cents(daily);
  if (!Number.isSafeInteger(rate) || rate <= 0 || !Number.isInteger(days) || days < 1) throw new HttpError(422,"Valor inválido");
  const subtotal = rate * days;
- const fee = Math.round(rate * 0.1);
- if (subtotal + fee > 9999999999) throw new HttpError(422,"Valor total excede o limite");
- return { preco_dia: rate / 100, subtotal: subtotal / 100, taxa_servico: fee / 100, total: (subtotal + fee) / 100, dias: days };
+ if (subtotal > 9999999999) throw new HttpError(422,"Valor total excede o limite");
+ return { preco_dia: rate / 100, subtotal: subtotal / 100, taxa_servico: 0, total: subtotal / 100, dias: days };
 }
 // Reconstrói o preço contratado sem depender do anúncio, que pode ter sido alterado depois.
 export function contractedPrice(r: {data_inicio:Date;data_fim:Date;preco_dia_contratado?:unknown;valor_total:unknown}) {

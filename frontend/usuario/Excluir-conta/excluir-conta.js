@@ -1,7 +1,8 @@
 // ================= CHECAGEM DE BLOQUEIOS =================
 // Mesma ideia já usada em "excluir objeto com locação ativa": não deixa a
 // pessoa excluir a conta se isso puder deixar outra pessoa na mão (aluguel
-// em andamento) ou causar prejuízo (saldo a receber).
+// em andamento). O O Vizinho não guarda saldo nem faz repasse de aluguel:
+// o pagamento do aluguel é combinado direto entre as pessoas.
 function calcularBloqueiosExclusao() {
     const motivos = [];
  
@@ -128,4 +129,3 @@ document.getElementById("modal-exclusao-confirmar").addEventListener("click", as
         botaoModal.textContent = "Sim, excluir conta";
     }
 });
- 
